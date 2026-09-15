@@ -1,24 +1,22 @@
+const { colors } = require('./src/presentation/theme/colors');
+
 /**
  * Design Tokens de Transfer Black.
  *
- * Este bloque `theme` debe ser identico en la app de pasajeros y en la de
- * conductores: si cambia un valor aca, cambia en las dos.
+ * Este archivo y `src/presentation/theme/colors.js` deben ser identicos en la
+ * app de pasajeros y en la de conductores: si cambia un valor aca, cambia en las dos.
  *
  * @type {import('tailwindcss').Config}
  */
 module.exports = {
-  content: ['./App.tsx', './src/**/*.{ts,tsx}'],
+  content: ['./src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
     // Reemplaza la paleta de Tailwind en lugar de extenderla: fuera de estos
     // colores no hay clases, asi nadie usa un `bg-red-500` por fuera del diseño.
     colors: {
       transparent: 'transparent',
-      obsidian: '#0A0A0C',
-      gold: '#D4AF37',
-      platinum: '#E4E4E5',
-      ash: '#8E8E93',
-      charcoal: '#2C2C2E',
+      ...colors,
     },
     extend: {
       // Cada peso de Montserrat es un archivo con su propio nombre de familia

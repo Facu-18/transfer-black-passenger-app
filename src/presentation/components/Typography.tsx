@@ -1,8 +1,8 @@
 import { Text, type TextProps } from 'react-native';
 
 type TypographyWeight = 'regular' | 'medium' | 'semibold' | 'bold';
-/** `inverse` es para texto sobre superficies gold o platinum. */
-type TypographyTone = 'primary' | 'secondary' | 'accent' | 'inverse';
+/** `inverse` es para texto sobre superficies gold o platinum; `danger`, para mensajes de error. */
+type TypographyTone = 'primary' | 'secondary' | 'accent' | 'inverse' | 'danger';
 
 /** Jerarquia tipografica oficial: tamaño y peso por defecto de cada nivel. */
 const VARIANTS = {
@@ -27,6 +27,7 @@ const TONE_CLASSES: Record<TypographyTone, string> = {
   secondary: 'text-ash',
   accent: 'text-gold',
   inverse: 'text-obsidian',
+  danger: 'text-danger',
 };
 
 export type TypographyVariant = keyof typeof VARIANTS;
