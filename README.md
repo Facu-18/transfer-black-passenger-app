@@ -170,10 +170,10 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/` | `(public)/index.tsx` | Selección de perfil |
 | `/register` | `(public)/register.tsx` | Registro de pasajero |
 | `/login` | `(public)/login.tsx` | Inicio de sesión |
-| `/verify-email` | `verify-email.tsx` | Provisoria; destino después del registro o de un login sin correo verificado |
-| `/home` | `home.tsx` | Provisoria; destino de un login con correo verificado |
+| `/verify-email` | `verify-email.tsx` | Validación del PIN; destino después del registro o de un login sin correo verificado |
+| `/home` | `(app)/home.tsx` | Provisoria; zona privada |
 
-`(public)` agrupa las rutas sin sesión; el nombre del grupo no aparece en la URL.
+`(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
 ## API y sesión
 
@@ -203,6 +203,22 @@ Las reglas de contraseña del formulario replican las del backend: 8 a 128 carac
 - Destino: `/home` si el correo está verificado, `/verify-email` si no.
 - "¿Olvidaste tu contraseña?" solo informa: el backend no tiene endpoint de recuperación.
 - Login y registro se enlazan entre sí con `router.replace`, para que ir y volver no apile pantallas.
+
+### Verificación de correo (PIN)
+
+El correo trae un PIN de 6 dígitos. `POST /auth/verify-email` con `{ "token": "123456" }` (el campo se llama `token` por compatibilidad) **exige el access token**: el PIN solo vale para la cuenta de la sesión.
+
+| Respuesta | Qué hace la pantalla |
+|---|---|
+| 200 | Haptic de éxito, `markEmailVerified()` en el store y `router.replace('/(app)/home')`. Es idempotente: si ya estaba verificado también responde 200 |
+| 400 `VERIFICATION_CODE_INVALID` | Haptic de error, vacía las cajas y muestra los intentos restantes (`details.attempts_remaining`) |
+| 429 `VERIFICATION_CODE_LOCKED` | Se agotaron los 5 intentos del código: pide reenviar |
+| 410 `VERIFICATION_CODE_EXPIRED` | Venció (24 h) o no hay código vigente: pide reenviar |
+| 401 | La sesión venció (access token de 15 min, sin renovación automática todavía): alerta y vuelta a `/login`, que trae de nuevo a esta pantalla |
+
+- Las cajas son `react-native-otp-entry` (`OtpCodeInput`): foco automático, avance y pegado. Recibe estilos como objetos en `theme`, no `className`, por eso usa la paleta de `colors.js` y la familia `Montserrat_700Bold`. Se envía solo al completar el sexto dígito; el botón "Validar Identidad" queda para reintentar.
+- No usa `blurOnFilled` ni se deshabilita mientras valida: en Android el teclado no vuelve a abrirse con `focus()` después de un blur o de un input deshabilitado.
+- **Reenviar código**: `POST /auth/resend-verification` (202). El contador (`useCountdown`, 45 s) arranca al montar la pantalla y se reinicia con cada reenvío; coincide con el cooldown del backend. Si igual responde 429 `VERIFICATION_RECENTLY_SENT`, el contador toma `details.retry_in_seconds`. Un 409 `EMAIL_ALREADY_VERIFIED` lleva directo a `/home`.
 
 Los mensajes de conexión, timeout y validación comunes a los formularios salen de `presentation/utils/api-error-message.ts`, y la validación de email compartida, de `presentation/utils/auth-form-fields.ts`.
 

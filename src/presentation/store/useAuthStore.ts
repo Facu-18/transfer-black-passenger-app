@@ -11,6 +11,8 @@ interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
   setSession: (session: AuthSession, user: AuthUser) => Promise<void>;
+  /** Refleja en memoria que el backend ya confirmo el correo. */
+  markEmailVerified: () => void;
   clearSession: () => Promise<void>;
 }
 
@@ -30,6 +32,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
       user,
       isAuthenticated: true,
     });
+  },
+
+  markEmailVerified() {
+    set((state) => (state.user ? { user: { ...state.user, emailVerified: true } } : {}));
   },
 
   async clearSession() {

@@ -40,6 +40,25 @@ export interface AuthSessionResponse {
   tokens: AuthTokensResponse;
 }
 
+export interface VerifyEmailRequest {
+  /** El PIN de 6 digitos del correo. Se llama `token` por compatibilidad con el contrato anterior. */
+  token: string;
+}
+
+export interface VerifyEmailResponse {
+  user_id: string;
+  email: string;
+  email_verified_at: string;
+}
+
+/** Detalle de los errores de `POST /auth/verify-email` y `POST /auth/resend-verification`. */
+export interface VerificationErrorDetails {
+  /** 400 `VERIFICATION_CODE_INVALID`: intentos que le quedan al codigo actual. */
+  attempts_remaining?: number;
+  /** 429 `VERIFICATION_RECENTLY_SENT`: segundos hasta poder pedir otro correo. */
+  retry_in_seconds?: number;
+}
+
 /** Cuerpo de `PATCH /users/me`: parcial, `null` borra el valor. */
 export interface UpdateCurrentUserRequest {
   first_name?: string | null;
