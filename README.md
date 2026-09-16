@@ -175,7 +175,8 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/activity` | `(app)/(tabs)/activity.tsx` | Provisoria |
 | `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
-| `/pricing` | `(app)/pricing.tsx` | Provisoria; destino al elegir origen y destino |
+| `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
+| `/searching` | `(app)/searching.tsx` | Provisoria; destino al confirmar el viaje |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
@@ -204,6 +205,26 @@ Geoapify se consulta por REST con `EXPO_PUBLIC_GEOAPIFY_API_KEY`: resultados en 
 - Al elegir destino se guarda en `useTripStore.destinationLocation` y en recientes; con origen, avanza a `/pricing`. Sin origen (sin ubicación), pide elegirlo primero.
 - **Recientes**: los últimos 5 destinos, guardados en el dispositivo (`recent-places-storage.ts`). El backend no tiene lugares frecuentes ni guardados; el Home muestra estos mismos recientes.
 - "Reserva", "Para mí", "Viaje corporativo", "Para un invitado" y las notificaciones informan que llegan pronto.
+
+## Cotización y confirmación del viaje
+
+`POST /rides/quote` (201) crea el viaje en `draft` y devuelve `{ draft, route, quotes[] }`. Origen y destino viajan como `{ address_text, place_id, latitude, longitude }`, con el `placeId` del mismo proveedor de mapas que usa el backend.
+
+- **La ruta del mapa viene del backend**: `route.geometry` es un `MultiLineString` con los puntos `[longitud, latitud]` de la ruta que se cotizó. `trip-quote.mapper.ts` los da vuelta a `{ latitude, longitude }` para `Polyline`. Así la línea dibujada es la misma ruta que se cobró y la app no repite la llamada al proveedor.
+- **Los importes son texto** (`"24500.00"`) y se conservan así en `totalAmount`; el `Number` solo se usa para mostrarlos formateados.
+- **La cotización vence** (10 minutos): `useRideQuote` vuelve a cotizar sola al llegar esa hora, porque confirmar con una tarifa vencida responde 409.
+- La categoría elegida se recuerda por `code` entre recotizaciones: los `id` cambian, la categoría no.
+
+`POST /rides/{tripId}/confirm` espera `{ fare_quote_id, payment: { type } }` y el header **`Idempotency-Key`** (UUID v4 de `expo-crypto`). La clave se genera una vez por borrador: reintentar no cobra dos veces, y se renueva si hay que recotizar.
+
+| Medio de pago | `payment.type` | Qué pasa |
+|---|---|---|
+| Efectivo | `cash` | El viaje pasa a `searching` y la app va al radar |
+| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook, así que el radar avisa que el pago está pendiente |
+
+Errores: 409 `FARE_QUOTE_EXPIRED` recotiza sola, 409 `INVALID_TRIP_TRANSITION` vuelve al Home, 400 al cotizar ofrece reintentar y 401 reusa `handleExpiredSession()`.
+
+Pendientes del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador); y no hay endpoint para consultar el estado del viaje, que haría falta para saber si el pago se acreditó.
 
 ## API y sesión
 

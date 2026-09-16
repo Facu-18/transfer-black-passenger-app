@@ -31,6 +31,7 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="search" />
       <Stack.Screen name="pricing" />
+      <Stack.Screen name="searching" />
     </Stack>
   );
 }

@@ -43,7 +43,8 @@
         {
           "locationWhenInUsePermission": "Transfer Black usa tu ubicación para ubicarte en el mapa y proponer tu punto de partida."
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }
