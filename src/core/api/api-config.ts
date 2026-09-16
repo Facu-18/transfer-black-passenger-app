@@ -16,3 +16,19 @@ export function getApiUrl(): string {
 
   return url;
 }
+
+/**
+ * Key de Geoapify para el autocompletado y la geocodificacion inversa.
+ *
+ * Se lee al usar el proveedor y no al importar: sin ella la app arranca igual
+ * y solo falla la busqueda de direcciones, con un mensaje claro.
+ */
+export function getGeoapifyApiKey(): string {
+  const key = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
+
+  if (!key) {
+    throw new Error('Falta EXPO_PUBLIC_GEOAPIFY_API_KEY en .env');
+  }
+
+  return key;
+}

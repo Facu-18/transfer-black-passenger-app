@@ -37,7 +37,13 @@
         }
       ],
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Transfer Black usa tu ubicación para ubicarte en el mapa y proponer tu punto de partida."
+        }
+      ]
     ]
   }
 }

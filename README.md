@@ -68,11 +68,11 @@ src/
 ├── app/                Rutas de Expo Router (archivos finos que solo renderizan una screen)
 ├── core/               Qué hace la app, sin React Native
 │   ├── actions/        Casos de uso: una función por operación (ej. registrar un pasajero)
-│   └── api/            Cliente Axios, configuración y errores normalizados
+│   └── api/            Clientes HTTP (backend, proveedor de lugares), configuración y errores normalizados
 ├── infrastructure/     Cómo se traducen y guardan los datos externos
 │   ├── interfaces/     Tipos de las respuestas de la API y de los modelos de la app
 │   ├── mappers/        Conversión respuesta de API ⇄ modelo de la app
-│   └── storage/        Almacenamiento del dispositivo (SecureStore)
+│   └── storage/        Almacenamiento del dispositivo (SecureStore para tokens, AsyncStorage para recientes)
 └── presentation/       Lo que ve y toca el usuario
     ├── components/     Componentes reutilizables
     ├── hooks/          Hooks de UI (formularios, llamadas a actions)
@@ -171,9 +171,39 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/register` | `(public)/register.tsx` | Registro de pasajero |
 | `/login` | `(public)/login.tsx` | Inicio de sesión |
 | `/verify-email` | `verify-email.tsx` | Validación del PIN; destino después del registro o de un login sin correo verificado |
-| `/home` | `(app)/home.tsx` | Provisoria; zona privada |
+| `/home` | `(app)/(tabs)/home.tsx` | Mapa principal |
+| `/activity` | `(app)/(tabs)/activity.tsx` | Provisoria |
+| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
+| `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
+| `/pricing` | `(app)/pricing.tsx` | Provisoria; destino al elegir origen y destino |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
+
+Dentro de `(app)`, `(tabs)` tiene la barra inferior flotante (`FloatingTabBar`); `search` y `pricing` quedan fuera de las pestañas, a pantalla completa, con `slide_from_right`. Para navegar se usan las rutas sin grupos (`/home`, `/search`): resuelven igual aunque cambie el anidado.
+
+## Home y búsqueda de direcciones
+
+### Mapa y ubicación
+
+- `react-native-maps` con `PROVIDER_GOOGLE` en Android (estilo oscuro de `theme/map-style.ts`, sin puntos de interés) y Apple Maps en iOS (`userInterfaceStyle="dark"`). En Expo Go no requiere key; para builds de tienda hay que configurar `androidGoogleMapsApiKey` / `iosGoogleMapsApiKey` en el plugin de `react-native-maps`.
+- `useLocationPermissions` pide el permiso en primer plano al montar el Home, toma la última posición conocida (centra rápido) y después la actual. Guarda `currentLocation` en `useTripStore` y la convierte en dirección (geocodificación inversa) para proponerla como origen. Sin permiso o sin señal, el chip del mapa permite reintentar o abrir Ajustes.
+- **Emulador de Android**: si Google Play Services está desactualizado, rechaza la firma de Expo Go (`GoogleCertificatesRslt: not allowed` en logcat) y el mapa queda sin tiles. En un teléfono con Play Services al día funciona.
+
+### Proveedor de lugares (Geoapify, migrable a Google)
+
+Las pantallas no conocen al proveedor. El contrato está en `infrastructure/interfaces/places.ts` (`Place`, `PlacesProvider`: `autocomplete` y `reverseGeocode`) y la implementación activa se elige en **un solo archivo**, `core/api/places-provider.ts`.
+
+Para migrar a Google Maps: escribir `core/api/google-places-provider.ts` que cumpla `PlacesProvider` (con su mapper en `infrastructure/mappers/`) y asignarlo en `places-provider.ts`. El `placeId` viaja a `POST /rides/quote`, así que el backend tiene que migrar al mismo proveedor.
+
+Geoapify se consulta por REST con `EXPO_PUBLIC_GEOAPIFY_API_KEY`: resultados en español, solo Argentina, priorizando la cercanía a la ubicación actual. El orden final lo decide Geoapify, que pesa mucho la coincidencia de texto: "Colón 1200" puede traer primero otras ciudades. La key queda legible dentro de la app: usar una propia, distinta de la del backend.
+
+### Planifica tu viaje
+
+- Dos campos (origen y destino) comparten una lista: la del campo activo. El destino recibe el foco al entrar; el origen viene con la ubicación actual ("Ubicación actual").
+- `usePlaceSearch` espera 350 ms tras la última tecla, busca desde 3 caracteres y cancela la búsqueda anterior.
+- Al elegir destino se guarda en `useTripStore.destinationLocation` y en recientes; con origen, avanza a `/pricing`. Sin origen (sin ubicación), pide elegirlo primero.
+- **Recientes**: los últimos 5 destinos, guardados en el dispositivo (`recent-places-storage.ts`). El backend no tiene lugares frecuentes ni guardados; el Home muestra estos mismos recientes.
+- "Reserva", "Para mí", "Viaje corporativo", "Para un invitado" y las notificaciones informan que llegan pronto.
 
 ## API y sesión
 

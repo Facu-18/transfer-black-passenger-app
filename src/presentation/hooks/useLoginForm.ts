@@ -45,7 +45,7 @@ export function useLoginForm() {
       }
 
       await setSession(session, user);
-      router.replace(user.emailVerified ? '/(app)/home' : '/verify-email');
+      router.replace(user.emailVerified ? '/home' : '/verify-email');
     } catch (error) {
       if (error instanceof ApiRequestError && error.status === 401) {
         form.resetField('password');

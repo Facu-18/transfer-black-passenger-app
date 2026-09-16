@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
 import { BrandLogo } from '@/presentation/components/BrandLogo';
@@ -10,13 +11,15 @@ interface UpcomingScreenProps {
   title: string;
   description: string;
   showBack?: boolean;
+  /** Acciones debajo del texto, por ejemplo cerrar sesion. */
+  children?: ReactNode;
 }
 
 /**
  * Pantalla provisoria para rutas que ya existen en la navegacion pero cuyo
- * ticket todavia no se implemento (login, verificacion de correo).
+ * ticket todavia no se implemento (actividad, cuenta, cotizacion).
  */
-export function UpcomingScreen({ title, description, showBack = false }: UpcomingScreenProps) {
+export function UpcomingScreen({ title, description, showBack = false, children }: UpcomingScreenProps) {
   return (
     <Screen contentClassName="justify-center gap-8">
       <View className="items-center gap-4">
@@ -28,6 +31,7 @@ export function UpcomingScreen({ title, description, showBack = false }: Upcomin
           {description}
         </Typography>
       </View>
+      {children}
       {showBack && router.canGoBack() ? <VIPButton title="Volver" onPress={() => router.back()} /> : null}
     </Screen>
   );

@@ -1,7 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import type { OtpInputRef } from 'react-native-otp-entry';
 
 import { resendVerificationAction } from '@/core/actions/resend-verification.action';
@@ -11,6 +10,7 @@ import type { VerificationErrorDetails } from '@/infrastructure/interfaces/auth-
 import { useCountdown } from '@/presentation/hooks/useCountdown';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
+import { handleExpiredSession as showExpiredSession } from '@/presentation/utils/expired-session';
 
 export const VERIFICATION_CODE_LENGTH = 6;
 
@@ -50,7 +50,6 @@ function describeVerifyError(error: unknown): string {
 export function useVerifyEmail() {
   const email = useAuthStore((state) => state.user?.email ?? null);
   const markEmailVerified = useAuthStore((state) => state.markEmailVerified);
-  const clearSession = useAuthStore((state) => state.clearSession);
 
   const otpRef = useRef<OtpInputRef>(null);
   const [code, setCode] = useState('');
@@ -61,22 +60,12 @@ export function useVerifyEmail() {
 
   const goHome = () => {
     markEmailVerified();
-    router.replace('/(app)/home');
+    // Ruta sin grupos: `/home` resuelve igual aunque viva dentro de `(app)/(tabs)`.
+    router.replace('/home');
   };
 
-  // El access token dura 15 minutos y todavia no se renueva solo: si el usuario
-  // tardo en abrir el correo, vuelve a iniciar sesion (y el login lo trae de nuevo aca).
-  const handleExpiredSession = () => {
-    Alert.alert('Tu sesión expiró', 'Inicia sesión de nuevo para validar tu código.', [
-      {
-        text: 'Iniciar sesión',
-        onPress: () => {
-          void clearSession();
-          router.replace('/login');
-        },
-      },
-    ]);
-  };
+  // Si el usuario tardo en abrir el correo, vuelve a iniciar sesion (y el login lo trae de nuevo aca).
+  const handleExpiredSession = () => showExpiredSession('Inicia sesión de nuevo para validar tu código.');
 
   const onCodeChange = (text: string) => {
     setCode(text);

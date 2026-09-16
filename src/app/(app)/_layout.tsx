@@ -24,7 +24,13 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.obsidian },
+        // Deslizamiento lateral en ambas plataformas: la busqueda "entra" sobre el Home.
+        animation: 'slide_from_right',
       }}
-    />
+    >
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="pricing" />
+    </Stack>
   );
 }
