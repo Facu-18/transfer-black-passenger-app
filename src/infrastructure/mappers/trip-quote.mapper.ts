@@ -1,6 +1,11 @@
 import type { Coordinates } from '../interfaces/places';
-import type { ConfirmedTrip, FareOption, RideQuote } from '../interfaces/trips';
-import type { ConfirmTripResponse, RideQuoteResponse, RouteGeometryResponse } from '../interfaces/trips-api';
+import type { ConfirmedTrip, FareOption, RideQuote, Trip, TripStatus } from '../interfaces/trips';
+import type {
+  ConfirmTripResponse,
+  RideQuoteResponse,
+  RouteGeometryResponse,
+  TripResponse,
+} from '../interfaces/trips-api';
 
 const currencyFormatters = new Map<string, Intl.NumberFormat>();
 
@@ -34,6 +39,16 @@ function toPolylinePoints(geometry: RouteGeometryResponse): Coordinates[] {
 }
 
 export const TripQuoteMapper = {
+  toTrip(trip: TripResponse): Trip {
+    return {
+      id: trip.id,
+      publicCode: trip.public_code,
+      status: trip.status as TripStatus,
+      paymentMethod: trip.payment_method,
+      driverId: trip.driver_id,
+    };
+  },
+
   toRideQuote(response: RideQuoteResponse): RideQuote {
     const options: FareOption[] = response.quotes.map((quote) => ({
       id: quote.id,

@@ -42,3 +42,24 @@ export interface ConfirmedTrip {
   /** Solo con transferencia: hay que abrir esta URL de Mercado Pago. */
   checkoutUrl: string | null;
 }
+
+/** Estados del viaje en el backend. */
+export type TripStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'searching'
+  | 'assigned'
+  | 'driver_arriving'
+  | 'driver_arrived'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
+
+export interface Trip {
+  id: string;
+  /** Codigo corto que ve el pasajero, por ejemplo `TB-8F3K2A`. */
+  publicCode: string;
+  status: TripStatus;
+  paymentMethod: string;
+  driverId: string | null;
+}

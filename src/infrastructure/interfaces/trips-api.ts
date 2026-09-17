@@ -55,15 +55,19 @@ export interface ConfirmTripRequest {
   payment: { type: PaymentTypeRequest };
 }
 
+/** Viaje tal como lo devuelven `GET /rides/{tripId}` y la confirmacion. */
+export interface TripResponse {
+  id: string;
+  public_code: string;
+  status: string;
+  payment_method: string;
+  estimated_fare: string;
+  currency: string;
+  driver_id: string | null;
+}
+
 export interface ConfirmTripResponse {
-  trip: {
-    id: string;
-    public_code: string;
-    status: string;
-    payment_method: string;
-    estimated_fare: string;
-    currency: string;
-  };
+  trip: TripResponse;
   payment: {
     id: string;
     status: string;

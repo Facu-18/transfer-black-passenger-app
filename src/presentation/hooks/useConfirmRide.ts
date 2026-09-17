@@ -47,16 +47,17 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         idempotencyKey: idempotencyKey.current,
       });
 
-      // Con efectivo el viaje ya arranca la busqueda. Con transferencia queda en
-      // `draft` hasta que Mercado Pago acredite el pago (lo avisa por webhook),
-      // asi que el radar tiene que decir que el pago esta pendiente.
+      // El `tripId` viaja a la pantalla de espera: es lo que le permite consultar
+      // el estado real. Con efectivo el viaje ya esta en `searching`; con Mercado
+      // Pago queda en `draft` hasta que se acredite el pago, y eso lo avisa el
+      // webhook al backend, no la respuesta de esta confirmacion.
       if (trip.checkoutUrl) {
         await WebBrowser.openBrowserAsync(trip.checkoutUrl);
-        router.replace({ pathname: '/searching', params: { paymentPending: '1' } });
+        router.replace({ pathname: '/searching', params: { tripId: trip.tripId, paymentPending: '1' } });
         return;
       }
 
-      router.replace('/searching');
+      router.replace({ pathname: '/searching', params: { tripId: trip.tripId } });
     } catch (error: unknown) {
       if (error instanceof ApiRequestError) {
         if (error.status === 401) {
