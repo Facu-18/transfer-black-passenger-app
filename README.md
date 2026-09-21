@@ -176,11 +176,11 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
-| `/searching` | `(app)/searching.tsx` | Provisoria; destino al confirmar el viaje |
+| `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y seguimiento en vivo |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
-Dentro de `(app)`, `(tabs)` tiene la barra inferior flotante (`FloatingTabBar`); `search` y `pricing` quedan fuera de las pestañas, a pantalla completa, con `slide_from_right`. Para navegar se usan las rutas sin grupos (`/home`, `/search`): resuelven igual aunque cambie el anidado.
+Dentro de `(app)`, `(tabs)` tiene la barra inferior flotante (`FloatingTabBar`); `search` y `pricing` quedan fuera de las pestañas, a pantalla completa, con `slide_from_right`. `trip/[tripId]` entra con fundido y sin gesto de volver: mientras el viaje sigue, el botón atrás de Android no hace nada (no hay otra forma de volver a esa pantalla); al terminar o cancelar, `router.dismissTo('/home')` vacía la pila. Para navegar se usan las rutas sin grupos (`/home`, `/search`): resuelven igual aunque cambie el anidado.
 
 ## Home y búsqueda de direcciones
 
@@ -219,12 +219,34 @@ Geoapify se consulta por REST con `EXPO_PUBLIC_GEOAPIFY_API_KEY`: resultados en 
 
 | Medio de pago | `payment.type` | Qué pasa |
 |---|---|---|
-| Efectivo | `cash` | El viaje pasa a `searching` y la app va al radar |
-| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook, así que el radar avisa que el pago está pendiente |
+| Efectivo | `cash` | El viaje pasa a `searching` y la app va a `/trip/[tripId]`, que arranca con el radar |
+| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
 
 Errores: 409 `FARE_QUOTE_EXPIRED` recotiza sola, 409 `INVALID_TRIP_TRANSITION` vuelve al Home, 400 al cotizar ofrece reintentar y 401 reusa `handleExpiredSession()`.
 
-Pendientes del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador); y no hay endpoint para consultar el estado del viaje, que haría falta para saber si el pago se acreditó.
+Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador).
+
+## Viaje activo y tiempo real
+
+`ActiveTripScreen` es una sola pantalla que cambia de panel según el estado, con un fundido deslizante (Reanimated) para que la transición no recargue el mapa:
+
+| Estado | Panel |
+|---|---|
+| `draft` | "Confirmando tu pago" |
+| `searching` | Radar (`RadarPulse`) sobre el origen, "Contactando choferes VIP…", resumen del recorrido y "Cancelar búsqueda" |
+| `assigned` / `driver_arriving` | "Conductor en camino": ETA, distancia, chofer (nombre, calificación), auto con patente, Llamar / Chat (próximamente) y Cancelar |
+| `driver_arrived` | El mismo panel con "Tu chofer llegó" |
+| `in_progress` / `completed` / `cancelled` | Estado simple; en los finales, "Volver al inicio" |
+
+- **REST es la verdad, el socket acelera.** `useActiveTrip` consulta `GET /rides/{tripId}` (estado, origen, destino, chofer y auto) y se suscribe a `core/api/realtime-client.ts`. Cada `trip:status_changed` muestra el estado nuevo al instante y vuelve a consultar el detalle; también se re-consulta al reconectar el socket y al volver del segundo plano. Mientras el socket está caído, consulta cada 10 s y muestra "Reconectando…".
+- **Socket.IO** (`socket.io-client`): una sola conexión para toda la app, abierta solo mientras hay un viaje que seguir. El token va en `auth` como función, así cada reconexión usa el vigente; un rechazo por token vencido lo renueva y reconecta. Hay que emitir `ride:join` para entrar a la sala del viaje, y el cliente lo repite en cada reconexión. Con `__DEV__` deja logs `[socket]` en la consola de Metro.
+- **Despacho**: no lo pide la app. El backend ofrece solo los viajes en `searching` a los choferes cercanos cada 10 s y reintenta mientras nadie acepte.
+- **El auto** (`DriverCarMarker`) recibe `driver:location` cada ~3 s. `useAnimatedCoordinate` interpola entre posiciones durante esos 3 s (sin `AnimatedRegion`, que depende de clases internas de React Native) y gira la flecha según el rumbo; un salto de más de 1 km se mueve sin animar.
+- **ETA y ruta al origen** (`useDriverEta`): Geoapify Routing detrás de `RoutesProvider` (`core/api/routes-provider.ts`, migrable a Google igual que los lugares). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición, para no gastar cuota. Si el proveedor falla, estima con la distancia en línea recta.
+- **Cancelar**: confirmación y `POST /rides/{tripId}/cancel` con `reason_code: passenger_cancelled`; vuelve al Home. La penalidad por cancelación todavía no existe en el backend.
+- **Fuera de alcance por ahora**: PIN de validación, chat y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo.
+
+Para probar sin la app del chofer hace falta un chofer que esté conectado por socket y mande su posición (una cuenta demo con un script). Swagger no alcanza: el despacho solo encuentra choferes online con ubicación.
 
 ## API y sesión
 
@@ -232,7 +254,8 @@ Pendientes del lado del backend: no configura `back_urls` en Mercado Pago, así 
 - **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend.
 - **Timeout de 60s**: el backend en Render se duerme tras unos minutos sin tráfico y la primera solicitud puede tardar cerca de un minuto en despertarlo.
 - **Tokens**: `useAuthStore` (Zustand) guarda el access token solo en memoria y el refresh token en `expo-secure-store` (Keychain / Keystore; AsyncStorage no cifra). El interceptor de solicitud agrega `Authorization: Bearer` con el access token vigente.
-- **Pendiente**: restaurar la sesión al abrir la app y renovar el access token con `/auth/refresh` ante un 401. Hoy la sesión vive mientras la app está abierta.
+- **Renovación**: el access token dura 15 minutos. Ante un 401, el interceptor de respuesta pide `POST /auth/refresh`, guarda el refresh token nuevo (rota en cada uso) y repite la solicitud una vez. Las solicitudes que fallan a la vez esperan la misma renovación (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh token cerraría la sesión. Si el backend rechaza el refresh token, el 401 llega a la pantalla y `handleExpiredSession()` vuelve al login; si la renovación falla por red, la pantalla recibe un error de conexión y la sesión sigue.
+- **Pendiente**: restaurar la sesión al abrir la app. Hoy la sesión vive mientras la app está abierta.
 
 ### Registro de pasajero
 
@@ -265,7 +288,7 @@ El correo trae un PIN de 6 dígitos. `POST /auth/verify-email` con `{ "token": "
 | 400 `VERIFICATION_CODE_INVALID` | Haptic de error, vacía las cajas y muestra los intentos restantes (`details.attempts_remaining`) |
 | 429 `VERIFICATION_CODE_LOCKED` | Se agotaron los 5 intentos del código: pide reenviar |
 | 410 `VERIFICATION_CODE_EXPIRED` | Venció (24 h) o no hay código vigente: pide reenviar |
-| 401 | La sesión venció (access token de 15 min, sin renovación automática todavía): alerta y vuelta a `/login`, que trae de nuevo a esta pantalla |
+| 401 | La sesión venció y no se pudo renovar: alerta y vuelta a `/login`, que trae de nuevo a esta pantalla |
 
 - Las cajas son `react-native-otp-entry` (`OtpCodeInput`): foco automático, avance y pegado. Recibe estilos como objetos en `theme`, no `className`, por eso usa la paleta de `colors.js` y la familia `Montserrat_700Bold`. Se envía solo al completar el sexto dígito; el botón "Validar Identidad" queda para reintentar.
 - No usa `blurOnFilled` ni se deshabilita mientras valida: en Android el teclado no vuelve a abrirse con `focus()` después de un blur o de un input deshabilitado.

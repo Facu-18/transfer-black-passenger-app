@@ -1,10 +1,20 @@
 import type { Coordinates } from '../interfaces/places';
-import type { ConfirmedTrip, FareOption, RideQuote, Trip, TripStatus } from '../interfaces/trips';
+import type {
+  ConfirmedTrip,
+  FareOption,
+  RideQuote,
+  Trip,
+  TripDriver,
+  TripPoint,
+  TripStatus,
+  TripVehicle,
+} from '../interfaces/trips';
 import type {
   ConfirmTripResponse,
   RideQuoteResponse,
   RouteGeometryResponse,
-  TripResponse,
+  TripDetailResponse,
+  TripStopPointResponse,
 } from '../interfaces/trips-api';
 
 const currencyFormatters = new Map<string, Intl.NumberFormat>();
@@ -38,14 +48,48 @@ function toPolylinePoints(geometry: RouteGeometryResponse): Coordinates[] {
   }));
 }
 
+function toTripPoint(point: TripStopPointResponse | null | undefined): TripPoint | null {
+  return point
+    ? { address: point.address, coordinates: { latitude: point.latitude, longitude: point.longitude } }
+    : null;
+}
+
+function toTripDriver(driver: TripDetailResponse['driver']): TripDriver | null {
+  if (!driver) {
+    return null;
+  }
+
+  const firstName = driver.first_name.trim() || 'Tu chofer';
+  const lastInitial = driver.last_initial ? ` ${driver.last_initial}.` : '';
+
+  return {
+    displayName: `${firstName}${lastInitial}`,
+    initials: `${firstName.charAt(0)}${driver.last_initial ?? ''}`.toUpperCase(),
+    avatarUrl: driver.avatar_url,
+    ratingAverage: driver.rating_average,
+    ratingCount: driver.rating_count,
+  };
+}
+
+function toTripVehicle(vehicle: TripDetailResponse['vehicle']): TripVehicle | null {
+  return vehicle
+    ? { name: `${vehicle.brand} ${vehicle.model}`, color: vehicle.color, plate: vehicle.plate }
+    : null;
+}
+
 export const TripQuoteMapper = {
-  toTrip(trip: TripResponse): Trip {
+  toTrip(trip: TripDetailResponse): Trip {
     return {
       id: trip.id,
       publicCode: trip.public_code,
       status: trip.status as TripStatus,
       paymentMethod: trip.payment_method,
       driverId: trip.driver_id,
+      formattedFare: trip.estimated_fare ? formatAmount(trip.estimated_fare, trip.currency) : null,
+      pickup: toTripPoint(trip.pickup),
+      dropoff: toTripPoint(trip.dropoff),
+      driver: toTripDriver(trip.driver),
+      vehicle: toTripVehicle(trip.vehicle),
     };
   },
 

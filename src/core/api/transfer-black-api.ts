@@ -4,6 +4,17 @@ import type { ApiErrorResponse } from '@/infrastructure/interfaces/api-responses
 
 import { getApiUrl } from './api-config';
 import { ApiRequestError, CONNECTION_ERROR_CODES } from './api-request-error';
+import { refreshAccessToken } from './session-refresh';
+
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    /** Ya se reintento con un token renovado: un segundo 401 no vuelve a renovar. */
+    sessionRetried?: boolean;
+  }
+}
+
+/** Ruta de renovacion: un 401 aca no dispara otra renovacion. */
+export const REFRESH_PATH = '/auth/refresh';
 
 // El backend en Render se duerme sin trafico y la primera solicitud puede tardar
 // casi un minuto en despertarlo: un timeout corto lo haria fallar siempre.
@@ -25,6 +36,11 @@ export function setAccessTokenGetter(getter: () => string | null): void {
   getAccessToken = getter;
 }
 
+/** Access token vigente, para quien no pasa por Axios (el socket). */
+export function getCurrentAccessToken(): string | null {
+  return getAccessToken();
+}
+
 transferBlackApi.interceptors.request.use((config) => {
   const token = getAccessToken();
 
@@ -38,7 +54,37 @@ transferBlackApi.interceptors.request.use((config) => {
 
 transferBlackApi.interceptors.response.use(
   (response) => response,
-  (error: unknown) => Promise.reject(toApiRequestError(error)),
+  async (error: unknown) => {
+    // Access token vencido (dura 15 minutos): se renueva una vez y se repite la
+    // solicitud, sin que la pantalla se entere. Si no se puede renovar, el 401
+    // sigue su camino y la pantalla cierra la sesion como siempre.
+    if (isAxiosError(error) && error.response?.status === 401 && error.config) {
+      const config = error.config;
+      const canRetry =
+        !config.sessionRetried && config.url !== REFRESH_PATH && Boolean(config.headers.Authorization);
+
+      if (canRetry) {
+        let token: string | null;
+        try {
+          token = await refreshAccessToken();
+        } catch (refreshError: unknown) {
+          // La renovacion no respondio (sin red): se informa eso, no un 401,
+          // para que la pantalla no cierre una sesion que sigue siendo valida.
+          return Promise.reject(
+            refreshError instanceof ApiRequestError ? refreshError : toApiRequestError(refreshError),
+          );
+        }
+
+        if (token) {
+          config.sessionRetried = true;
+          config.headers.Authorization = `Bearer ${token}`;
+          return transferBlackApi(config);
+        }
+      }
+    }
+
+    return Promise.reject(toApiRequestError(error));
+  },
 );
 
 function isApiErrorResponse(body: unknown): body is ApiErrorResponse {

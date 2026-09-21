@@ -55,6 +55,29 @@ export type TripStatus =
   | 'completed'
   | 'cancelled';
 
+export interface TripPoint {
+  address: string;
+  coordinates: Coordinates;
+}
+
+/** Lo que el pasajero ve del chofer asignado: sin telefono ni email. */
+export interface TripDriver {
+  /** Nombre y la inicial del apellido, por ejemplo `Carlos R.`. */
+  displayName: string;
+  /** Iniciales para el avatar cuando no hay foto. */
+  initials: string;
+  avatarUrl: string | null;
+  ratingAverage: number;
+  ratingCount: number;
+}
+
+export interface TripVehicle {
+  /** Marca y modelo, por ejemplo `Toyota Corolla`. */
+  name: string;
+  color: string;
+  plate: string;
+}
+
 export interface Trip {
   id: string;
   /** Codigo corto que ve el pasajero, por ejemplo `TB-8F3K2A`. */
@@ -62,4 +85,15 @@ export interface Trip {
   status: TripStatus;
   paymentMethod: string;
   driverId: string | null;
+  /** Tarifa lista para mostrar (`$ 18.500`); `null` si todavia no hay una confirmada. */
+  formattedFare: string | null;
+  /** `null` con un backend que todavia no los devuelve. */
+  pickup: TripPoint | null;
+  dropoff: TripPoint | null;
+  /** `null` mientras no hay chofer asignado. */
+  driver: TripDriver | null;
+  vehicle: TripVehicle | null;
 }
+
+/** Estados en los que el viaje ya no cambia: no hay nada que seguir en vivo. */
+export const FINISHED_TRIP_STATUSES: readonly TripStatus[] = ['completed', 'cancelled'];

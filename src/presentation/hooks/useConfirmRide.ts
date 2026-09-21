@@ -47,17 +47,15 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         idempotencyKey: idempotencyKey.current,
       });
 
-      // El `tripId` viaja a la pantalla de espera: es lo que le permite consultar
-      // el estado real. Con efectivo el viaje ya esta en `searching`; con Mercado
-      // Pago queda en `draft` hasta que se acredite el pago, y eso lo avisa el
-      // webhook al backend, no la respuesta de esta confirmacion.
+      // Con efectivo el viaje ya esta en `searching` y la pantalla del viaje
+      // arranca con el radar. Con Mercado Pago queda en `draft` hasta que se
+      // acredite el pago; ese aviso llega por webhook al backend y de ahi, por
+      // socket, a la pantalla del viaje.
       if (trip.checkoutUrl) {
         await WebBrowser.openBrowserAsync(trip.checkoutUrl);
-        router.replace({ pathname: '/searching', params: { tripId: trip.tripId, paymentPending: '1' } });
-        return;
       }
 
-      router.replace({ pathname: '/searching', params: { tripId: trip.tripId } });
+      router.replace({ pathname: '/trip/[tripId]', params: { tripId: trip.tripId } });
     } catch (error: unknown) {
       if (error instanceof ApiRequestError) {
         if (error.status === 401) {

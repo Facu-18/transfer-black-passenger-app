@@ -40,6 +40,15 @@ export interface AuthSessionResponse {
   tokens: AuthTokensResponse;
 }
 
+export interface RefreshSessionRequest {
+  refresh_token: string;
+}
+
+/** Respuesta de `POST /auth/refresh`: solo tokens, el perfil no cambia. */
+export interface RefreshSessionResponse {
+  tokens: AuthTokensResponse;
+}
+
 export interface VerifyEmailRequest {
   /** El PIN de 6 digitos del correo. Se llama `token` por compatibilidad con el contrato anterior. */
   token: string;

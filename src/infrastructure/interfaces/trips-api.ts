@@ -61,9 +61,44 @@ export interface TripResponse {
   public_code: string;
   status: string;
   payment_method: string;
-  estimated_fare: string;
+  estimated_fare: string | null;
   currency: string;
   driver_id: string | null;
+}
+
+export interface TripStopPointResponse {
+  address: string;
+  place_id: string;
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * `GET /rides/{tripId}`: el viaje con origen, destino, chofer y auto. Los cuatro
+ * son opcionales para no romper contra un backend anterior que no los manda.
+ */
+export interface TripDetailResponse extends TripResponse {
+  pickup?: TripStopPointResponse | null;
+  dropoff?: TripStopPointResponse | null;
+  driver?: {
+    first_name: string;
+    last_initial: string | null;
+    avatar_url: string | null;
+    rating_average: number;
+    rating_count: number;
+  } | null;
+  vehicle?: {
+    plate: string;
+    brand: string;
+    model: string;
+    color: string;
+  } | null;
+}
+
+export interface CancelTripRequest {
+  /** Codigo en snake_case; la penalidad todavia no esta implementada en el backend. */
+  reason_code: string;
+  notes?: string;
 }
 
 export interface ConfirmTripResponse {

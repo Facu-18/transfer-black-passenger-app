@@ -1,18 +1,17 @@
 import { transferBlackApi } from '@/core/api/transfer-black-api';
 import type { ApiDataResponse } from '@/infrastructure/interfaces/api-responses';
 import type { Trip } from '@/infrastructure/interfaces/trips';
-import type { TripResponse } from '@/infrastructure/interfaces/trips-api';
+import type { TripDetailResponse } from '@/infrastructure/interfaces/trips-api';
 import { TripQuoteMapper } from '@/infrastructure/mappers/trip-quote.mapper';
 
 /**
- * Estado actual del viaje.
+ * Estado actual del viaje, con origen, destino y, si ya hay, chofer y auto.
  *
- * Lo consulta la pantalla de busqueda: al pagar con Mercado Pago el viaje sale
- * de `draft` recien cuando se acredita el pago, y ese aviso le llega al backend
- * por webhook, no a la app.
+ * Es la fuente de verdad del viaje activo: el socket solo avisa que algo
+ * cambio y la pantalla vuelve a consultar aca.
  */
 export async function getTripAction(tripId: string): Promise<Trip> {
-  const { data } = await transferBlackApi.get<ApiDataResponse<TripResponse>>(`/rides/${tripId}`);
+  const { data } = await transferBlackApi.get<ApiDataResponse<TripDetailResponse>>(`/rides/${tripId}`);
 
   return TripQuoteMapper.toTrip(data.data);
 }

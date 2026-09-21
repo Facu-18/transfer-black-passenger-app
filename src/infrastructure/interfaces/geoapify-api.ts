@@ -15,3 +15,14 @@ export interface GeoapifyResult {
 export interface GeoapifyResultsResponse {
   results: GeoapifyResult[];
 }
+
+// Respuesta de la API de rutas con `format=geojson`.
+// https://apidocs.geoapify.com/docs/routing/
+
+export interface GeoapifyRoutingResponse {
+  features: Array<{
+    properties: { distance: number; time: number };
+    /** Cada punto es `[longitud, latitud]`. */
+    geometry: { type: 'MultiLineString'; coordinates: number[][][] };
+  }>;
+}
