@@ -93,6 +93,23 @@ export interface TripDetailResponse extends TripResponse {
     model: string;
     color: string;
   } | null;
+  final_fare?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  estimated_distance_meters?: number;
+  payment_status?: PaymentStatusResponse | null;
+  rating?: { rating: number; created_at: string } | null;
+}
+
+export type PaymentStatusResponse = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
+
+/** Motivos que el backend acepta junto a las estrellas. */
+export type RatingTagRequest = 'punctuality' | 'smooth_driving' | 'clean_vehicle';
+
+export interface RateTripRequest {
+  rating: number;
+  comment?: string;
+  tags?: RatingTagRequest[];
 }
 
 export interface CancelTripRequest {

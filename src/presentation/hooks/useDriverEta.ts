@@ -26,37 +26,38 @@ function estimateRoute(from: Coordinates, to: Coordinates): DrivingRoute {
 }
 
 /**
- * Ruta, minutos y distancia del chofer hasta el punto de partida.
+ * Ruta, minutos y distancia del chofer hasta `target`: el punto de partida
+ * mientras viene a buscar al pasajero, el destino final cuando ya lo lleva.
  *
  * Se calcula al llegar la primera posicion y despues cada 30 segundos, o antes
  * si cambia el destino.
  */
-export function useDriverEta(driver: Coordinates | null, pickup: Coordinates | null, enabled: boolean) {
+export function useDriverEta(driver: Coordinates | null, target: Coordinates | null, enabled: boolean) {
   const [route, setRoute] = useState<DrivingRoute | null>(null);
   const lastRequestAt = useRef(0);
-  const lastPickup = useRef<Coordinates | null>(null);
+  const lastTarget = useRef<Coordinates | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
-    if (!enabled || !driver || !pickup) return;
+    if (!enabled || !driver || !target) return;
 
-    const pickupChanged =
-      lastPickup.current?.latitude !== pickup.latitude || lastPickup.current?.longitude !== pickup.longitude;
-    if (!pickupChanged && Date.now() - lastRequestAt.current < ROUTE_REFRESH_MS) return;
+    const targetChanged =
+      lastTarget.current?.latitude !== target.latitude || lastTarget.current?.longitude !== target.longitude;
+    if (!targetChanged && Date.now() - lastRequestAt.current < ROUTE_REFRESH_MS) return;
 
     lastRequestAt.current = Date.now();
-    lastPickup.current = pickup;
+    lastTarget.current = target;
 
     // La respuesta se usa aunque ya haya llegado otra posicion: las posiciones
     // llegan cada 3 segundos y la ruta puede tardar mas.
     void routesProvider
-      .route(driver, pickup)
-      .catch(() => estimateRoute(driver, pickup))
+      .route(driver, target)
+      .catch(() => estimateRoute(driver, target))
       .then((next) => {
         if (mounted.current) setRoute(next);
       });
     // Solo importa el valor de las coordenadas, no la identidad del objeto.
-  }, [enabled, driver?.latitude, driver?.longitude, pickup?.latitude, pickup?.longitude]);
+  }, [enabled, driver?.latitude, driver?.longitude, target?.latitude, target?.longitude]);
 
   useEffect(() => {
     mounted.current = true;

@@ -1,9 +1,11 @@
 import { MessageCircle, Phone, Star, X, type LucideIcon } from 'lucide-react-native';
-import { ActivityIndicator, Alert, Image, Pressable, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, View } from 'react-native';
 
 import type { Trip } from '@/infrastructure/interfaces/trips';
 import { colors } from '@/presentation/theme/colors';
+import { showComingSoon } from '@/presentation/utils/coming-soon';
 
+import { PlatePill } from './PlatePill';
 import { TripRouteCard } from './TripRouteCard';
 import { Typography } from './Typography';
 
@@ -21,10 +23,6 @@ const countFormatter = new Intl.NumberFormat('es-AR');
 
 function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1).replace('.', ',')} km`;
-}
-
-function comingSoon(feature: string) {
-  Alert.alert('Próximamente', `${feature} con tu chofer va a estar disponible muy pronto.`);
 }
 
 function ActionButton({
@@ -136,11 +134,7 @@ export function DriverEnRoutePanel({
                 {vehicle.color}
               </Typography>
             </View>
-            <View className="rounded-md border border-charcoal bg-obsidian px-3 py-1.5">
-              <Typography weight="bold" className="tracking-widest">
-                {vehicle.plate}
-              </Typography>
-            </View>
+            <PlatePill plate={vehicle.plate} />
           </View>
         ) : null}
       </View>
@@ -148,8 +142,8 @@ export function DriverEnRoutePanel({
       <TripRouteCard origin={trip.pickup?.address ?? null} destination={trip.dropoff?.address ?? null} fare={trip.formattedFare} />
 
       <View className="flex-row">
-        <ActionButton icon={Phone} label="Llamar" onPress={() => comingSoon('La llamada')} />
-        <ActionButton icon={MessageCircle} label="Chat" onPress={() => comingSoon('El chat')} />
+        <ActionButton icon={Phone} label="Llamar" onPress={() => showComingSoon('La llamada con tu chofer')} />
+        <ActionButton icon={MessageCircle} label="Chat" onPress={() => showComingSoon('El chat con tu chofer')} />
         <ActionButton icon={X} label="Cancelar" loading={isCancelling} onPress={onCancel} />
       </View>
     </View>

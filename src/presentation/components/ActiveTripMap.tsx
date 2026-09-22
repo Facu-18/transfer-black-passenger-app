@@ -12,39 +12,54 @@ import { DriverCarMarker } from './DriverCarMarker';
 const SEARCH_ZOOM = 15.5;
 
 interface ActiveTripMapProps {
-  pickup: Coordinates | null;
+  /**
+   * Hacia donde va el auto: el punto de partida mientras viene a buscar al
+   * pasajero, el destino final cuando ya lo lleva.
+   */
+  target: Coordinates | null;
+  /** Solo cambia el marcador: circulo gold para el origen, cuadrado para el destino. */
+  targetKind: 'pickup' | 'dropoff';
   /**
    * `searching`: mapa fijo y centrado en el origen, para que el radar que va
    * encima no se desalinee. `tracking`: el pasajero puede moverlo libremente.
    */
   mode: 'searching' | 'tracking';
   driver: { coordinate: Coordinates; rotation: number } | null;
-  /** Ruta del auto al origen; cambia cada ~30 s y ahi se reencuadra. */
+  /** Ruta del auto a `target`; cambia cada ~30 s y ahi se reencuadra. */
   routePoints: Coordinates[];
   /** Espacio que tapan los paneles: el centro del mapa es el del area visible. */
   topInset: number;
   bottomInset: number;
 }
 
-export function ActiveTripMap({ pickup, mode, driver, routePoints, topInset, bottomInset }: ActiveTripMapProps) {
+export function ActiveTripMap({
+  target,
+  targetKind,
+  mode,
+  driver,
+  routePoints,
+  topInset,
+  bottomInset,
+}: ActiveTripMapProps) {
   const mapRef = useRef<MapView>(null);
   const hasDriver = driver !== null;
 
   // Radar: el origen en el centro del area visible.
   useEffect(() => {
-    if (mode !== 'searching' || !pickup) return;
-    mapRef.current?.animateCamera({ center: pickup, zoom: SEARCH_ZOOM }, { duration: 600 });
-  }, [mode, pickup, bottomInset]);
+    if (mode !== 'searching' || !target) return;
+    mapRef.current?.animateCamera({ center: target, zoom: SEARCH_ZOOM }, { duration: 600 });
+  }, [mode, target, bottomInset]);
 
-  // Seguimiento: auto y origen a la vista. Solo al aparecer el auto y al
-  // recalcularse la ruta, no en cada posicion: si no, el mapa no se deja mover.
+  // Seguimiento: auto y destino a la vista. Solo al aparecer el auto, al cambiar
+  // el destino y al recalcularse la ruta; no en cada posicion, porque entonces
+  // el mapa no se dejaria mover.
   useEffect(() => {
-    if (mode !== 'tracking' || !pickup) return;
+    if (mode !== 'tracking' || !target) return;
 
-    const coordinates = routePoints.length > 1 ? routePoints : driver ? [driver.coordinate, pickup] : [pickup];
+    const coordinates = routePoints.length > 1 ? routePoints : driver ? [driver.coordinate, target] : [target];
 
     if (coordinates.length === 1) {
-      mapRef.current?.animateCamera({ center: pickup, zoom: SEARCH_ZOOM }, { duration: 600 });
+      mapRef.current?.animateCamera({ center: target, zoom: SEARCH_ZOOM }, { duration: 600 });
       return;
     }
 
@@ -53,7 +68,7 @@ export function ActiveTripMap({ pickup, mode, driver, routePoints, topInset, bot
       animated: true,
     });
     // `driver` cambia cada 3 s: solo interesa si hay auto, no donde esta.
-  }, [mode, pickup, routePoints, hasDriver, bottomInset]);
+  }, [mode, target, routePoints, hasDriver, bottomInset]);
 
   const locked = mode === 'searching';
 
@@ -65,11 +80,7 @@ export function ActiveTripMap({ pickup, mode, driver, routePoints, topInset, bot
       customMapStyle={darkMapStyle}
       userInterfaceStyle="dark"
       mapPadding={{ top: topInset, right: 0, bottom: bottomInset, left: 0 }}
-      initialCamera={
-        pickup
-          ? { center: pickup, zoom: SEARCH_ZOOM, heading: 0, pitch: 0 }
-          : undefined
-      }
+      initialCamera={target ? { center: target, zoom: SEARCH_ZOOM, heading: 0, pitch: 0 } : undefined}
       scrollEnabled={!locked}
       zoomEnabled={!locked}
       rotateEnabled={false}
@@ -83,11 +94,22 @@ export function ActiveTripMap({ pickup, mode, driver, routePoints, topInset, bot
       ) : null}
 
       {/* Durante la busqueda el origen lo dibuja el radar, encima del mapa. */}
-      {mode === 'tracking' && pickup ? (
-        <Marker coordinate={pickup} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
-            <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
-          </View>
+      {mode === 'tracking' && target ? (
+        <Marker
+          key={targetKind}
+          coordinate={target}
+          anchor={{ x: 0.5, y: 0.5 }}
+          tracksViewChanges={false}
+        >
+          {targetKind === 'pickup' ? (
+            <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
+              <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
+            </View>
+          ) : (
+            <View className="h-8 w-8 items-center justify-center rounded-full border-2 border-gold bg-obsidian">
+              <View className="h-3 w-3 bg-gold" />
+            </View>
+          )}
         </Marker>
       ) : null}
 

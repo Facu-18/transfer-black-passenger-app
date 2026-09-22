@@ -93,6 +93,25 @@ export interface Trip {
   /** `null` mientras no hay chofer asignado. */
   driver: TripDriver | null;
   vehicle: TripVehicle | null;
+  /** Lo que se cobro al finalizar, listo para mostrar; `null` hasta que termina. */
+  formattedFinalFare: string | null;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+  /** Distancia de la ruta cotizada, en km. */
+  distanceKm: number | null;
+  paymentStatus: PaymentStatus | null;
+  /** Estrellas que dejo el pasajero; `null` mientras no califico. */
+  ratingGiven: number | null;
+}
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
+
+/** Motivos que se pueden marcar junto a las estrellas. */
+export type RatingTag = 'punctuality' | 'smooth_driving' | 'clean_vehicle';
+
+export interface TripRatingInput {
+  stars: number;
+  tags: RatingTag[];
 }
 
 /** Estados en los que el viaje ya no cambia: no hay nada que seguir en vivo. */

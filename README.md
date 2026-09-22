@@ -176,11 +176,12 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
-| `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y seguimiento en vivo |
+| `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y viaje en curso, en vivo |
+| `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
-Dentro de `(app)`, `(tabs)` tiene la barra inferior flotante (`FloatingTabBar`); `search` y `pricing` quedan fuera de las pestañas, a pantalla completa, con `slide_from_right`. `trip/[tripId]` entra con fundido y sin gesto de volver: mientras el viaje sigue, el botón atrás de Android no hace nada (no hay otra forma de volver a esa pantalla); al terminar o cancelar, `router.dismissTo('/home')` vacía la pila. Para navegar se usan las rutas sin grupos (`/home`, `/search`): resuelven igual aunque cambie el anidado.
+Dentro de `(app)`, `(tabs)` tiene la barra inferior flotante (`FloatingTabBar`); `search` y `pricing` quedan fuera de las pestañas, a pantalla completa, con `slide_from_right`. `trip/[tripId]` y `receipt/[tripId]` entran con fundido y sin gesto de volver: mientras el viaje sigue, el botón atrás de Android no hace nada (no hay otra forma de volver a esa pantalla); al terminar o cancelar, `router.dismissTo('/home')` vacía la pila. Para navegar se usan las rutas sin grupos (`/home`, `/search`): resuelven igual aunque cambie el anidado.
 
 ## Home y búsqueda de direcciones
 
@@ -236,15 +237,25 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 | `searching` | Radar (`RadarPulse`) sobre el origen, "Contactando choferes VIP…", resumen del recorrido y "Cancelar búsqueda" |
 | `assigned` / `driver_arriving` | "Conductor en camino": ETA, distancia, chofer (nombre, calificación), auto con patente, Llamar / Chat (próximamente) y Cancelar |
 | `driver_arrived` | El mismo panel con "Tu chofer llegó" |
-| `in_progress` / `completed` / `cancelled` | Estado simple; en los finales, "Volver al inicio" |
+| `in_progress` | **A bordo**: el auto va al destino, ETA ("12 min", "Llegada 10:18"), chofer y patente, barra con destino y "Compartir ETA" |
+| `completed` | Pasa al recibo con `router.replace`: "atrás" no vuelve al mapa |
+| `cancelled` | Estado simple con "Volver al inicio" |
 
-- **REST es la verdad, el socket acelera.** `useActiveTrip` consulta `GET /rides/{tripId}` (estado, origen, destino, chofer y auto) y se suscribe a `core/api/realtime-client.ts`. Cada `trip:status_changed` muestra el estado nuevo al instante y vuelve a consultar el detalle; también se re-consulta al reconectar el socket y al volver del segundo plano. Mientras el socket está caído, consulta cada 10 s y muestra "Reconectando…".
+- **REST es la verdad, el socket acelera.** `useActiveTrip` consulta `GET /rides/{tripId}` (estado, origen, destino, chofer y auto) y se suscribe a `core/api/realtime-client.ts`. Cada `trip:status_changed` muestra el estado nuevo al instante y vuelve a consultar el detalle; también se re-consulta al reconectar el socket, al volver del segundo plano y al confirmarse la entrada a la sala (`ride:joined`): un aviso emitido antes de entrar a la sala se pierde, y con tarjeta el pago suele acreditarse justo en ese hueco. Mientras el socket está caído, consulta cada 10 s y muestra "Reconectando…"; con el socket conectado, igual consulta cada 15 s mientras el viaje está en `draft` o `searching`, los estados que avanzan solos.
 - **Socket.IO** (`socket.io-client`): una sola conexión para toda la app, abierta solo mientras hay un viaje que seguir. El token va en `auth` como función, así cada reconexión usa el vigente; un rechazo por token vencido lo renueva y reconecta. Hay que emitir `ride:join` para entrar a la sala del viaje, y el cliente lo repite en cada reconexión. Con `__DEV__` deja logs `[socket]` en la consola de Metro.
 - **Despacho**: no lo pide la app. El backend ofrece solo los viajes en `searching` a los choferes cercanos cada 10 s y reintenta mientras nadie acepte.
 - **El auto** (`DriverCarMarker`) recibe `driver:location` cada ~3 s. `useAnimatedCoordinate` interpola entre posiciones durante esos 3 s (sin `AnimatedRegion`, que depende de clases internas de React Native) y gira la flecha según el rumbo; un salto de más de 1 km se mueve sin animar.
 - **ETA y ruta al origen** (`useDriverEta`): Geoapify Routing detrás de `RoutesProvider` (`core/api/routes-provider.ts`, migrable a Google igual que los lugares). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición, para no gastar cuota. Si el proveedor falla, estima con la distancia en línea recta.
 - **Cancelar**: confirmación y `POST /rides/{tripId}/cancel` con `reason_code: passenger_cancelled`; vuelve al Home. La penalidad por cancelación todavía no existe en el backend.
-- **Fuera de alcance por ahora**: PIN de validación, chat y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo.
+- **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint), chat y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. Compartir ETA, Destino, Confort, Concierge, el botón de seguridad y el PDF del comprobante se muestran como en el diseño y avisan "Próximamente".
+
+### Recibo y calificación
+
+`ReceiptScreen` relee `GET /rides/{tripId}`: tarifa final (`final_fare`), origen, destino, minutos de trayecto (`started_at` → `finished_at`), km de la ruta cotizada (`estimated_distance_meters`), medio y estado del pago (`payment_status`) y si ya calificó (`rating`).
+
+- Las estrellas arrancan en 0 y "Calificar y finalizar" queda deshabilitado hasta elegir al menos una. Los motivos (Puntualidad, Conducción suave, Vehículo impecable) viajan como `tags`.
+- `POST /rides/{tripId}/ratings` con `{ rating, tags? }`: 201 vuelve al Home y limpia el viaje en armado (`resetTrip`). Un 409 `RATING_ALREADY_EXISTS` se trata igual que el éxito (por ejemplo, un reintento).
+- "Omitir" y el botón atrás de Android vuelven al Home sin calificar. Si el viaje ya estaba calificado, se muestran las estrellas dadas y "Volver al inicio".
 
 Para probar sin la app del chofer hace falta un chofer que esté conectado por socket y mande su posición (una cuenta demo con un script). Swagger no alcanza: el despacho solo encuentra choferes online con ubicación.
 

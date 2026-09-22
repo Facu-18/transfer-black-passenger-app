@@ -1,5 +1,5 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BackHandler, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,8 @@ import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
 import { DriverEnRoutePanel } from '@/presentation/components/DriverEnRoutePanel';
+import { OnBoardPanel } from '@/presentation/components/OnBoardPanel';
+import { OnBoardTopBar } from '@/presentation/components/OnBoardTopBar';
 import { RadarPulse } from '@/presentation/components/RadarPulse';
 import { ReconnectingBanner } from '@/presentation/components/ReconnectingBanner';
 import { TripSearchingPanel } from '@/presentation/components/TripSearchingPanel';
@@ -20,12 +22,12 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
 const INITIAL_PANEL_HEIGHT = 360;
-/** Lugar para el aviso de reconexion sobre el mapa. */
-const TOP_BAR_HEIGHT = 56;
+/** Lugar para la barra y el aviso de reconexion sobre el mapa. */
+const TOP_BAR_HEIGHT = 64;
 /** Misma referencia en cada render: un `[]` nuevo reencuadraria el mapa sin parar. */
 const NO_ROUTE: Coordinates[] = [];
 
-type TripView = 'searching' | 'enRoute' | 'arrived' | 'status';
+type TripView = 'searching' | 'enRoute' | 'arrived' | 'onBoard' | 'status';
 
 function toView(status: TripStatus | null): TripView {
   switch (status) {
@@ -36,15 +38,32 @@ function toView(status: TripStatus | null): TripView {
       return 'enRoute';
     case 'driver_arrived':
       return 'arrived';
+    case 'in_progress':
+      return 'onBoard';
     default:
       return 'status';
   }
 }
 
 /**
- * Viaje activo: radar mientras se busca chofer y seguimiento en vivo cuando
- * alguien acepta. Una sola pantalla que cambia de panel segun el estado, asi
- * la transicion no recarga el mapa.
+ * Misma referencia mientras no cambien las coordenadas: cada consulta del viaje
+ * trae un objeto nuevo, y el mapa se reencuadra cuando cambia su destino.
+ */
+function useStableCoordinates(source: Coordinates | null): Coordinates | null {
+  const latitude = source?.latitude;
+  const longitude = source?.longitude;
+
+  return useMemo(
+    () => (latitude !== undefined && longitude !== undefined ? { latitude, longitude } : null),
+    [latitude, longitude],
+  );
+}
+
+/**
+ * Viaje activo: radar mientras se busca chofer, seguimiento del auto hasta el
+ * punto de partida y despues hasta el destino. Una sola pantalla que cambia de
+ * panel segun el estado, asi las transiciones no recargan el mapa. Al terminar
+ * el viaje pasa al recibo.
  */
 export function ActiveTripScreen() {
   const { tripId: tripIdParam } = useLocalSearchParams<{ tripId?: string }>();
@@ -60,28 +79,28 @@ export function ActiveTripScreen() {
   const resetTrip = useTripStore((state) => state.resetTrip);
 
   const view = toView(trip?.status ?? null);
-  const tracking = view === 'enRoute' || view === 'arrived';
+  const onBoard = view === 'onBoard';
+  const tracking = view === 'enRoute' || view === 'arrived' || onBoard;
 
-  // Estable mientras no cambien las coordenadas: cada consulta del viaje trae un
-  // objeto nuevo, y el mapa se reencuadra cuando cambia el origen.
-  const pickupSource = trip?.pickup?.coordinates ?? plannedOrigin?.coordinates ?? null;
-  const pickupLatitude = pickupSource?.latitude;
-  const pickupLongitude = pickupSource?.longitude;
-  const pickup = useMemo(
-    () =>
-      pickupLatitude !== undefined && pickupLongitude !== undefined
-        ? { latitude: pickupLatitude, longitude: pickupLongitude }
-        : null,
-    [pickupLatitude, pickupLongitude],
-  );
+  const pickup = useStableCoordinates(trip?.pickup?.coordinates ?? plannedOrigin?.coordinates ?? null);
+  const dropoff = useStableCoordinates(trip?.dropoff?.coordinates ?? plannedDestination?.coordinates ?? null);
+  // Con el pasajero arriba, el auto va al destino.
+  const target = onBoard ? dropoff : pickup;
 
   const animatedDriver = useAnimatedCoordinate(tracking ? (driverLocation?.coordinates ?? null) : null);
-  const eta = useDriverEta(driverLocation?.coordinates ?? null, pickup, view === 'enRoute');
+  const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
   const onPanelLayout = (event: LayoutChangeEvent) => setPanelHeight(event.nativeEvent.layout.height);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
+
+  // Viaje terminado: al recibo con `replace`, asi "atras" no vuelve al seguimiento.
+  useEffect(() => {
+    if (tripId && trip?.status === 'completed') {
+      router.replace({ pathname: '/receipt/[tripId]', params: { tripId } });
+    }
+  }, [tripId, trip?.status]);
 
   const goHome = useCallback(() => {
     resetTrip();
@@ -111,7 +130,8 @@ export function ActiveTripScreen() {
   return (
     <View className="flex-1 bg-obsidian">
       <ActiveTripMap
-        pickup={pickup}
+        target={target}
+        targetKind={onBoard ? 'dropoff' : 'pickup'}
         mode={tracking ? 'tracking' : 'searching'}
         driver={
           tracking && animatedDriver.coordinate
@@ -133,7 +153,8 @@ export function ActiveTripScreen() {
         </View>
       ) : null}
 
-      <View className="absolute left-0 right-0 px-5" style={{ top: insets.top + 8 }} pointerEvents="box-none">
+      <View className="absolute left-0 right-0 gap-2 px-5" style={{ top: insets.top + 8 }} pointerEvents="box-none">
+        {onBoard ? <OnBoardTopBar destination={trip?.dropoff?.address ?? null} /> : null}
         <ReconnectingBanner visible={connection === 'reconnecting' && !isFinished} />
       </View>
 
@@ -163,6 +184,8 @@ export function ActiveTripScreen() {
               isCancelling={isCancelling}
               onCancel={() => requestCancel(true)}
             />
+          ) : onBoard && trip ? (
+            <OnBoardPanel trip={trip} etaMinutes={eta.minutes} />
           ) : (
             <TripStatusPanel
               status={trip?.status ?? null}

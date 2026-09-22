@@ -90,6 +90,12 @@ export const TripQuoteMapper = {
       dropoff: toTripPoint(trip.dropoff),
       driver: toTripDriver(trip.driver),
       vehicle: toTripVehicle(trip.vehicle),
+      formattedFinalFare: trip.final_fare ? formatAmount(trip.final_fare, trip.currency) : null,
+      startedAt: trip.started_at ? new Date(trip.started_at) : null,
+      finishedAt: trip.finished_at ? new Date(trip.finished_at) : null,
+      distanceKm: trip.estimated_distance_meters !== undefined ? trip.estimated_distance_meters / 1000 : null,
+      paymentStatus: trip.payment_status ?? null,
+      ratingGiven: trip.rating?.rating ?? null,
     };
   },
 

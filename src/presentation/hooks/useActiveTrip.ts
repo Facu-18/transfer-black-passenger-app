@@ -5,7 +5,7 @@ import { getTripAction } from '@/core/actions/get-trip.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { realtimeClient } from '@/core/api/realtime-client';
 import type { DriverLocation, RealtimeConnectionState } from '@/infrastructure/interfaces/realtime';
-import { FINISHED_TRIP_STATUSES, type Trip } from '@/infrastructure/interfaces/trips';
+import { FINISHED_TRIP_STATUSES, type Trip, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 
@@ -14,6 +14,14 @@ import { handleExpiredSession } from '@/presentation/utils/expired-session';
  * avanzar porque el pasajero perdio la conexion en tiempo real.
  */
 const FALLBACK_POLL_MS = 10_000;
+
+/**
+ * Consulta de respaldo con el socket conectado, solo en los estados que cambian
+ * sin que el pasajero haga nada (pago que se acredita, busqueda de chofer). Un
+ * aviso perdido no puede dejar la pantalla trabada en "Confirmando tu pago".
+ */
+const PENDING_POLL_MS = 15_000;
+const SELF_ADVANCING_STATUSES: readonly TripStatus[] = ['draft', 'searching'];
 
 /**
  * Sigue el viaje activo: REST para el estado real y Socket.IO para enterarse
@@ -86,6 +94,11 @@ export function useActiveTrip(tripId: string | null) {
         void refresh();
       }),
       realtimeClient.onDriverLocation(setDriverLocation),
+      // Lo que cambio entre la primera consulta y la entrada a la sala no llego
+      // por socket: con tarjeta, el pago suele acreditarse justo en ese hueco.
+      realtimeClient.onRideJoined((rideId) => {
+        if (rideId === tripId) void refresh();
+      }),
       realtimeClient.onConnectionStateChange((state) => {
         setConnection(state);
 
@@ -117,13 +130,17 @@ export function useActiveTrip(tripId: string | null) {
     return () => subscription.remove();
   }, [refresh]);
 
-  // Respaldo por REST mientras no hay socket.
+  // Respaldo por REST: siempre sin socket, y con socket mientras el viaje puede
+  // avanzar solo.
+  const selfAdvancing = trip ? SELF_ADVANCING_STATUSES.includes(trip.status) : true;
   useEffect(() => {
-    if (!tripId || isFinished || connection === 'connected') return;
+    if (!tripId || isFinished) return;
+    if (connection === 'connected' && !selfAdvancing) return;
 
-    const timer = setInterval(() => void refresh(), FALLBACK_POLL_MS);
+    const interval = connection === 'connected' ? PENDING_POLL_MS : FALLBACK_POLL_MS;
+    const timer = setInterval(() => void refresh(), interval);
     return () => clearInterval(timer);
-  }, [tripId, isFinished, connection, refresh]);
+  }, [tripId, isFinished, connection, selfAdvancing, refresh]);
 
   // Otro chofer (o ninguno): la ultima posicion ya no corresponde.
   const driverId = trip?.driverId ?? null;

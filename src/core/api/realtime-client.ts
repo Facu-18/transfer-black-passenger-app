@@ -35,6 +35,7 @@ const joinedRides = new Set<string>();
 const stateListeners = new Set<Listener<RealtimeConnectionState>>();
 const statusListeners = new Set<Listener<TripStatusChangedEvent>>();
 const locationListeners = new Set<Listener<DriverLocation>>();
+const joinedListeners = new Set<Listener<string>>();
 
 function setState(next: RealtimeConnectionState): void {
   if (state === next) return;
@@ -110,7 +111,10 @@ function getSocket(): Socket {
       });
   });
 
-  created.on('ride:joined', ({ rideId }: { rideId: string }) => log('en la sala del viaje', rideId));
+  created.on('ride:joined', ({ rideId }: { rideId: string }) => {
+    log('en la sala del viaje', rideId);
+    joinedListeners.forEach((listener) => listener(rideId));
+  });
   created.on('error', (payload: unknown) => log('error del servidor', payload));
 
   created.on('trip:status_changed', (event: TripStatusChangedEvent) => {
@@ -185,6 +189,14 @@ export const realtimeClient = {
 
   onTripStatusChanged(listener: Listener<TripStatusChangedEvent>): () => void {
     return subscribe(statusListeners, listener);
+  },
+
+  /**
+   * El servidor confirmo la entrada a la sala de un viaje. Desde aca llegan sus
+   * avisos: lo que cambio antes hay que leerlo por REST.
+   */
+  onRideJoined(listener: Listener<string>): () => void {
+    return subscribe(joinedListeners, listener);
   },
 
   onDriverLocation(listener: Listener<DriverLocation>): () => void {

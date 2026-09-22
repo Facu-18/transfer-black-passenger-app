@@ -33,6 +33,8 @@ export default function AppLayout() {
       <Stack.Screen name="pricing" />
       {/* Sin gesto de volver: mientras el viaje sigue, la pantalla no se abandona. */}
       <Stack.Screen name="trip/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
+      {/* Se llega con replace desde el seguimiento; salir es calificar u omitir. */}
+      <Stack.Screen name="receipt/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
     </Stack>
   );
 }
