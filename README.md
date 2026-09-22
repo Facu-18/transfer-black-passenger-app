@@ -2,7 +2,9 @@
 
 Aplicación móvil del pasajero. React Native + Expo + TypeScript, estilos con NativeWind (Tailwind CSS).
 
-La app de conductores comparte la misma arquitectura base y los mismos Design Tokens: cualquier diferencia de configuración entre los dos proyectos tiene que quedar documentada acá.
+El backend está en otro repositorio ([Facu-18/Transfer-Black](https://github.com/Facu-18/Transfer-Black), carpeta `backend/`), junto con la especificación del producto. La app consume el backend desplegado; su contrato se lee en [`/docs`](https://transfer-black-api.onrender.com/docs).
+
+La app de conductores compartirá la misma arquitectura base y los mismos Design Tokens: cualquier diferencia de configuración entre los dos proyectos tiene que quedar documentada acá.
 
 ## Entorno
 
