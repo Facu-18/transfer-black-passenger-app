@@ -176,7 +176,7 @@ export function HomeScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            onPress={() => showComingSoon('Viaje para un invitado')}
+            onPress={() => router.push({ pathname: '/guest', params: { from: 'home' } })}
             className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
           >
             <UserPlus size={16} color={colors.gold} />
