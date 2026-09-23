@@ -2,7 +2,7 @@
 
 # CLAUDE.md
 
-Guía para Claude Code (claude.ai/code) en este repositorio.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Repositorio
 
@@ -47,7 +47,15 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Capas:** `core/` (actions + cliente HTTP y socket, sin React Native) → `infrastructure/`
   (interfaces de la API, mappers, storage) → `presentation/` (componentes, hooks, pantallas, store).
   Las respuestas snake_case del backend no llegan a los componentes: se mapean antes. Los archivos
-  de `src/app/` solo exportan una pantalla.
+  de `src/app/` solo exportan una pantalla. El recorrido es siempre pantalla → hook
+  (`presentation/hooks`) → action (`core/actions`) → `core/api` + mapper; una pantalla nunca llama a
+  la API. Imports con alias `@/` → `src/`; TypeScript `strict`, sin `any` salvo justificado al lado.
+- **Errores:** el interceptor convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`,
+  `details`; `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta). El mensaje al usuario se decide por
+  `status` y `code`, nunca por el texto del backend.
+- **Entorno:** `.env` (copia de `.env.example`). Las `EXPO_PUBLIC_*` quedan escritas en el bundle
+  (nada secreto) y se leen con acceso literal a `process.env`; tras cambiarlas hay que reiniciar
+  Metro. En un celular físico `localhost` es el celular: usar la IP de la PC.
 - **Proveedores de mapas:** Geoapify está detrás de `PlacesProvider` y `RoutesProvider`; se cambia
   en un solo archivo (`core/api/places-provider.ts`, `core/api/routes-provider.ts`). Ojo: el
   `placeId` viaja a `POST /rides/quote`, así que el backend tiene que usar el mismo proveedor.
@@ -67,7 +75,13 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Despacho:** la app no lo pide. El servidor ofrece los viajes en `searching` cada 10 s y reintenta.
 - **Tokens:** el access token dura 15 minutos y el refresh **rota** en cada uso. El interceptor
   renueva una sola vez a la vez (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh
-  token cierra la sesión.
+  token cierra la sesión. El access token vive solo en memoria (`useAuthStore`) y el refresh en
+  `expo-secure-store`; por eso cerrar la app hoy pierde la sesión.
+- **Idempotencia:** las operaciones que mueven plata mandan `Idempotency-Key`
+  (`core/api/idempotency.ts`), una por intento de confirmación y no por solicitud: si se regenera en
+  cada reintento, se puede cobrar dos veces.
+- **Render se duerme:** la primera solicitud tras un rato sin tráfico puede tardar ~1 minuto; por eso
+  el timeout de Axios es de 60 s. No es un bug de la app.
 - **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
 
 ## Estado y pendientes

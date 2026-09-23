@@ -10,6 +10,7 @@ import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
+import { WhatsAppServicesRow } from '@/presentation/components/WhatsAppServicesRow';
 import { useConfirmRide } from '@/presentation/hooks/useConfirmRide';
 import { useRideQuote } from '@/presentation/hooks/useRideQuote';
 import { useTripStore } from '@/presentation/store/useTripStore';
@@ -92,6 +93,7 @@ export function PricingScreen() {
               {error}
             </Typography>
             <VIPButton title="Reintentar" onPress={() => void retry()} />
+            <WhatsAppServicesRow origin={origin.name} destination={destination.name} />
           </View>
         ) : quote ? (
           <>
@@ -107,6 +109,8 @@ export function PricingScreen() {
                 />
               ))}
             </View>
+
+            <WhatsAppServicesRow origin={origin.name} destination={destination.name} disabled={isConfirming} />
 
             <PaymentMethodPills value={paymentMethod} disabled={isConfirming} onChange={setPaymentMethod} />
 
