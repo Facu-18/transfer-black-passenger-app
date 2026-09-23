@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
+import { CoordinatorBanner } from '@/presentation/components/CoordinatorBanner';
 import { DriverEnRoutePanel } from '@/presentation/components/DriverEnRoutePanel';
 import { OnBoardPanel } from '@/presentation/components/OnBoardPanel';
 import { OnBoardTopBar } from '@/presentation/components/OnBoardTopBar';
@@ -155,6 +156,13 @@ export function ActiveTripScreen() {
 
       <View className="absolute left-0 right-0 gap-2 px-5" style={{ top: insets.top + 8 }} pointerEvents="box-none">
         {onBoard ? <OnBoardTopBar destination={trip?.dropoff?.address ?? null} /> : null}
+        {trip?.thirdParty && !isFinished ? (
+          <CoordinatorBanner
+            guestName={trip.thirdParty.name}
+            trackingUrl={trip.trackingUrl}
+            guestPhoneE164={trip.thirdParty.phoneE164}
+          />
+        ) : null}
         <ReconnectingBanner visible={connection === 'reconnecting' && !isFinished} />
       </View>
 
