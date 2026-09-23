@@ -1,5 +1,5 @@
 import { MessageCircle } from 'lucide-react-native';
-import { Alert, Linking, Pressable, View } from 'react-native';
+import { Alert, Linking, Pressable, Share, View } from 'react-native';
 
 import { colors } from '@/presentation/theme/colors';
 
@@ -24,7 +24,13 @@ async function shareTracking(phoneE164: string, message: string): Promise<void> 
   try {
     await Linking.openURL(url);
   } catch {
-    Alert.alert('No pudimos abrir WhatsApp', 'Copiá el link y mandaselo por otra vía.', [{ text: 'Entendido' }]);
+    // Sin WhatsApp, la hoja de compartir del sistema deja mandar el mismo
+    // mensaje (con el link) por SMS, mail o copiarlo.
+    try {
+      await Share.share({ message });
+    } catch {
+      Alert.alert('No pudimos compartir el seguimiento', 'Intentá de nuevo en unos segundos.', [{ text: 'Entendido' }]);
+    }
   }
 }
 

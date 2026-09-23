@@ -34,6 +34,17 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
     }
   }, [quote]);
 
+  // Cambiar el invitado cambia el cuerpo de la confirmacion: con la misma
+  // clave, el backend devolveria la respuesta del intento anterior.
+  const keyOwnerGuest = useRef(guestPassenger);
+
+  useEffect(() => {
+    if (keyOwnerGuest.current !== guestPassenger) {
+      keyOwnerGuest.current = guestPassenger;
+      idempotencyKey.current = newIdempotencyKey();
+    }
+  }, [guestPassenger]);
+
   const confirm = async () => {
     if (!quote || !selectedFare || isConfirming) {
       return;
