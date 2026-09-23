@@ -35,6 +35,13 @@ export interface RideQuote {
   options: FareOption[];
 }
 
+/** Datos del invitado que carga el titular para pedir un viaje para un tercero. */
+export interface GuestPassenger {
+  name: string;
+  phoneE164: string;
+  email: string | null;
+}
+
 export interface ConfirmedTrip {
   tripId: string;
   publicCode: string;
@@ -78,6 +85,26 @@ export interface TripVehicle {
   plate: string;
 }
 
+/** Datos del invitado que viaja, cuando el viaje se pidio para un tercero. */
+export interface TripThirdParty {
+  name: string;
+  phoneE164: string;
+  email: string | null;
+}
+
+/**
+ * Quien coordina el viaje. Hoy la app solo usa `thirdParty` (arriba) y
+ * `trackingUrl` en `Trip`; esto viaja para el chat (ticket aparte), sin uso
+ * todavia.
+ */
+export interface TripCoordinator {
+  coordinatorUserId: string;
+  coordinatorRole: 'passenger' | 'requester';
+  passengerUserId: string;
+  isThirdPartyTrip: boolean;
+  thirdParty: { name: string; phoneE164: string } | null;
+}
+
 export interface Trip {
   id: string;
   /** Codigo corto que ve el pasajero, por ejemplo `TB-8F3K2A`. */
@@ -102,6 +129,12 @@ export interface Trip {
   paymentStatus: PaymentStatus | null;
   /** Estrellas que dejo el pasajero; `null` mientras no califico. */
   ratingGiven: number | null;
+  /** Invitado que viaja; `null` si el titular viaja. */
+  thirdParty: TripThirdParty | null;
+  /** Link de seguimiento para compartir con el invitado; solo lo trae el titular que pidio el viaje. */
+  trackingUrl: string | null;
+  /** Info de coordinacion (para el chat, ticket aparte); `null` con un backend que todavia no la manda. */
+  coordinator: TripCoordinator | null;
 }
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';

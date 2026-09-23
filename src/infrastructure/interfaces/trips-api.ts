@@ -50,9 +50,18 @@ export interface RoutePointRequest {
 /** `voucher` tambien existe en el backend, pero la app todavia no lo ofrece. */
 export type PaymentTypeRequest = 'account_money' | 'cash';
 
+/** Invitado que viaja, para `POST /rides/{tripId}/confirm`. Sin invitado, viaja el titular. */
+export interface ThirdPartyRequest {
+  name: string;
+  phone_e164: string;
+  /** Se omite (no se manda vacio) cuando el titular no cargo un email. */
+  email?: string;
+}
+
 export interface ConfirmTripRequest {
   fare_quote_id: string;
   payment: { type: PaymentTypeRequest };
+  third_party?: ThirdPartyRequest;
 }
 
 /** Viaje tal como lo devuelven `GET /rides/{tripId}` y la confirmacion. */
@@ -99,9 +108,30 @@ export interface TripDetailResponse extends TripResponse {
   estimated_distance_meters?: number;
   payment_status?: PaymentStatusResponse | null;
   rating?: { rating: number; created_at: string } | null;
+  /** Invitado que viaja; `null` si el titular viaja. Ausente en un backend que todavia no lo manda. */
+  third_party?: ThirdPartyResponse | null;
+  /** Link de seguimiento del invitado; solo lo trae el titular de un viaje de tercero. */
+  tracking_url?: string | null;
+  chat?: ChatInfoResponse | null;
 }
 
 export type PaymentStatusResponse = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
+
+/** Invitado que viaja, tal como lo devuelve `GET /rides/{tripId}`. */
+export interface ThirdPartyResponse {
+  name: string;
+  phone_e164: string;
+  email: string | null;
+}
+
+/** Info de coordinacion para el chat (ticket aparte); la app todavia no la usa. */
+export interface ChatInfoResponse {
+  coordinator_user_id: string;
+  coordinator_role: 'passenger' | 'requester';
+  passenger_user_id: string;
+  is_third_party_trip: boolean;
+  third_party: { name: string; phone_e164: string } | null;
+}
 
 /** Motivos que el backend acepta junto a las estrellas. */
 export type RatingTagRequest = 'punctuality' | 'smooth_driving' | 'clean_vehicle';

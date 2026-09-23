@@ -4,9 +4,11 @@ import type {
   FareOption,
   RideQuote,
   Trip,
+  TripCoordinator,
   TripDriver,
   TripPoint,
   TripStatus,
+  TripThirdParty,
   TripVehicle,
 } from '../interfaces/trips';
 import type {
@@ -77,6 +79,28 @@ function toTripVehicle(vehicle: TripDetailResponse['vehicle']): TripVehicle | nu
     : null;
 }
 
+function toTripThirdParty(thirdParty: TripDetailResponse['third_party']): TripThirdParty | null {
+  return thirdParty
+    ? { name: thirdParty.name, phoneE164: thirdParty.phone_e164, email: thirdParty.email }
+    : null;
+}
+
+function toTripCoordinator(chat: TripDetailResponse['chat']): TripCoordinator | null {
+  if (!chat) {
+    return null;
+  }
+
+  return {
+    coordinatorUserId: chat.coordinator_user_id,
+    coordinatorRole: chat.coordinator_role,
+    passengerUserId: chat.passenger_user_id,
+    isThirdPartyTrip: chat.is_third_party_trip,
+    thirdParty: chat.third_party
+      ? { name: chat.third_party.name, phoneE164: chat.third_party.phone_e164 }
+      : null,
+  };
+}
+
 export const TripQuoteMapper = {
   toTrip(trip: TripDetailResponse): Trip {
     return {
@@ -96,6 +120,9 @@ export const TripQuoteMapper = {
       distanceKm: trip.estimated_distance_meters !== undefined ? trip.estimated_distance_meters / 1000 : null,
       paymentStatus: trip.payment_status ?? null,
       ratingGiven: trip.rating?.rating ?? null,
+      thirdParty: toTripThirdParty(trip.third_party ?? null),
+      trackingUrl: trip.tracking_url ?? null,
+      coordinator: toTripCoordinator(trip.chat ?? null),
     };
   },
 

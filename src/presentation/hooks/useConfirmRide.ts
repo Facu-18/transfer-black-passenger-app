@@ -7,6 +7,7 @@ import { confirmRideAction } from '@/core/actions/confirm-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { newIdempotencyKey } from '@/core/api/idempotency';
 import type { FareOption, PaymentMethod, RideQuote } from '@/infrastructure/interfaces/trips';
+import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 
@@ -20,6 +21,7 @@ interface UseConfirmRideOptions {
 export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfirmRideOptions) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('account_money');
   const [isConfirming, setIsConfirming] = useState(false);
+  const guestPassenger = useTripStore((state) => state.guestPassenger);
 
   // Una clave por borrador: mientras sea el mismo viaje, reintentar no duplica el cobro.
   const idempotencyKey = useRef(newIdempotencyKey());
@@ -45,6 +47,7 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         fareQuoteId: selectedFare.id,
         paymentMethod,
         idempotencyKey: idempotencyKey.current,
+        guestPassenger,
       });
 
       // Con efectivo el viaje ya esta en `searching` y la pantalla del viaje

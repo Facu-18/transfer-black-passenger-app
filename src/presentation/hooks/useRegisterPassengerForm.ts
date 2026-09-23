@@ -8,11 +8,10 @@ import { ApiRequestError } from '@/core/api/api-request-error';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { emailField } from '@/presentation/utils/auth-form-fields';
+import { phoneE164Field } from '@/presentation/utils/phone';
 
 // La contraseña replica las reglas del backend (register-passenger.dto):
 // asi un dato invalido se corrige en pantalla sin gastar una solicitud.
-const E164_PHONE = /^\+[1-9]\d{7,14}$/;
-
 const registerPassengerSchema = z.object({
   fullName: z
     .string()
@@ -20,11 +19,7 @@ const registerPassengerSchema = z.object({
     .regex(/^\S+\s+\S+/, 'Ingresa tu nombre y apellido')
     .max(201, 'El nombre es demasiado largo'),
   email: emailField,
-  phone: z
-    .string()
-    // Se aceptan espacios, guiones y parentesis al escribir; el backend espera E.164 limpio.
-    .transform((value) => value.replace(/[\s()-]/g, ''))
-    .pipe(z.string().regex(E164_PHONE, 'Usa el formato internacional, ej. +54 9 351 555 0199')),
+  phone: phoneE164Field,
   password: z
     .string()
     .min(8, 'Mínimo 8 caracteres')
