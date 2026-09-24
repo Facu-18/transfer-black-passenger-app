@@ -174,13 +174,14 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/login` | `(public)/login.tsx` | Inicio de sesión |
 | `/verify-email` | `verify-email.tsx` | Validación del PIN; destino después del registro o de un login sin correo verificado |
 | `/home` | `(app)/(tabs)/home.tsx` | Mapa principal |
-| `/activity` | `(app)/(tabs)/activity.tsx` | Provisoria |
+| `/activity` | `(app)/(tabs)/activity.tsx` | "Viajes": historial paginado, con filtros |
 | `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/guest` | `(app)/guest.tsx` | "Pasajero invitado": carga los datos de un tercero para viajar en su nombre |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
 | `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y viaje en curso, en vivo |
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
+| `/trips/[tripId]` | `(app)/trips/[tripId].tsx` | Detalle de un viaje del historial (plural: distinta de `/trip/[tripId]`) |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
@@ -271,6 +272,18 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 - "Omitir" y el botón atrás de Android vuelven al Home sin calificar. Si el viaje ya estaba calificado, se muestran las estrellas dadas y "Volver al inicio".
 
 Para probar sin la app del chofer hace falta un chofer que esté conectado por socket y mande su posición (una cuenta demo con un script). Swagger no alcanza: el despacho solo encuentra choferes online con ubicación.
+
+## Mis viajes
+
+La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHistoryScreen`: historial paginado con filtros Todos / Completados / Cancelados, scroll infinito, pull to refresh y estado vacío.
+
+- **Listado**: `GET /rides?page&limit&status` (rol pasajero, solicitante o pasajero, sin borradores). "Todos" no manda `status`: el backend ya devuelve todo lo no-borrador, incluidos los viajes en curso, así que ese filtro también muestra lo que está pasando ahora. "Completados" y "Cancelados" mandan `status=completed` / `status=cancelled`; el backend también acepta el alias `active` (todo lo que no sea `completed` ni `cancelled`), pero la app no lo necesita porque no ofrece ese filtro.
+- **Paginación**: a mano, sin TanStack Query (decisión del ticket). `useTripHistory` guarda un `requestId` que se incrementa en cada pedido: una respuesta que llega con un id viejo (por ejemplo, la del filtro anterior, tarde) se descarta en vez de pisar la lista. Cambiar de filtro reinicia la página a 1; `loadMore` no dispara un segundo pedido mientras uno sigue en marcha ni pasado el último `total_pages`.
+- **Tarjeta**: ícono del servicio, destino (o el origen si no hay destino), fecha (`formatTripDate`, ver abajo) y tarifa (`final_fare` o, si todavía no hay, `estimated_fare`). Muestra "Cancelado" (rojo), un tilde gold para "Completado" o "En curso" (gold) para cualquier otro estado, y "Para `<nombre>`" si el viaje es para un invitado.
+- **Fechas relativas**: `presentation/utils/format-date.ts` calcula "Hoy, 15:30" / "Ayer, 15:30" / "Hace 3 días" a mano (no con `Intl.RelativeTimeFormat`, que no arma ese formato) y usa `Intl.DateTimeFormat` para el resto ("14 de agosto, 15:30", con el año si no es el actual). Recibe `now` como parámetro para que el resultado sea determinista.
+- **Toque en una tarjeta**: un viaje activo (ni completado ni cancelado) va a `/trip/[tripId]` (la pantalla en vivo); el resto va al detalle, `/trips/[tripId]` (plural, distinto de `/trip/[tripId]`).
+- **Detalle** (`TripDetailScreen`): relee `GET /rides/{tripId}`, que además del detalle que ya usaba el recibo trae `service_type` (categoría elegida) y `fare_breakdown` (`base`, `distance`, `time`, `discount`, `fees`, `total`, todos como texto). Si el desglose no coincide con `final_fare` (puede pasar: el total cotizado no es necesariamente lo que se liquidó), se muestra aparte como "Total cobrado" con una aclaración. El descuento y los cargos solo se muestran si son mayores a cero. Un viaje cancelado muestra `cancelled_at`; el motivo (`cancellation_reason_code`) solo se traduce si hay una entrada en `CANCELLATION_REASON_LABELS` (hoy, solo `passenger_cancelled`) — cualquier otro código se omite en vez de mostrar el código crudo.
+- Los textos de medio y estado de pago (`PAYMENT_METHOD_LABELS`, `PAYMENT_STATUS_LABELS`) están en `presentation/utils/payment-labels.ts`, compartidos con `ReceiptScreen`.
 
 ## API y sesión
 
