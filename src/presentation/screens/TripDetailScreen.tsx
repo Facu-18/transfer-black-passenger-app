@@ -89,6 +89,8 @@ export function TripDetailScreen() {
 
   const { trip, isLoading, error, notFound, retry } = useTripDetail(tripId);
 
+  // Sin ninguna fecha del viaje no se muestra nada: la de hoy seria un dato falso.
+  const tripDate = trip ? (trip.startedAt ?? trip.finishedAt ?? trip.cancelledAt) : null;
   const breakdown = trip?.fareBreakdown ?? null;
   const finalDiffersFromBreakdown =
     breakdown !== null && trip?.formattedFinalFare !== undefined && trip.formattedFinalFare !== null
@@ -140,9 +142,11 @@ export function TripDetailScreen() {
           </View>
         ) : (
           <>
-            <Typography variant="caption" tone="secondary">
-              {dateTimeFormatter.format(trip.startedAt ?? trip.finishedAt ?? trip.cancelledAt ?? new Date())}
-            </Typography>
+            {tripDate ? (
+              <Typography variant="caption" tone="secondary">
+                {dateTimeFormatter.format(tripDate)}
+              </Typography>
+            ) : null}
 
             <TripRouteCard
               origin={trip.pickup?.address ?? null}

@@ -41,8 +41,12 @@ export function useTripHistory() {
     const requestId = ++requestIdRef.current;
     lastRequestRef.current = { page: targetPage, mode };
 
-    if (mode === 'initial') setIsLoading(true);
-    else if (mode === 'more') setIsLoadingMore(true);
+    if (mode === 'initial') {
+      // Carga inicial o cambio de filtro: la lista anterior es de otro filtro y
+      // no debe quedar a la vista si este pedido falla.
+      setItems([]);
+      setIsLoading(true);
+    } else if (mode === 'more') setIsLoadingMore(true);
     else setIsRefreshing(true);
     setError(null);
 
