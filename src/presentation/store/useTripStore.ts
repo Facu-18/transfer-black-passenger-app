@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { Coordinates, Place } from '@/infrastructure/interfaces/places';
+import type { GuestPassenger } from '@/infrastructure/interfaces/trips';
 
 interface TripState {
   /** Posicion del GPS; `null` sin permiso o mientras se obtiene. */
@@ -9,10 +10,14 @@ interface TripState {
   currentPlace: Place | null;
   origin: Place | null;
   destinationLocation: Place | null;
+  /** Invitado cargado para un viaje de tercero; `null` si viaja el titular. */
+  guestPassenger: GuestPassenger | null;
   setCurrentLocation: (coordinates: Coordinates) => void;
   setCurrentPlace: (place: Place) => void;
   setOrigin: (place: Place | null) => void;
   setDestination: (place: Place | null) => void;
+  setGuestPassenger: (guest: GuestPassenger) => void;
+  clearGuestPassenger: () => void;
   resetTrip: () => void;
 }
 
@@ -22,6 +27,7 @@ export const useTripStore = create<TripState>()((set) => ({
   currentPlace: null,
   origin: null,
   destinationLocation: null,
+  guestPassenger: null,
 
   setCurrentLocation: (currentLocation) => set({ currentLocation }),
 
@@ -31,6 +37,9 @@ export const useTripStore = create<TripState>()((set) => ({
 
   setOrigin: (origin) => set({ origin }),
   setDestination: (destinationLocation) => set({ destinationLocation }),
+  setGuestPassenger: (guestPassenger) => set({ guestPassenger }),
+  clearGuestPassenger: () => set({ guestPassenger: null }),
 
-  resetTrip: () => set((state) => ({ origin: state.currentPlace, destinationLocation: null })),
+  resetTrip: () =>
+    set((state) => ({ origin: state.currentPlace, destinationLocation: null, guestPassenger: null })),
 }));

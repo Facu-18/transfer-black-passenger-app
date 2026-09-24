@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip';
 import { PaymentMethodPills } from '@/presentation/components/PaymentMethodPills';
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
@@ -23,6 +24,8 @@ export function PricingScreen() {
   const insets = useSafeAreaInsets();
   const origin = useTripStore((state) => state.origin);
   const destination = useTripStore((state) => state.destinationLocation);
+  const guestPassenger = useTripStore((state) => state.guestPassenger);
+  const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
   const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip } = useRideQuote();
   const { paymentMethod, setPaymentMethod, confirm, isConfirming } = useConfirmRide({
@@ -111,6 +114,14 @@ export function PricingScreen() {
             </View>
 
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} disabled={isConfirming} />
+
+            <GuestPassengerChip
+              guest={guestPassenger}
+              disabled={isConfirming}
+              onEdit={() => router.push('/guest')}
+              onRemove={clearGuestPassenger}
+              onAddGuest={() => router.push('/guest')}
+            />
 
             <PaymentMethodPills value={paymentMethod} disabled={isConfirming} onChange={setPaymentMethod} />
 

@@ -83,12 +83,21 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Render se duerme:** la primera solicitud tras un rato sin tráfico puede tardar ~1 minuto; por eso
   el timeout de Axios es de 60 s. No es un bug de la app.
 - **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
+- **Servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros) no existen en el backend: viven solo en
+  `presentation/utils/whatsapp-services.ts`, no se cotizan ni crean viaje, y abren `wa.me` con origen
+  y destino ya escritos. Se muestran aunque la cotización falle.
+- **Viaje para un invitado**: el tercero va en `third_party` de `POST /rides/{tripId}/confirm`, no en
+  `POST /rides/quote` (que no cambia). El email del invitado es opcional: sin él, no hay aviso por
+  correo. No hay proveedor de SMS, así que el titular comparte el `tracking_url` (solo lo trae el
+  titular que pidió el viaje, en `GET /rides/{tripId}`) por WhatsApp desde el viaje activo. El
+  invitado se guarda en `useTripStore.guestPassenger` y se limpia en `resetTrip()`, como el resto del
+  viaje en armado.
 
 ## Estado y pendientes
 
 Terminado: registro, login, verificación por PIN, home con mapa, búsqueda de direcciones,
-cotización, pago (Mercado Pago y efectivo), radar, chofer en camino, viaje a bordo, recibo y
-calificación.
+cotización, pago (Mercado Pago y efectivo), radar, chofer en camino, viaje a bordo, recibo,
+calificación y viaje para un pasajero invitado.
 
 Pendiente, no por olvido:
 
@@ -101,8 +110,8 @@ Pendiente, no por olvido:
 ## Probar un viaje de punta a punta
 
 Hace falta un chofer conectado por socket mandando posición: Swagger no alcanza, porque el despacho
-solo encuentra choferes `online` con ubicación de menos de 5 km. Para eso está el simulador en
-`C:\Users\Tonchi\OneDrive\Escritorio\simulador-chofer` (fuera de todo repo, con su propio README):
+solo encuentra choferes `online` con ubicación de menos de 5 km. Para eso está el simulador
+`simulador-chofer` (fuera de todo repo, con su propio README; la ruta cambia según la máquina):
 `npm run manual` lo deja online y las transiciones las hacés desde Swagger; `npm start -- --complete`
 recorre el viaje entero solo.
 

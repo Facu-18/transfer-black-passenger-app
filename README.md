@@ -177,6 +177,7 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/activity` | `(app)/(tabs)/activity.tsx` | Provisoria |
 | `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
+| `/guest` | `(app)/guest.tsx` | "Pasajero invitado": carga los datos de un tercero para viajar en su nombre |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
 | `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y viaje en curso, en vivo |
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
@@ -207,7 +208,15 @@ Geoapify se consulta por REST con `EXPO_PUBLIC_GEOAPIFY_API_KEY`: resultados en 
 - `usePlaceSearch` espera 350 ms tras la última tecla, busca desde 3 caracteres y cancela la búsqueda anterior.
 - Al elegir destino se guarda en `useTripStore.destinationLocation` y en recientes; con origen, avanza a `/pricing`. Sin origen (sin ubicación), pide elegirlo primero.
 - **Recientes**: los últimos 5 destinos, guardados en el dispositivo (`recent-places-storage.ts`). El backend no tiene lugares frecuentes ni guardados; el Home muestra estos mismos recientes.
-- "Reserva", "Para mí", "Viaje corporativo", "Para un invitado" y las notificaciones informan que llegan pronto.
+- "Reserva", "Para mí" y "Viaje corporativo" informan que llegan pronto. "Para un invitado" ya funciona: lleva a `/guest`.
+
+### Pasajero invitado (viaje para un tercero)
+
+La pantalla `GuestPassengerScreen` (hook `useGuestPassengerForm`, RHF + Zod) carga los datos de quien viaja cuando no es el titular: nombre completo, teléfono móvil y un email opcional para el comprobante. Se guardan en `useTripStore.guestPassenger` (se limpian en `resetTrip()`) y viajan recién en `POST /rides/{tripId}/confirm`, como `third_party`; `POST /rides/quote` no cambia. El titular queda como coordinador del viaje: es quien paga y quien ve el seguimiento.
+
+- **Teléfono**: el campo solo pide el número local (el "+54 9" es un prefijo fijo en pantalla). `presentation/utils/phone.ts` normaliza a E.164 (`normalizeArgentineMobile`): saca espacios/guiones, un "0" inicial y un "15" inicial, y exige que queden exactamente 10 dígitos (código de área + número). No cubre el "15" escrito después del código de área (ej. "0351 15 555 0199"): ahí alcanza con escribir el número sin el 0 ni el 15, como lo guarda cualquier agenda moderna. El mismo archivo expone `phoneE164Field`, el campo genérico en E.164 que también usa el registro.
+- **Entradas**: la píldora "Para un invitado" del Home (`from=home`, al confirmar sigue a `/search`) y, en Cotización, un chip que pide, edita o quita el invitado (`GuestPassengerChip`); sin `from=home` el paso siguiente es `router.back()`, así que desde Cotización se vuelve ahí.
+- **Sin SMS**: el backend no tiene proveedor de SMS. Si se carga email, el invitado recibe ahí el link de seguimiento; siempre se lo puede mandar también por WhatsApp desde el viaje activo (ver más abajo). No hay "Agenda", "Compartir mi seguimiento" propio ni "Cobro a cuenta del anfitrión": no tienen soporte en el backend.
 
 ## Cotización y confirmación del viaje
 
@@ -250,6 +259,7 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 - **El auto** (`DriverCarMarker`) recibe `driver:location` cada ~3 s. `useAnimatedCoordinate` interpola entre posiciones durante esos 3 s (sin `AnimatedRegion`, que depende de clases internas de React Native) y gira la flecha según el rumbo; un salto de más de 1 km se mueve sin animar.
 - **ETA y ruta al origen** (`useDriverEta`): Geoapify Routing detrás de `RoutesProvider` (`core/api/routes-provider.ts`, migrable a Google igual que los lugares). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición, para no gastar cuota. Si el proveedor falla, estima con la distancia en línea recta.
 - **Cancelar**: confirmación y `POST /rides/{tripId}/cancel` con `reason_code: passenger_cancelled`; vuelve al Home. La penalidad por cancelación todavía no existe en el backend.
+- **Viaje para un invitado**: si el detalle trae `third_party`, la pantalla muestra "Sos el coordinador · viaja `<nombre>`" (`CoordinatorBanner`) y, cuando el backend también manda `tracking_url` (solo al titular que pidió el viaje), un botón "Enviar seguimiento por WhatsApp" que abre `wa.me` al número del invitado con el link ya escrito. Sin chat: no hay forma de escribirle al invitado desde la app.
 - **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint), chat y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. Compartir ETA, Destino, Confort, Concierge, el botón de seguridad y el PDF del comprobante se muestran como en el diseño y avisan "Próximamente".
 
 ### Recibo y calificación
