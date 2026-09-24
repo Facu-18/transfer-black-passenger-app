@@ -1,6 +1,7 @@
 import type { Coordinates } from '../interfaces/places';
 import type {
   ConfirmedTrip,
+  FareBreakdown,
   FareOption,
   RideQuote,
   Trip,
@@ -16,6 +17,7 @@ import type {
   RideQuoteResponse,
   RouteGeometryResponse,
   TripDetailResponse,
+  TripFareBreakdownResponse,
   TripStopPointResponse,
 } from '../interfaces/trips-api';
 
@@ -25,9 +27,10 @@ const currencyFormatters = new Map<string, Intl.NumberFormat>();
  * Importe listo para mostrar (`$ 24.500`).
  *
  * El `Number` es solo para formatear: el valor exacto sigue viajando como texto
- * en `totalAmount`, que es el que se manda al backend.
+ * en `totalAmount`, que es el que se manda al backend. La reusan el mapper del
+ * historial y el del detalle: un solo lugar decide como se ve un importe.
  */
-function formatAmount(amount: string, currency: string): string {
+export function formatAmount(amount: string, currency: string): string {
   let formatter = currencyFormatters.get(currency);
 
   if (!formatter) {
@@ -85,6 +88,27 @@ function toTripThirdParty(thirdParty: TripDetailResponse['third_party']): TripTh
     : null;
 }
 
+function toFareBreakdown(fareBreakdown: TripFareBreakdownResponse | null | undefined): FareBreakdown | null {
+  if (!fareBreakdown) {
+    return null;
+  }
+
+  const toItem = (amount: string) => ({
+    amount: Number(amount),
+    formattedAmount: formatAmount(amount, fareBreakdown.currency),
+  });
+
+  return {
+    base: toItem(fareBreakdown.base),
+    distance: toItem(fareBreakdown.distance),
+    time: toItem(fareBreakdown.time),
+    discount: toItem(fareBreakdown.discount),
+    fees: toItem(fareBreakdown.fees),
+    total: toItem(fareBreakdown.total),
+    currency: fareBreakdown.currency,
+  };
+}
+
 function toTripCoordinator(chat: TripDetailResponse['chat']): TripCoordinator | null {
   if (!chat) {
     return null;
@@ -117,12 +141,16 @@ export const TripQuoteMapper = {
       formattedFinalFare: trip.final_fare ? formatAmount(trip.final_fare, trip.currency) : null,
       startedAt: trip.started_at ? new Date(trip.started_at) : null,
       finishedAt: trip.finished_at ? new Date(trip.finished_at) : null,
+      cancelledAt: trip.cancelled_at ? new Date(trip.cancelled_at) : null,
+      cancellationReasonCode: trip.cancellation_reason_code ?? null,
       distanceKm: trip.estimated_distance_meters !== undefined ? trip.estimated_distance_meters / 1000 : null,
       paymentStatus: trip.payment_status ?? null,
       ratingGiven: trip.rating?.rating ?? null,
       thirdParty: toTripThirdParty(trip.third_party ?? null),
       trackingUrl: trip.tracking_url ?? null,
       coordinator: toTripCoordinator(trip.chat ?? null),
+      serviceType: trip.service_type ?? null,
+      fareBreakdown: toFareBreakdown(trip.fare_breakdown),
     };
   },
 

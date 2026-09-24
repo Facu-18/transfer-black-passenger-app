@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { BackHandler, Image, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { PaymentStatus, RatingTag, Trip } from '@/infrastructure/interfaces/trips';
+import type { RatingTag, Trip } from '@/infrastructure/interfaces/trips';
 import { RatingStars } from '@/presentation/components/RatingStars';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
@@ -14,21 +14,7 @@ import { useTripReceipt } from '@/presentation/hooks/useTripReceipt';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { showComingSoon } from '@/presentation/utils/coming-soon';
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  account_money: 'Mercado Pago',
-  cash: 'Efectivo',
-  voucher: 'Voucher corporativo',
-};
-
-const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  paid: 'Pagado',
-  pending: 'Pendiente',
-  failed: 'Rechazado',
-  cancelled: 'Cancelado',
-  refunded: 'Reembolsado',
-  charged_back: 'Contracargo',
-};
+import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
 
 const STAR_LABELS = ['', 'Muy malo', 'Malo', 'Regular', 'Muy bueno', 'Excelente servicio'];
 

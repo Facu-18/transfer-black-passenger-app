@@ -92,12 +92,20 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   titular que pidió el viaje, en `GET /rides/{tripId}`) por WhatsApp desde el viaje activo. El
   invitado se guarda en `useTripStore.guestPassenger` y se limpia en `resetTrip()`, como el resto del
   viaje en armado.
+- **Historial** (`GET /rides?page&limit&status`): es la vista liviana para una lista (`data.trips` +
+  `data.pagination`, con `page/limit/total/total_pages`), no el detalle completo. Sin `status` trae
+  todo lo no-borrador, incluidos los viajes en curso (por eso el filtro "Todos" también los muestra);
+  el alias `status=active` agrupa todo lo que no sea `completed` ni `cancelled`, pero la app hoy no lo
+  usa porque no ofrece ese filtro. `GET /rides/{tripId}` (el mismo detalle que ya usaba el recibo)
+  suma `service_type` (categoría) y `fare_breakdown` (`base`/`distance`/`time`/`discount`/`fees`/
+  `total`, como texto); `cancelled_at` y `cancellation_reason_code` ya estaban en el contrato pero la
+  app no los tipaba. Sin TanStack Query en el listado: es una decisión del ticket, no un olvido.
 
 ## Estado y pendientes
 
 Terminado: registro, login, verificación por PIN, home con mapa, búsqueda de direcciones,
 cotización, pago (Mercado Pago y efectivo), radar, chofer en camino, viaje a bordo, recibo,
-calificación y viaje para un pasajero invitado.
+calificación, viaje para un pasajero invitado e historial de viajes (listado con filtros y detalle).
 
 Pendiente, no por olvido:
 
@@ -105,7 +113,7 @@ Pendiente, no por olvido:
 - Reembolso y penalidad al cancelar: falta definir la política (especificación §24, punto 12).
 - Restaurar la sesión al abrir la app, y por lo tanto retomar un viaje activo si la app se cerró.
 - `back_urls` / deep link de vuelta desde el checkout.
-- Historial de viajes (`/activity`) y cuenta (`/account`) son pantallas provisorias.
+- Cuenta (`/account`) es una pantalla provisoria.
 
 ## Probar un viaje de punta a punta
 
