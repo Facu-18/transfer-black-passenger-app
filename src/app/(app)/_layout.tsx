@@ -36,6 +36,8 @@ export default function AppLayout() {
       <Stack.Screen name="trip/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
       {/* Se llega con replace desde el seguimiento; salir es calificar u omitir. */}
       <Stack.Screen name="receipt/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
+      {/* Detalle de un viaje ya terminado, desde el historial. */}
+      <Stack.Screen name="trips/[tripId]" />
     </Stack>
   );
 }
