@@ -105,6 +105,10 @@ export interface TripDetailResponse extends TripResponse {
   final_fare?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
+  /** Cuando `status` es `cancelled`. Ausente en un backend que todavia no lo manda. */
+  cancelled_at?: string | null;
+  /** Motivo en snake_case, por ejemplo `passenger_cancelled`. */
+  cancellation_reason_code?: string | null;
   estimated_distance_meters?: number;
   payment_status?: PaymentStatusResponse | null;
   rating?: { rating: number; created_at: string } | null;
@@ -113,9 +117,34 @@ export interface TripDetailResponse extends TripResponse {
   /** Link de seguimiento del invitado; solo lo trae el titular de un viaje de tercero. */
   tracking_url?: string | null;
   chat?: ChatInfoResponse | null;
+  /** Categoria elegida al confirmar. Ausente en un backend que todavia no la manda. */
+  service_type?: TripServiceTypeResponse | null;
+  /** Desglose de la cotizacion. Ausente en un backend que todavia no lo manda. */
+  fare_breakdown?: TripFareBreakdownResponse | null;
 }
 
 export type PaymentStatusResponse = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
+
+/** `GET /rides/{tripId}`: nombre y codigo de la categoria elegida al confirmar. */
+export interface TripServiceTypeResponse {
+  code: string;
+  name: string;
+}
+
+/**
+ * Desglose de la cotizacion que el pasajero eligio al confirmar. `total` puede
+ * no coincidir con `final_fare` del viaje: `final_fare` es lo que se liquido
+ * al completarlo. Importes como texto, igual que el resto del contrato.
+ */
+export interface TripFareBreakdownResponse {
+  base: string;
+  distance: string;
+  time: string;
+  discount: string;
+  fees: string;
+  total: string;
+  currency: string;
+}
 
 /** Invitado que viaja, tal como lo devuelve `GET /rides/{tripId}`. */
 export interface ThirdPartyResponse {
@@ -158,4 +187,39 @@ export interface ConfirmTripResponse {
     amount: string;
     currency: string;
   };
+}
+
+/**
+ * `GET /rides`: vista liviana de un viaje para la lista del historial. El
+ * detalle completo se pide aparte, con `GET /rides/{tripId}`.
+ */
+export interface TripListItemResponse {
+  id: string;
+  public_code: string;
+  status: string;
+  created_at: string;
+  finished_at: string | null;
+  cancelled_at: string | null;
+  origin: { address_text: string } | null;
+  destination: { address_text: string } | null;
+  final_fare: string | null;
+  estimated_fare: string | null;
+  currency: string;
+  payment_method: string | null;
+  service_type: TripServiceTypeResponse | null;
+  is_third_party: boolean;
+  third_party_name: string | null;
+  rated: boolean;
+}
+
+export interface PaginationResponse {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface TripListResponse {
+  trips: TripListItemResponse[];
+  pagination: PaginationResponse;
 }

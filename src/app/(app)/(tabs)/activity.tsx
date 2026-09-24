@@ -1,6 +1,3 @@
-import { UpcomingScreen } from '@/presentation/screens/UpcomingScreen';
+import { TripHistoryScreen } from '@/presentation/screens/TripHistoryScreen';
 
-// Provisoria hasta el ticket de historial de viajes.
-export default function ActivityRoute() {
-  return <UpcomingScreen title="Actividad" description="Tus viajes aparecerán acá." />;
-}
+export default TripHistoryScreen;

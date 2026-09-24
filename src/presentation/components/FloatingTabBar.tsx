@@ -1,5 +1,5 @@
 import type { Tabs } from 'expo-router';
-import { CarFront, Clock, UserRound, type LucideIcon } from 'lucide-react-native';
+import { CarFront, History, UserRound, type LucideIcon } from 'lucide-react-native';
 import type { ComponentProps } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>
 
 const TAB_ICONS: Record<string, LucideIcon> = {
   home: CarFront,
-  activity: Clock,
+  activity: History,
   account: UserRound,
 };
 

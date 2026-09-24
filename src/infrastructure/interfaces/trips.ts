@@ -124,6 +124,10 @@ export interface Trip {
   formattedFinalFare: string | null;
   startedAt: Date | null;
   finishedAt: Date | null;
+  /** Cuando `status` es `cancelled`; `null` en cualquier otro caso. */
+  cancelledAt: Date | null;
+  /** Motivo en snake_case (`passenger_cancelled`...); `null` si no hay uno o el viaje no se cancelo. */
+  cancellationReasonCode: string | null;
   /** Distancia de la ruta cotizada, en km. */
   distanceKm: number | null;
   paymentStatus: PaymentStatus | null;
@@ -135,6 +139,56 @@ export interface Trip {
   trackingUrl: string | null;
   /** Info de coordinacion (para el chat, ticket aparte); `null` con un backend que todavia no la manda. */
   coordinator: TripCoordinator | null;
+  /** Categoria elegida al confirmar; `null` con un backend que todavia no la manda. */
+  serviceType: { code: string; name: string } | null;
+  /** Desglose de la cotizacion confirmada; `null` con un backend que todavia no lo manda. */
+  fareBreakdown: FareBreakdown | null;
+}
+
+/** Un renglon del desglose, con el importe crudo (para comparar) y el listo para mostrar. */
+export interface FareBreakdownItem {
+  amount: number;
+  formattedAmount: string;
+}
+
+export interface FareBreakdown {
+  base: FareBreakdownItem;
+  distance: FareBreakdownItem;
+  time: FareBreakdownItem;
+  /** Importe descontado; se muestra solo cuando es mayor a cero. */
+  discount: FareBreakdownItem;
+  /** Cargos adicionales; se muestra solo cuando es mayor a cero. */
+  fees: FareBreakdownItem;
+  total: FareBreakdownItem;
+  currency: string;
+}
+
+/** Filtro de la pestaña "Viajes"; sin filtro el backend trae todo lo no-borrador. */
+export type TripHistoryFilter = 'all' | 'completed' | 'cancelled';
+
+/** Un renglon del historial, la vista liviana de `GET /rides`. */
+export interface TripHistoryItem {
+  id: string;
+  publicCode: string;
+  status: TripStatus;
+  /** Cuando se pidio el viaje: sirve para ordenar y mostrar, tanto si termino como si sigue en curso. */
+  date: Date;
+  origin: string | null;
+  destination: string | null;
+  /** `final_fare` y, si todavia no hay, `estimated_fare`; `null` sin ninguno de los dos. */
+  formattedFare: string | null;
+  serviceCode: string | null;
+  serviceName: string | null;
+  isThirdParty: boolean;
+  thirdPartyName: string | null;
+  rated: boolean;
+}
+
+export interface TripHistoryPage {
+  items: TripHistoryItem[];
+  page: number;
+  totalPages: number;
+  total: number;
 }
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
