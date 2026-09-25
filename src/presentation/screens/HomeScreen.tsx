@@ -9,7 +9,7 @@ import type { Place } from '@/infrastructure/interfaces/places';
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
-import { useCurrentUser } from '@/presentation/hooks/useCurrentUser';
+import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useLocationPermissions, type LocationStatus } from '@/presentation/hooks/useLocationPermissions';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
 import { useTripStore } from '@/presentation/store/useTripStore';
@@ -38,7 +38,8 @@ export function HomeScreen() {
   const { height } = useWindowDimensions();
   const mapRef = useRef<MapView>(null);
 
-  const { user, isLoading: isLoadingUser } = useCurrentUser();
+  const user = useAuthStore((state) => state.user);
+  const isLoadingUser = false;
   const { status: gpsStatus, currentLocation, retry: retryLocation } = useLocationPermissions();
   const { recentPlaces } = useRecentPlaces();
   const origin = useTripStore((state) => state.origin);

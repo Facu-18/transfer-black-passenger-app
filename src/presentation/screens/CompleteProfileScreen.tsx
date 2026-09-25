@@ -1,8 +1,9 @@
-import { CalendarDays, FileText, MapPin, Phone, UserRound } from 'lucide-react-native';
+import { FileText, MapPin, Phone, UserRound } from 'lucide-react-native';
 import { Controller } from 'react-hook-form';
 import { Pressable, View } from 'react-native';
 
 import type { DocumentType, Gender } from '@/infrastructure/interfaces/auth';
+import { BirthDateField } from '@/presentation/components/BirthDateField';
 import { BrandLogo } from '@/presentation/components/BrandLogo';
 import { Screen } from '@/presentation/components/Screen';
 import { Typography } from '@/presentation/components/Typography';
@@ -104,9 +105,8 @@ export function CompleteProfileScreen() {
         )} />
 
         <Controller control={control} name="birthDate" render={({ field: { onChange, onBlur, value } }) => (
-          <VIPTextInput label="Fecha de nacimiento" icon={CalendarDays} placeholder="AAAA-MM-DD" value={value}
-            onChangeText={onChange} onBlur={onBlur} keyboardType="numbers-and-punctuation"
-            error={errors.birthDate?.message} editable={!isSubmitting} />
+          <BirthDateField value={value} onChange={onChange} onBlur={onBlur}
+            error={errors.birthDate?.message} disabled={isSubmitting} />
         )} />
 
         <Controller control={control} name="gender" render={({ field: { onChange, value } }) => (
