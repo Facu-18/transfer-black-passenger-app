@@ -20,6 +20,7 @@ interface AuthState {
   markEmailVerified: () => void;
   /** Reemplaza los datos del usuario con los ultimos del backend (`GET /users/me`). */
   setUser: (user: AuthUser) => void;
+  markProfileIncomplete: () => void;
   clearSession: () => Promise<void>;
 }
 
@@ -52,6 +53,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   setUser(user) {
     set({ user });
+  },
+
+  markProfileIncomplete() {
+    set((state) => (state.user ? { user: { ...state.user, profileComplete: false } } : {}));
   },
 
   async clearSession() {

@@ -6,6 +6,7 @@ import type { FareOption, RideQuote } from '@/infrastructure/interfaces/trips';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
+import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
 
 function describeQuoteError(error: unknown): string {
   if (error instanceof ApiRequestError && error.status === 400) {
@@ -56,6 +57,11 @@ export function useRideQuote() {
 
       if (reason instanceof ApiRequestError && reason.status === 401) {
         handleExpiredSession();
+        return;
+      }
+
+      if (reason instanceof ApiRequestError && reason.code === 'PROFILE_INCOMPLETE') {
+        handleIncompleteProfile();
         return;
       }
 

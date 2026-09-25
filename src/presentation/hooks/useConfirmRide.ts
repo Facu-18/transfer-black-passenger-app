@@ -10,6 +10,7 @@ import type { FareOption, PaymentMethod, RideQuote } from '@/infrastructure/inte
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
+import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
 
 interface UseConfirmRideOptions {
   quote: RideQuote | null;
@@ -74,6 +75,11 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
       if (error instanceof ApiRequestError) {
         if (error.status === 401) {
           handleExpiredSession();
+          return;
+        }
+
+        if (error.code === 'PROFILE_INCOMPLETE') {
+          handleIncompleteProfile();
           return;
         }
 

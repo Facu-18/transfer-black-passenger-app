@@ -227,6 +227,7 @@ La pantalla `GuestPassengerScreen` (hook `useGuestPassengerForm`, RHF + Zod) car
 - **Los importes son texto** (`"24500.00"`) y se conservan así en `totalAmount`; el `Number` solo se usa para mostrarlos formateados.
 - **La cotización vence** (10 minutos): `useRideQuote` vuelve a cotizar sola al llegar esa hora, porque confirmar con una tarifa vencida responde 409.
 - La categoría elegida se recuerda por `code` entre recotizaciones: los `id` cambian, la categoría no.
+- **Hoy hay una sola categoría, "Prioridad"** (`prioridad`): `essential` y `comfort` están desactivadas en el backend (no borradas, porque el historial las referencia) y la cotización solo devuelve las activas. La pantalla no tiene nada fijo por categoría: si el backend vuelve a ofrecer varias, se muestran solas, y el cartel "Recomendado" aparece solo cuando hay más de una.
 - **Otros servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros): viven solo en el front (`presentation/utils/whatsapp-services.ts`), no se cotizan ni crean viaje. Al tocar uno se elige la línea (351 926-0326 o 351 926-0327) y se abre `wa.me` con el servicio, el origen y el destino ya escritos; el equipo coordina el resto por fuera de la app. Se muestran también si la cotización falla.
 
 `POST /rides/{tripId}/confirm` espera `{ fare_quote_id, payment: { type } }` y el header **`Idempotency-Key`** (UUID v4 de `expo-crypto`). La clave se genera una vez por borrador: reintentar no cobra dos veces, y se renueva si hay que recotizar.

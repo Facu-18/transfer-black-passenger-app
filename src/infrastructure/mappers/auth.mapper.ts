@@ -10,6 +10,14 @@ export const AuthMapper = {
       firstName: profile.first_name,
       lastName: profile.last_name,
       phone: profile.phone_e164,
+      avatarUrl: null,
+      birthDate: null,
+      gender: null,
+      documentType: null,
+      documentNumber: null,
+      address: null,
+      // La respuesta de auth es resumida. GET /users/me define el valor real.
+      profileComplete: false,
       roles: profile.roles,
     };
   },

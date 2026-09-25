@@ -107,7 +107,8 @@ export function PricingScreen() {
                   option={option}
                   selected={option.code === selectedFare?.code}
                   durationMinutes={quote.route.durationMinutes}
-                  recommended={index === 0}
+                  // Con una sola categoria (hoy, Prioridad) no hay nada que recomendar.
+                  recommended={index === 0 && quote.options.length > 1}
                   onPress={() => selectFare(option.code)}
                 />
               ))}
