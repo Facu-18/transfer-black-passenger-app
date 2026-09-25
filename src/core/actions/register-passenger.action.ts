@@ -4,8 +4,8 @@ import type { AuthSession, AuthUser } from '@/infrastructure/interfaces/auth';
 import type {
   AuthSessionResponse,
   RegisterPassengerRequest,
-  UpdateCurrentUserRequest,
 } from '@/infrastructure/interfaces/auth-api';
+import type { UpdateCurrentUserRequest } from '@/infrastructure/interfaces/user-api';
 import { AuthMapper } from '@/infrastructure/mappers/auth.mapper';
 
 export interface RegisterPassengerInput {

@@ -67,11 +67,3 @@ export interface VerificationErrorDetails {
   /** 429 `VERIFICATION_RECENTLY_SENT`: segundos hasta poder pedir otro correo. */
   retry_in_seconds?: number;
 }
-
-/** Cuerpo de `PATCH /users/me`: parcial, `null` borra el valor. */
-export interface UpdateCurrentUserRequest {
-  first_name?: string | null;
-  last_name?: string | null;
-  /** E.164, por ejemplo `+5493511234567`. */
-  phone_number?: string | null;
-}
