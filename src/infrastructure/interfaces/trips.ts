@@ -8,7 +8,7 @@ export type PaymentMethod = 'account_money' | 'cash';
 export interface FareOption {
   /** `fare_quote_id` de la confirmacion. */
   id: string;
-  /** Codigo de la categoria en el backend (`essential`, `comfort`...). */
+  /** Codigo de la categoria en el backend (hoy solo `prioridad`; la lista la decide el backend). */
   code: string;
   name: string;
   /** Importe exacto tal como lo mando el backend, para no perder centavos. */

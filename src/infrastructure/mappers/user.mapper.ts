@@ -10,6 +10,13 @@ export const UserMapper = {
       firstName: user.first_name,
       lastName: user.last_name,
       phone: user.phone_number,
+      avatarUrl: user.avatar_url,
+      birthDate: user.birth_date,
+      gender: user.gender,
+      documentType: user.document_type,
+      documentNumber: user.document_number,
+      address: user.address_text,
+      profileComplete: user.profile_complete,
       roles: user.roles,
     };
   },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { getCurrentUserAction } from '@/core/actions/get-current-user.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
@@ -9,14 +9,25 @@ import { handleExpiredSession } from '@/presentation/utils/expired-session';
  * Trae el perfil actualizado al entrar al Home. Mientras carga, `isLoading`
  * permite mostrar el skeleton del saludo; los datos quedan en `useAuthStore`.
  */
-export function useCurrentUser() {
+export function useCurrentUser(enabled = true) {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  const retry = useCallback(() => setRequestVersion((value) => value + 1), []);
 
   useEffect(() => {
+    if (!enabled) {
+      setIsLoading(false);
+      setHasError(false);
+      return;
+    }
+
     let active = true;
+    setIsLoading(true);
+    setHasError(false);
 
     getCurrentUserAction()
       .then((profile) => {
@@ -38,7 +49,7 @@ export function useCurrentUser() {
     return () => {
       active = false;
     };
-  }, [setUser]);
+  }, [enabled, requestVersion, setUser]);
 
-  return { user, isLoading, hasError };
+  return { user, isLoading, hasError, retry };
 }
