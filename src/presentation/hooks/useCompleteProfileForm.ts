@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from 'expo-router';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -39,6 +39,7 @@ const completeProfileSchema = z
 export function useCompleteProfileForm() {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
+  const [wasSaved, setWasSaved] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(completeProfileSchema),
@@ -56,6 +57,7 @@ export function useCompleteProfileForm() {
   });
 
   const submit = form.handleSubmit(async (values) => {
+    setWasSaved(false);
     try {
       const updatedUser = await updateCurrentUserAction({
         first_name: values.firstName,
@@ -69,7 +71,7 @@ export function useCompleteProfileForm() {
       });
 
       setUser(updatedUser);
-      router.replace('/home');
+      setWasSaved(true);
     } catch (error: unknown) {
       if (error instanceof ApiRequestError && error.status === 401) {
         handleExpiredSession();
@@ -82,5 +84,5 @@ export function useCompleteProfileForm() {
     }
   });
 
-  return { form, submit };
+  return { form, submit, wasSaved };
 }

@@ -1,12 +1,12 @@
 import { Redirect, Stack, usePathname } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
-import { Screen } from '@/presentation/components/Screen';
-import { Typography } from '@/presentation/components/Typography';
-import { VIPButton } from '@/presentation/components/VIPButton';
 import { useCurrentUser } from '@/presentation/hooks/useCurrentUser';
+import { usePushNotificationRegistration } from '@/presentation/hooks/usePushNotificationRegistration';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { colors } from '@/presentation/theme/colors';
+
+const PROFILE_REQUIRED_ROUTES = new Set(['/search', '/guest', '/pricing']);
 
 /**
  * Zona privada: solo con sesion y correo verificado. Sin sesion vuelve al
@@ -16,7 +16,8 @@ export default function AppLayout() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const emailVerified = useAuthStore((state) => state.user?.emailVerified ?? false);
   const pathname = usePathname();
-  const { user, isLoading, hasError, retry } = useCurrentUser(isAuthenticated && emailVerified);
+  const { user, isLoading } = useCurrentUser(isAuthenticated && emailVerified);
+  usePushNotificationRegistration(isAuthenticated && emailVerified);
 
   if (!isAuthenticated) {
     return <Redirect href="/login" />;
@@ -34,24 +35,14 @@ export default function AppLayout() {
     );
   }
 
-  if (hasError || !user) {
-    return (
-      <Screen contentClassName="justify-center gap-6">
-        <Typography variant="h2" className="text-center">No pudimos consultar tu perfil</Typography>
-        <Typography tone="secondary" className="text-center">
-          Necesitamos validarlo antes de habilitar la solicitud de viajes.
-        </Typography>
-        <VIPButton title="Reintentar" onPress={retry} />
-      </Screen>
-    );
+  if (!user) {
+    return <Redirect href="/login" />;
   }
 
-  if (!user.profileComplete && pathname !== '/complete-profile') {
-    return <Redirect href="/complete-profile" />;
-  }
-
-  if (user.profileComplete && pathname === '/complete-profile') {
-    return <Redirect href="/home" />;
+  // El perfil incompleto no bloquea la app: solo frena las rutas que inician
+  // una solicitud, y lleva al formulario que vive dentro de Mi cuenta.
+  if (!user.profileComplete && PROFILE_REQUIRED_ROUTES.has(pathname)) {
+    return <Redirect href="/account" />;
   }
 
   return (
@@ -67,7 +58,6 @@ export default function AppLayout() {
       <Stack.Screen name="search" />
       <Stack.Screen name="guest" />
       <Stack.Screen name="pricing" />
-      <Stack.Screen name="complete-profile" options={{ gestureEnabled: false }} />
       {/* Sin gesto de volver: mientras el viaje sigue, la pantalla no se abandona. */}
       <Stack.Screen name="trip/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
       {/* Se llega con replace desde el seguimiento; salir es calificar u omitir. */}

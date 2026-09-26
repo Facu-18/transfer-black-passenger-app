@@ -7,6 +7,7 @@ import { Montserrat_500Medium } from '@expo-google-fonts/montserrat/500Medium';
 import { Montserrat_600SemiBold } from '@expo-google-fonts/montserrat/600SemiBold';
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +17,15 @@ import { colors } from '@/presentation/theme/colors';
 
 // En scope global: dentro del componente llegaria tarde y el splash ya se habria ocultado.
 void SplashScreen.preventAutoHideAsync();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export default function RootLayout() {
   // Las claves son los nombres de familia que usa `fontFamily` en tailwind.config.js.
