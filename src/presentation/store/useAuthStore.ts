@@ -60,8 +60,13 @@ export const useAuthStore = create<AuthState>()((set) => ({
   },
 
   async clearSession() {
-    await refreshTokenStorage.clear();
-    set({ accessToken: null, accessTokenExpiresAt: null, user: null, isAuthenticated: false });
+    try {
+      await refreshTokenStorage.clear();
+    } finally {
+      // Aunque falle el almacenamiento seguro, la sesion no puede seguir viva
+      // en memoria. El logout remoto ya invalida el token persistido.
+      set({ accessToken: null, accessTokenExpiresAt: null, user: null, isAuthenticated: false });
+    }
   },
 }));
 

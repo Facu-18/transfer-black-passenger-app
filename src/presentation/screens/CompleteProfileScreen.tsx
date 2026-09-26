@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { FileText, MapPin, Phone, UserRound } from 'lucide-react-native';
 import { Controller } from 'react-hook-form';
 import { Pressable, View } from 'react-native';
@@ -10,6 +11,7 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useCompleteProfileForm } from '@/presentation/hooks/useCompleteProfileForm';
+import { useAuthStore } from '@/presentation/store/useAuthStore';
 
 interface Choice<T extends string> {
   label: string;
@@ -73,17 +75,24 @@ const DOCUMENT_CHOICES: Choice<DocumentType>[] = [
   { label: 'CUIL', value: 'CUIL' },
 ];
 
-export function CompleteProfileScreen() {
-  const { form, submit } = useCompleteProfileForm();
+interface CompleteProfileScreenProps {
+  footer?: ReactNode;
+}
+
+export function CompleteProfileScreen({ footer }: CompleteProfileScreenProps) {
+  const profileComplete = useAuthStore((state) => state.user?.profileComplete ?? false);
+  const { form, submit, wasSaved } = useCompleteProfileForm();
   const { control, formState: { errors, isSubmitting } } = form;
 
   return (
     <Screen scrollable contentClassName="gap-7">
       <View className="items-center gap-3">
         <BrandLogo size="md" />
-        <Typography variant="h2" className="text-center">Completa tu perfil</Typography>
+        <Typography variant="h2" className="text-center">Mi cuenta</Typography>
         <Typography tone="secondary" className="text-center">
-          Necesitamos estos datos para habilitar la solicitud de viajes. Tu foto de perfil es opcional.
+          {profileComplete
+            ? 'Mantén tus datos personales actualizados.'
+            : 'Completa estos datos para poder solicitar viajes. Tu foto de perfil es opcional.'}
         </Typography>
       </View>
 
@@ -136,8 +145,21 @@ export function CompleteProfileScreen() {
           </Typography>
         ) : null}
 
-        <VIPButton title="Guardar y continuar" loading={isSubmitting} onPress={() => void submit()} />
+        {wasSaved ? (
+          <Typography tone="accent" className="text-center" accessibilityLiveRegion="polite">
+            Perfil actualizado correctamente.
+          </Typography>
+        ) : null}
+
+        <VIPButton
+          title={profileComplete ? 'Guardar cambios' : 'Guardar y habilitar viajes'}
+          loading={isSubmitting}
+          onPress={() => void submit()}
+        />
       </View>
+
+      {footer}
+      <View className="h-20" />
     </Screen>
   );
 }
