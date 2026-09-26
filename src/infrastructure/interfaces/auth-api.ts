@@ -44,6 +44,10 @@ export interface RefreshSessionRequest {
   refresh_token: string;
 }
 
+export interface LogoutRequest {
+  refresh_token: string;
+}
+
 /** Respuesta de `POST /auth/refresh`: solo tokens, el perfil no cambia. */
 export interface RefreshSessionResponse {
   tokens: AuthTokensResponse;

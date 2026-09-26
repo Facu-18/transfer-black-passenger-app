@@ -7,9 +7,16 @@ import { ApiRequestError, CONNECTION_ERROR_CODES } from './api-request-error';
 import { refreshAccessToken } from './session-refresh';
 
 declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Rutas publicas que no deben enviar ni intentar renovar la sesion actual. */
+    skipAuth?: boolean;
+  }
+
   interface InternalAxiosRequestConfig {
     /** Ya se reintento con un token renovado: un segundo 401 no vuelve a renovar. */
     sessionRetried?: boolean;
+    /** Rutas publicas que no deben enviar ni intentar renovar la sesion actual. */
+    skipAuth?: boolean;
   }
 }
 
@@ -45,7 +52,7 @@ transferBlackApi.interceptors.request.use((config) => {
   const token = getAccessToken();
 
   // Una solicitud que ya trae su propio Authorization lo conserva.
-  if (token && !config.headers.Authorization) {
+  if (token && !config.skipAuth && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
