@@ -143,6 +143,10 @@ export interface Trip {
   serviceType: { code: string; name: string } | null;
   /** Desglose de la cotizacion confirmada; `null` con un backend que todavia no lo manda. */
   fareBreakdown: FareBreakdown | null;
+  /** Indica si el conductor debe validar un codigo antes de iniciar el viaje. */
+  requirePin: boolean;
+  /** Codigo visible para el pasajero; `null` cuando no se solicito o no esta disponible. */
+  boardingPin: string | null;
 }
 
 /** Un renglon del desglose, con el importe crudo (para comparar) y el listo para mostrar. */

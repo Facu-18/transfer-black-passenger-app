@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
+import { BoardingPinCard } from '@/presentation/components/BoardingPinCard';
 import { CoordinatorBanner } from '@/presentation/components/CoordinatorBanner';
 import { DriverEnRoutePanel } from '@/presentation/components/DriverEnRoutePanel';
 import { OnBoardPanel } from '@/presentation/components/OnBoardPanel';
@@ -25,6 +26,8 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 const INITIAL_PANEL_HEIGHT = 360;
 /** Lugar para la barra y el aviso de reconexion sobre el mapa. */
 const TOP_BAR_HEIGHT = 64;
+/** Reserva mapa debajo de la tarjeta para que el auto no quede oculto por el PIN. */
+const BOARDING_PIN_CARD_HEIGHT = 168;
 /** Misma referencia en cada render: un `[]` nuevo reencuadraria el mapa sin parar. */
 const NO_ROUTE: Coordinates[] = [];
 
@@ -95,6 +98,11 @@ export function ActiveTripScreen() {
   const onPanelLayout = (event: LayoutChangeEvent) => setPanelHeight(event.nativeEvent.layout.height);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
+  const showBoardingPin =
+    trip?.requirePin === true &&
+    trip.boardingPin !== null &&
+    trip.status !== 'in_progress' &&
+    !isFinished;
 
   // Viaje terminado: al recibo con `replace`, asi "atras" no vuelve al seguimiento.
   useEffect(() => {
@@ -126,7 +134,7 @@ export function ActiveTripScreen() {
     return <Redirect href="/home" />;
   }
 
-  const topInset = insets.top + TOP_BAR_HEIGHT;
+  const topInset = insets.top + TOP_BAR_HEIGHT + (showBoardingPin ? BOARDING_PIN_CARD_HEIGHT : 0);
 
   return (
     <View className="flex-1 bg-obsidian">
@@ -156,6 +164,11 @@ export function ActiveTripScreen() {
 
       <View className="absolute left-0 right-0 gap-2 px-5" style={{ top: insets.top + 8 }} pointerEvents="box-none">
         {onBoard ? <OnBoardTopBar destination={trip?.dropoff?.address ?? null} /> : null}
+        {showBoardingPin ? (
+          <View pointerEvents="none">
+            <BoardingPinCard pin={trip.boardingPin!} />
+          </View>
+        ) : null}
         {trip?.thirdParty && !isFinished ? (
           <CoordinatorBanner
             guestName={trip.thirdParty.name}

@@ -5,6 +5,7 @@ import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip';
+import { BoardingPinToggle } from '@/presentation/components/BoardingPinToggle';
 import { PaymentMethodPills } from '@/presentation/components/PaymentMethodPills';
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
@@ -18,7 +19,7 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
-const INITIAL_PANEL_HEIGHT = 320;
+const INITIAL_PANEL_HEIGHT = 400;
 
 export function PricingScreen() {
   const insets = useSafeAreaInsets();
@@ -28,7 +29,7 @@ export function PricingScreen() {
   const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
   const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip } = useRideQuote();
-  const { paymentMethod, setPaymentMethod, confirm, isConfirming } = useConfirmRide({
+  const { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming } = useConfirmRide({
     quote,
     selectedFare,
     onQuoteExpired: retry,
@@ -125,6 +126,8 @@ export function PricingScreen() {
             />
 
             <PaymentMethodPills value={paymentMethod} disabled={isConfirming} onChange={setPaymentMethod} />
+
+            <BoardingPinToggle value={requirePin} disabled={isConfirming} onChange={setRequirePin} />
 
             <VIPButton
               title={confirmLabel}

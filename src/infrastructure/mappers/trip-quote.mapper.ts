@@ -151,6 +151,8 @@ export const TripQuoteMapper = {
       coordinator: toTripCoordinator(trip.chat ?? null),
       serviceType: trip.service_type ?? null,
       fareBreakdown: toFareBreakdown(trip.fare_breakdown),
+      requirePin: trip.require_pin ?? false,
+      boardingPin: trip.boarding_pin ?? null,
     };
   },
 
