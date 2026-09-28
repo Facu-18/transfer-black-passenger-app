@@ -62,6 +62,8 @@ export interface ConfirmTripRequest {
   fare_quote_id: string;
   payment: { type: PaymentTypeRequest };
   third_party?: ThirdPartyRequest;
+  /** Si es `true`, el conductor debe validar un PIN antes de iniciar el viaje. */
+  require_pin?: boolean;
 }
 
 /** Viaje tal como lo devuelven `GET /rides/{tripId}` y la confirmacion. */
@@ -73,6 +75,10 @@ export interface TripResponse {
   estimated_fare: string | null;
   currency: string;
   driver_id: string | null;
+  /** Ausente cuando la app consume una version anterior del backend. */
+  require_pin?: boolean;
+  /** Solo se expone al pasajero/solicitante; para el conductor siempre es `null`. */
+  boarding_pin?: string | null;
 }
 
 export interface TripStopPointResponse {

@@ -6,8 +6,10 @@ import { logoutAction } from '@/core/actions/logout.action';
 import { revokePushDeviceAction } from '@/core/actions/revoke-push-device.action';
 import { pushDeviceStorage } from '@/infrastructure/storage/push-device-storage';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
+import { CorporateMembershipSection } from '@/presentation/components/CorporateMembershipSection';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { Typography } from '@/presentation/components/Typography';
+import { useCorporateMembership } from '@/presentation/hooks/useCorporateMembership';
 import { CompleteProfileScreen } from '@/presentation/screens/CompleteProfileScreen';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { usePushNotificationsStore } from '@/presentation/store/usePushNotificationsStore';
@@ -22,6 +24,7 @@ export default function AccountRoute() {
   const notificationError = usePushNotificationsStore((state) => state.errorMessage);
   const syncNotifications = usePushNotificationsStore((state) => state.sync);
   const resetNotifications = usePushNotificationsStore((state) => state.reset);
+  const corporateMembership = useCorporateMembership();
 
   const logout = async () => {
     if (isLoggingOut) return;
@@ -62,6 +65,19 @@ export default function AccountRoute() {
     <CompleteProfileScreen
       footer={
         <View className="gap-4">
+          <CorporateMembershipSection
+            membership={corporateMembership.membership}
+            joinCode={corporateMembership.joinCode}
+            validationError={corporateMembership.validationError}
+            loadError={corporateMembership.loadError}
+            joinError={corporateMembership.joinError}
+            isLoading={corporateMembership.isLoading}
+            isJoining={corporateMembership.isJoining}
+            onJoinCodeChange={corporateMembership.setJoinCode}
+            onJoin={() => void corporateMembership.join()}
+            onRetry={() => void corporateMembership.retry()}
+          />
+
           <View className="gap-3 rounded-3xl border border-charcoal bg-surface/90 p-5">
             <Typography variant="h3">Notificaciones</Typography>
             <Typography tone={registration === 'error' ? 'danger' : 'secondary'}>

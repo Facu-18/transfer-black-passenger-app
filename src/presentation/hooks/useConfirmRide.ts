@@ -21,6 +21,7 @@ interface UseConfirmRideOptions {
 
 export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfirmRideOptions) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('account_money');
+  const [requirePin, setRequirePin] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
 
@@ -46,6 +47,17 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
     }
   }, [guestPassenger]);
 
+  // El PIN forma parte del hash idempotente del backend. Si cambia, la siguiente
+  // confirmacion necesita una clave nueva para no parecer un payload reutilizado.
+  const keyOwnerRequirePin = useRef(requirePin);
+
+  useEffect(() => {
+    if (keyOwnerRequirePin.current !== requirePin) {
+      keyOwnerRequirePin.current = requirePin;
+      idempotencyKey.current = newIdempotencyKey();
+    }
+  }, [requirePin]);
+
   const confirm = async () => {
     if (!quote || !selectedFare || isConfirming) {
       return;
@@ -60,6 +72,7 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         paymentMethod,
         idempotencyKey: idempotencyKey.current,
         guestPassenger,
+        requirePin,
       });
 
       // Con efectivo el viaje ya esta en `searching` y la pantalla del viaje
@@ -105,5 +118,5 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
     }
   };
 
-  return { paymentMethod, setPaymentMethod, confirm, isConfirming };
+  return { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming };
 }

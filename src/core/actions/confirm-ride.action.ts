@@ -12,6 +12,8 @@ export interface ConfirmRideInput {
   idempotencyKey: string;
   /** Con invitado cargado, el viaje se confirma para un tercero; el titular queda como coordinador. */
   guestPassenger?: GuestPassenger | null;
+  /** Exige que el conductor valide un PIN de cuatro digitos antes de iniciar. */
+  requirePin: boolean;
 }
 
 /**
@@ -29,6 +31,8 @@ export async function confirmRideAction(input: ConfirmRideInput): Promise<Confir
   const body: ConfirmTripRequest = {
     fare_quote_id: input.fareQuoteId,
     payment: { type: input.paymentMethod },
+    // Se omite en `false` para conservar compatibilidad con backends anteriores.
+    ...(input.requirePin ? { require_pin: true } : {}),
   };
 
   if (input.guestPassenger) {
