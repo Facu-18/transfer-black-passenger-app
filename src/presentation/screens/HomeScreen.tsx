@@ -47,7 +47,12 @@ export function HomeScreen() {
   const origin = useTripStore((state) => state.origin);
   const setDestination = useTripStore((state) => state.setDestination);
   const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
-  const { membership: corporateMembership } = useCorporateEligibility();
+  const {
+    membership: corporateMembership,
+    isLoading: isLoadingCorporateMembership,
+    error: corporateMembershipError,
+    refresh: refreshCorporateMembership,
+  } = useCorporateEligibility();
 
   // Centra el mapa cada vez que llega una posición nueva, con inclinación para la vista 3D.
   useEffect(() => {
@@ -69,6 +74,25 @@ export function HomeScreen() {
   };
 
   const startCorporateTrip = () => {
+    // Todavia no sabemos si hay vinculo: recien ahi se puede decidir si se
+    // ofrece la opcion o se manda a vincular el perfil.
+    if (isLoadingCorporateMembership) {
+      Alert.alert('Cuenta corporativa', 'Estamos cargando tu cuenta corporativa. Probá de nuevo en un momento.', [
+        { text: 'Entendido' },
+      ]);
+      return;
+    }
+
+    // La consulta fallo (red, servidor): no es lo mismo que "no vinculado",
+    // asi que se ofrece reintentar en vez de mandar a vincular de nuevo.
+    if (corporateMembershipError) {
+      Alert.alert('Cuenta corporativa', 'No pudimos confirmar tu cuenta corporativa. Probá de nuevo.', [
+        { text: 'Reintentar', onPress: () => void refreshCorporateMembership() },
+        { text: 'Ahora no', style: 'cancel' },
+      ]);
+      return;
+    }
+
     if (!corporateMembership) {
       Alert.alert(
         'Cuenta corporativa',

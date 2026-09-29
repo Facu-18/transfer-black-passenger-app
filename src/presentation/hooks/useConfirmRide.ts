@@ -7,6 +7,7 @@ import { confirmRideAction } from '@/core/actions/confirm-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { newIdempotencyKey } from '@/core/api/idempotency';
 import type { FareOption, PaymentMethod, RideQuote } from '@/infrastructure/interfaces/trips';
+import { invalidateCorporateEligibility, useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { getCorporateErrorMessage } from '@/presentation/utils/corporate-error-message';
@@ -28,6 +29,18 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
   const [requirePin, setRequirePin] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
+
+  // Misma consulta que la pastilla de pago (comparten cache): si ya sabemos
+  // que no se puede viajar a cuenta corporativa, no se puede dejar ese medio
+  // elegido a ciegas, aunque venga precargado desde el Home.
+  const { membership: corporateMembership, isLoading: isCorporateEligibilityLoading } = useCorporateEligibility();
+  const canUseCorporate = corporateMembership?.canRideOnAccount === true;
+
+  useEffect(() => {
+    if (!isCorporateEligibilityLoading && paymentMethod === 'corporate' && !canUseCorporate) {
+      setPaymentMethod('account_money');
+    }
+  }, [isCorporateEligibilityLoading, canUseCorporate, paymentMethod]);
 
   // Una clave por borrador: mientras sea el mismo viaje, reintentar no duplica el cobro.
   const idempotencyKey = useRef(newIdempotencyKey());
@@ -78,6 +91,16 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
       return;
     }
 
+    // Todavia no sabemos si se puede viajar a cuenta corporativa: mejor
+    // frenar aca que dejar pasar un cobro elegido mientras la pastilla
+    // corporativa todavia esta escondida en la pantalla.
+    if (paymentMethod === 'corporate' && isCorporateEligibilityLoading) {
+      Alert.alert('Cuenta corporativa', 'Estamos confirmando tu cuenta corporativa. Probá de nuevo en un momento.', [
+        { text: 'Entendido' },
+      ]);
+      return;
+    }
+
     setIsConfirming(true);
 
     try {
@@ -89,6 +112,12 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         guestPassenger,
         requirePin,
       });
+
+      // El remanente del mes cambio: se descarta el cache para que la proxima
+      // consulta traiga el monto actualizado en vez del que ya no es cierto.
+      if (paymentMethod === 'corporate') {
+        invalidateCorporateEligibility();
+      }
 
       // Con efectivo el viaje ya esta en `searching` y la pantalla del viaje
       // arranca con el radar. Con Mercado Pago queda en `draft` hasta que se
@@ -127,8 +156,12 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         const corporateMessage = getCorporateErrorMessage(error);
         if (corporateMessage) {
           // El medio elegido no funciono: se vuelve a Mercado Pago para no
-          // dejar seleccionado un pago que va a fallar de nuevo.
+          // dejar seleccionado un pago que va a fallar de nuevo, y se
+          // descarta el cache: el limite, el estado de la empresa o el
+          // centro de costo cambiaron y la proxima consulta tiene que
+          // traerlos de nuevo en vez de repetir lo que ya sabemos que esta mal.
           setPaymentMethod('account_money');
+          invalidateCorporateEligibility();
           Alert.alert('No pudimos cobrar con tu cuenta corporativa', corporateMessage, [{ text: 'Entendido' }]);
           return;
         }

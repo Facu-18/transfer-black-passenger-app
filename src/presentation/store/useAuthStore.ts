@@ -6,6 +6,7 @@ import { setSessionRefresher } from '@/core/api/session-refresh';
 import { setAccessTokenGetter } from '@/core/api/transfer-black-api';
 import type { AuthSession, AuthUser } from '@/infrastructure/interfaces/auth';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
+import { invalidateCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 
 interface AuthState {
   /** Solo en memoria: se pierde al cerrar la app, a proposito. */
@@ -66,6 +67,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
       // Aunque falle el almacenamiento seguro, la sesion no puede seguir viva
       // en memoria. El logout remoto ya invalida el token persistido.
       set({ accessToken: null, accessTokenExpiresAt: null, user: null, isAuthenticated: false });
+      // El proximo usuario en este dispositivo no puede heredar el vinculo
+      // corporativo del anterior desde el cache compartido.
+      invalidateCorporateEligibility();
     }
   },
 }));
