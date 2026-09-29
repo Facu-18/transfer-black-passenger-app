@@ -83,6 +83,15 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Render se duerme:** la primera solicitud tras un rato sin tráfico puede tardar ~1 minuto; por eso
   el timeout de Axios es de 60 s. No es un bug de la app.
 - **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
+- **Cuenta corriente corporativa** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
+  checkout, como efectivo. La elegibilidad para pagar así no sale de un endpoint aparte: viaja en
+  `GET /corporate/membership/me` (`can_ride_on_account`, `reason`, `consumption` por empleado/centro
+  de costo/empresa). Errores al confirmar: `CORPORATE_MEMBERSHIP_REQUIRED` (403),
+  `COMPANY_SUSPENDED`, `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (409, con
+  `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED` (403),
+  `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. La app no ofrece elegir centro de costo
+  (solo lo puede mandar un responsable, y esta versión no lo expone), así que nunca manda
+  `cost_center_id`.
 - **Servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros) no existen en el backend: viven solo en
   `presentation/utils/whatsapp-services.ts`, no se cotizan ni crean viaje, y abren `wa.me` con origen
   y destino ya escritos. Se muestran aunque la cotización falle.
