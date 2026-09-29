@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import type { Coordinates, Place } from '@/infrastructure/interfaces/places';
-import type { GuestPassenger } from '@/infrastructure/interfaces/trips';
+import type { GuestPassenger, PaymentMethod } from '@/infrastructure/interfaces/trips';
 
 interface TripState {
   /** Posicion del GPS; `null` sin permiso o mientras se obtiene. */
@@ -12,12 +12,15 @@ interface TripState {
   destinationLocation: Place | null;
   /** Invitado cargado para un viaje de tercero; `null` si viaja el titular. */
   guestPassenger: GuestPassenger | null;
+  /** Medio de pago con el que arranca Cotizacion, por ejemplo desde "Viaje corporativo" del Home. */
+  preferredPaymentMethod: PaymentMethod | null;
   setCurrentLocation: (coordinates: Coordinates) => void;
   setCurrentPlace: (place: Place) => void;
   setOrigin: (place: Place | null) => void;
   setDestination: (place: Place | null) => void;
   setGuestPassenger: (guest: GuestPassenger) => void;
   clearGuestPassenger: () => void;
+  setPreferredPaymentMethod: (method: PaymentMethod | null) => void;
   resetTrip: () => void;
 }
 
@@ -28,6 +31,7 @@ export const useTripStore = create<TripState>()((set) => ({
   origin: null,
   destinationLocation: null,
   guestPassenger: null,
+  preferredPaymentMethod: null,
 
   setCurrentLocation: (currentLocation) => set({ currentLocation }),
 
@@ -39,7 +43,13 @@ export const useTripStore = create<TripState>()((set) => ({
   setDestination: (destinationLocation) => set({ destinationLocation }),
   setGuestPassenger: (guestPassenger) => set({ guestPassenger }),
   clearGuestPassenger: () => set({ guestPassenger: null }),
+  setPreferredPaymentMethod: (preferredPaymentMethod) => set({ preferredPaymentMethod }),
 
   resetTrip: () =>
-    set((state) => ({ origin: state.currentPlace, destinationLocation: null, guestPassenger: null })),
+    set((state) => ({
+      origin: state.currentPlace,
+      destinationLocation: null,
+      guestPassenger: null,
+      preferredPaymentMethod: null,
+    })),
 }));

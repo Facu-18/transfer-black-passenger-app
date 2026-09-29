@@ -10,10 +10,12 @@ import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
+import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useLocationPermissions, type LocationStatus } from '@/presentation/hooks/useLocationPermissions';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
+import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
 import { darkMapStyle } from '@/presentation/theme/map-style';
 
 /** Centro de Córdoba: se muestra hasta tener la ubicación del usuario (o si no la comparte). */
@@ -44,6 +46,8 @@ export function HomeScreen() {
   const { recentPlaces } = useRecentPlaces();
   const origin = useTripStore((state) => state.origin);
   const setDestination = useTripStore((state) => state.setDestination);
+  const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
+  const { membership: corporateMembership } = useCorporateEligibility();
 
   // Centra el mapa cada vez que llega una posición nueva, con inclinación para la vista 3D.
   useEffect(() => {
@@ -53,13 +57,40 @@ export function HomeScreen() {
 
   const startSearch = () => {
     setDestination(null);
+    setPreferredPaymentMethod(null);
     router.push('/search');
   };
 
   const selectRecent = (place: Place) => {
     setDestination(place);
+    setPreferredPaymentMethod(null);
     // Sin origen (no hay ubicación) se completa en la búsqueda; con origen se pasa directo a cotizar.
     router.push(origin ? '/pricing' : '/search');
+  };
+
+  const startCorporateTrip = () => {
+    if (!corporateMembership) {
+      Alert.alert(
+        'Cuenta corporativa',
+        'Vinculá tu perfil con el código de tu empresa desde Mi Cuenta para viajar a cuenta corporativa.',
+        [
+          { text: 'Ir a Mi Cuenta', onPress: () => router.navigate('/account') },
+          { text: 'Ahora no', style: 'cancel' },
+        ],
+      );
+      return;
+    }
+
+    if (!corporateMembership.canRideOnAccount) {
+      Alert.alert('Cuenta corporativa no disponible', getCorporateIneligibilityMessage(corporateMembership), [
+        { text: 'Entendido' },
+      ]);
+      return;
+    }
+
+    setDestination(null);
+    setPreferredPaymentMethod('corporate');
+    router.push('/search');
   };
 
   const firstName = user?.firstName?.trim();
@@ -169,7 +200,7 @@ export function HomeScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
           <Pressable
             accessibilityRole="button"
-            onPress={() => showComingSoon('Viaje corporativo')}
+            onPress={startCorporateTrip}
             className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
           >
             <BriefcaseBusiness size={16} color={colors.gold} />
