@@ -9,6 +9,7 @@ import { newIdempotencyKey } from '@/core/api/idempotency';
 import type { FareOption, PaymentMethod, RideQuote } from '@/infrastructure/interfaces/trips';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
+import { getCorporateErrorMessage } from '@/presentation/utils/corporate-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
 
@@ -20,7 +21,10 @@ interface UseConfirmRideOptions {
 }
 
 export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfirmRideOptions) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('account_money');
+  const preferredPaymentMethod = useTripStore((state) => state.preferredPaymentMethod);
+  // Arranca en el medio preferido (p. ej. "Viaje corporativo" del Home) o en
+  // Mercado Pago, como antes de que existiera esa preferencia.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(preferredPaymentMethod ?? 'account_money');
   const [requirePin, setRequirePin] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
@@ -57,6 +61,17 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
       idempotencyKey.current = newIdempotencyKey();
     }
   }, [requirePin]);
+
+  // El medio de pago tambien es parte del cuerpo que hashea el backend para la
+  // idempotencia: cambiarlo sin renovar la clave devolveria el intento anterior.
+  const keyOwnerPaymentMethod = useRef(paymentMethod);
+
+  useEffect(() => {
+    if (keyOwnerPaymentMethod.current !== paymentMethod) {
+      keyOwnerPaymentMethod.current = paymentMethod;
+      idempotencyKey.current = newIdempotencyKey();
+    }
+  }, [paymentMethod]);
 
   const confirm = async () => {
     if (!quote || !selectedFare || isConfirming) {
@@ -106,6 +121,15 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
           Alert.alert('Este viaje ya no se puede confirmar', 'Volvé a pedirlo desde el inicio.', [
             { text: 'Entendido', onPress: () => router.replace('/home') },
           ]);
+          return;
+        }
+
+        const corporateMessage = getCorporateErrorMessage(error);
+        if (corporateMessage) {
+          // El medio elegido no funciono: se vuelve a Mercado Pago para no
+          // dejar seleccionado un pago que va a fallar de nuevo.
+          setPaymentMethod('account_money');
+          Alert.alert('No pudimos cobrar con tu cuenta corporativa', corporateMessage, [{ text: 'Entendido' }]);
           return;
         }
       }
