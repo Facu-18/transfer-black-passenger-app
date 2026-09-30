@@ -43,6 +43,13 @@ let socket: Socket | null = null;
 let state: RealtimeConnectionState = 'idle';
 /** Salas en las que hay que estar: se vuelven a pedir en cada reconexion. */
 const joinedRides = new Set<string>();
+/**
+ * `chat.join` todavia sin resolver, por viaje: si la pantalla se va antes de
+ * conectar o de recibir el ack, `leaveChat` cancela esto en vez de dejar un
+ * listener de `connect` colgado que emitiria el join mas tarde, para un viaje
+ * que ya no se esta mirando.
+ */
+const pendingChatJoins = new Map<string, () => void>();
 
 const stateListeners = new Set<Listener<RealtimeConnectionState>>();
 const statusListeners = new Set<Listener<TripStatusChangedEvent>>();
@@ -232,33 +239,49 @@ export const realtimeClient = {
    * Entra a la sala del chat del viaje con ack. Si nadie responde en
    * {@link CHAT_JOIN_ACK_TIMEOUT_MS} (el backend no tiene el gateway del chat
    * instanciado en produccion), resuelve `false`: la pantalla cae a polling.
+   *
+   * Si `leaveChat` se llama para el mismo `tripId` antes de resolver (la
+   * pantalla se cerro sin conexion o sin ack todavia), esto se cancela: ni se
+   * deja el listener de `connect` esperando, ni se emite `chat.join` despues,
+   * para un viaje que ya no se esta mirando.
    */
   joinChat(tripId: string): Promise<boolean> {
     const current = getSocket();
 
     return new Promise((resolve) => {
       let settled = false;
+
+      const onConnect = () => emitJoin();
+
+      const cleanup = () => {
+        current.off('connect', onConnect);
+        pendingChatJoins.delete(tripId);
+      };
+
       const settle = (ok: boolean) => {
         if (settled) return;
         settled = true;
+        clearTimeout(timer);
+        cleanup();
         resolve(ok);
       };
 
-      const timer = setTimeout(() => settle(false), CHAT_JOIN_ACK_TIMEOUT_MS);
-
       const emitJoin = () => {
+        if (settled) return;
         current.emit('chat.join', { tripId }, (response: ChatJoinAckResponse) => {
-          clearTimeout(timer);
           settle(Boolean(response?.ok));
         });
       };
+
+      const timer = setTimeout(() => settle(false), CHAT_JOIN_ACK_TIMEOUT_MS);
+      pendingChatJoins.set(tripId, () => settle(false));
 
       if (current.connected) {
         emitJoin();
         return;
       }
 
-      current.once('connect', emitJoin);
+      current.on('connect', onConnect);
       if (!current.active) {
         setState('connecting');
         current.connect();
@@ -266,8 +289,14 @@ export const realtimeClient = {
     });
   },
 
-  /** Sale de la sala del chat. Sin ack: si falla, la sala se libera sola al desconectar. */
+  /**
+   * Sale de la sala del chat. Si todavia habia un `joinChat` de este viaje sin
+   * resolver, lo cancela primero (ver `joinChat`). Sin ack de salida: si el
+   * `chat.leave` no llega, la sala se libera sola al desconectar el socket.
+   */
   leaveChat(tripId: string): void {
+    pendingChatJoins.get(tripId)?.();
+
     if (socket?.connected) {
       socket.emit('chat.leave', { tripId });
     }

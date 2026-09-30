@@ -12,11 +12,13 @@ interface ChatBubbleProps {
   message: ChatMessage;
   /** Solo se muestra "Leído" en el ultimo mensaje propio que ya se leyo, no en todos. */
   showReadReceipt: boolean;
+  /** Segundos que faltan para que pase el 429; mientras dure, el reintento queda deshabilitado. */
+  retryDisabledSecondsRemaining: number | null;
   onRetry: (clientMessageId: string) => void;
 }
 
 /** Un mensaje del chat, propio (dorado, a la derecha) o del chofer (charcoal, a la izquierda). */
-export function ChatBubble({ message, showReadReceipt, onRetry }: ChatBubbleProps) {
+export function ChatBubble({ message, showReadReceipt, retryDisabledSecondsRemaining, onRetry }: ChatBubbleProps) {
   const { isMine, status } = message;
 
   const bubbleClass = isMine
@@ -24,18 +26,25 @@ export function ChatBubble({ message, showReadReceipt, onRetry }: ChatBubbleProp
     : 'self-start rounded-2xl rounded-bl-sm border border-charcoal bg-field';
 
   if (status === 'failed') {
+    const rateLimited = retryDisabledSecondsRemaining !== null;
+    const retryLabel = rateLimited
+      ? `No se pudo enviar. Podés reintentar en ${retryDisabledSecondsRemaining}s.`
+      : 'Mensaje no enviado. Tocá para reintentar.';
+
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Mensaje no enviado. Tocá para reintentar."
+        accessibilityLabel={retryLabel}
+        accessibilityState={{ disabled: rateLimited }}
+        disabled={rateLimited}
         onPress={() => onRetry(message.clientMessageId)}
-        className={`max-w-[80%] gap-1 px-4 py-2.5 ${bubbleClass} border-danger/50 opacity-80`}
+        className={`max-w-[80%] gap-1 px-4 py-2.5 ${bubbleClass} border-danger/50 ${rateLimited ? 'opacity-50' : 'opacity-80'}`}
       >
         <Typography>{message.content}</Typography>
         <View className="flex-row items-center gap-1">
           <RotateCw size={12} color={colors.danger} />
           <Typography variant="caption" tone="danger">
-            No se pudo enviar. Tocá para reintentar.
+            {rateLimited ? `Podés reintentar en ${retryDisabledSecondsRemaining}s` : 'No se pudo enviar. Tocá para reintentar.'}
           </Typography>
         </View>
       </Pressable>

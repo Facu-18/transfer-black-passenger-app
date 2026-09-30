@@ -121,11 +121,12 @@ export function TripChatScreen() {
         <ChatBubble
           message={item}
           showReadReceipt={item.isMine && item.id === lastMineMessageId && item.readAt !== null}
+          retryDisabledSecondsRemaining={rateLimitSecondsRemaining}
           onRetry={retry}
         />
       </View>
     ),
-    [lastMineMessageId, retry],
+    [lastMineMessageId, rateLimitSecondsRemaining, retry],
   );
 
   if (!tripId) {

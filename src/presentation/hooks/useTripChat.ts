@@ -106,7 +106,10 @@ export function useTripChat(tripId: string | null) {
     setLoadError(null);
     try {
       const page = await listChatMessagesAction({ tripId, currentUserId, limit: MESSAGES_PAGE_SIZE });
-      setMessages(page.items);
+      // No pisa lo que todavia no tiene id de servidor (un envio en curso o
+      // fallido): se pierde el boton de reintento y la recuperacion de
+      // CURSOR_NOT_FOUND si esto reemplaza la lista entera.
+      setMessages((current) => mergeMessages(current, page.items));
       setNextCursor(page.nextCursor);
     } catch (reason: unknown) {
       if (reason instanceof ApiRequestError && reason.status === 401) {
@@ -358,7 +361,9 @@ export function useTripChat(tripId: string | null) {
 
   const send = useCallback(() => {
     const content = composerText.trim();
-    if (!content || isSubmitting) return;
+    // El 429 tiene que respetarse tambien aca: el boton ya queda deshabilitado
+    // en la pantalla, pero esto es lo que de verdad evita mandar de mas.
+    if (!content || isSubmitting || rateLimitSecondsRemaining !== null) return;
 
     setComposerText('');
     setIsSubmitting(true);
@@ -366,15 +371,17 @@ export function useTripChat(tripId: string | null) {
     submit(content, clientMessageId);
     // El envio es optimista: no hace falta esperar la respuesta para volver a escribir.
     setIsSubmitting(false);
-  }, [composerText, isSubmitting, submit]);
+  }, [composerText, isSubmitting, rateLimitSecondsRemaining, submit]);
 
   const retry = useCallback(
     (clientMessageId: string) => {
+      // Mientras corre la cuenta regresiva del 429, reintentar solo lo prolongaria.
+      if (rateLimitSecondsRemaining !== null) return;
       const failed = messagesRef.current.find((message) => message.clientMessageId === clientMessageId);
       if (!failed) return;
       submit(failed.content, clientMessageId);
     },
-    [submit],
+    [rateLimitSecondsRemaining, submit],
   );
 
   return {
