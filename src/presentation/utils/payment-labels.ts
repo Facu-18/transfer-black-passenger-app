@@ -5,6 +5,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   account_money: 'Mercado Pago',
   cash: 'Efectivo',
   voucher: 'Voucher corporativo',
+  corporate: 'Cuenta corporativa',
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

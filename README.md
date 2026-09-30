@@ -230,14 +230,23 @@ La pantalla `GuestPassengerScreen` (hook `useGuestPassengerForm`, RHF + Zod) car
 - **Hoy hay una sola categoría, "Prioridad"** (`prioridad`): `essential` y `comfort` están desactivadas en el backend (no borradas, porque el historial las referencia) y la cotización solo devuelve las activas. La pantalla no tiene nada fijo por categoría: si el backend vuelve a ofrecer varias, se muestran solas, y el cartel "Recomendado" aparece solo cuando hay más de una.
 - **Otros servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros): viven solo en el front (`presentation/utils/whatsapp-services.ts`), no se cotizan ni crean viaje. Al tocar uno se elige la línea (351 926-0326 o 351 926-0327) y se abre `wa.me` con el servicio, el origen y el destino ya escritos; el equipo coordina el resto por fuera de la app. Se muestran también si la cotización falla.
 
-`POST /rides/{tripId}/confirm` espera `{ fare_quote_id, payment: { type } }` y el header **`Idempotency-Key`** (UUID v4 de `expo-crypto`). La clave se genera una vez por borrador: reintentar no cobra dos veces, y se renueva si hay que recotizar.
+`POST /rides/{tripId}/confirm` espera `{ fare_quote_id, payment: { type } }` y el header **`Idempotency-Key`** (UUID v4 de `expo-crypto`). La clave se genera una vez por borrador y se renueva si hay que recotizar o si cambia algo que forma parte del cuerpo que hashea el backend para la idempotencia (el invitado, el PIN de abordaje o el medio de pago): reintentar con el mismo cuerpo no cobra dos veces, pero cambiarlo con la clave vieja devolvería la respuesta del intento anterior.
 
 | Medio de pago | `payment.type` | Qué pasa |
 |---|---|---|
 | Efectivo | `cash` | El viaje pasa a `searching` y la app va a `/trip/[tripId]`, que arranca con el radar |
 | Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
+| Cuenta corporativa | `corporate` | Igual que efectivo (sin checkout): el viaje pasa directo a `searching`. Se paga contra el límite mensual de la empresa, que factura por resumen aparte |
 
 Errores: 409 `FARE_QUOTE_EXPIRED` recotiza sola, 409 `INVALID_TRIP_TRANSITION` vuelve al Home, 400 al cotizar ofrece reintentar y 401 reusa `handleExpiredSession()`.
+
+### Cuenta corriente corporativa
+
+La pastilla "Corporativo" de "Método de pago" solo aparece con un vínculo empresarial (`GET /corporate/membership/me`, ya consumido por `useCorporateMembership` en Mi Cuenta): la elegibilidad para pagar así (`can_ride_on_account`, `reason` y `consumption` por empleado/centro de costo/empresa) viaja en esa misma respuesta, mapeada en `CorporateMembershipMapper`. `useCorporateEligibility` (hook nuevo, no confundir con `useCorporateMembership`) la consulta una vez y la cachea 60 segundos en memoria de módulo, porque Home ("Viaje corporativo") y Cotización la piden casi al mismo tiempo. Sin vínculo, la pastilla ni se muestra; con vínculo pero sin permiso, se muestra deshabilitada y al tocarla explica el motivo (`COMPANY_SUSPENDED` o `CORPORATE_LIMIT_REQUIRED`, en `presentation/utils/corporate-eligibility-copy.ts`); habilitada, muestra "Te quedan $X este mes" con el menor remanente entre los topes vigentes.
+
+"Viaje corporativo" del Home hace lo mismo con `Alert.alert` (sin vínculo invita a Mi Cuenta; sin permiso explica el motivo) y, si puede, guarda `corporate` en `useTripStore.preferredPaymentMethod` antes de ir a `/search`: `useConfirmRide` arranca con ese medio ya elegido. La preferencia se limpia sola al empezar cualquier otro viaje (`startSearch`, elegir un reciente) y con `resetTrip()`.
+
+`POST /rides/{tripId}/confirm` con `corporate` no abre checkout (como efectivo): la empresa paga después por un resumen mensual que hoy no gestiona la app. El backend no expone selección de centro de costo al pasajero (solo un responsable podría elegirlo, y esta versión no lo ofrece), así que la app nunca manda `cost_center_id`. Errores propios de este medio (`presentation/utils/corporate-error-message.ts`): `CORPORATE_MEMBERSHIP_REQUIRED`, `COMPANY_SUSPENDED`, `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (con `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED`, `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. Ante cualquiera de estos, la pantalla vuelve el medio de pago a Mercado Pago y muestra el motivo, sin salir de Cotización.
 
 Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador).
 

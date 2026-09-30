@@ -47,8 +47,8 @@ export interface RoutePointRequest {
   longitude: number;
 }
 
-/** `voucher` tambien existe en el backend, pero la app todavia no lo ofrece. */
-export type PaymentTypeRequest = 'account_money' | 'cash';
+/** `voucher` tambien existe en el backend, pero la app no lo ofrece: la cuenta corriente corporativa lo reemplaza. */
+export type PaymentTypeRequest = 'account_money' | 'cash' | 'corporate';
 
 /** Invitado que viaja, para `POST /rides/{tripId}/confirm`. Sin invitado, viaja el titular. */
 export interface ThirdPartyRequest {

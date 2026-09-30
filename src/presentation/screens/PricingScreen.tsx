@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip';
 import { BoardingPinToggle } from '@/presentation/components/BoardingPinToggle';
-import { PaymentMethodPills } from '@/presentation/components/PaymentMethodPills';
+import { PaymentMethodPills, type CorporatePaymentOption } from '@/presentation/components/PaymentMethodPills';
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
 import { Skeleton } from '@/presentation/components/Skeleton';
@@ -14,9 +14,11 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { WhatsAppServicesRow } from '@/presentation/components/WhatsAppServicesRow';
 import { useConfirmRide } from '@/presentation/hooks/useConfirmRide';
+import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useRideQuote } from '@/presentation/hooks/useRideQuote';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
+import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
 const INITIAL_PANEL_HEIGHT = 400;
@@ -34,6 +36,20 @@ export function PricingScreen() {
     selectedFare,
     onQuoteExpired: retry,
   });
+  const { membership: corporateMembership } = useCorporateEligibility();
+
+  const corporateOption: CorporatePaymentOption | null = corporateMembership
+    ? {
+        label: `Corporativo · ${corporateMembership.company.tradeName ?? corporateMembership.company.legalName}`,
+        enabled: corporateMembership.canRideOnAccount,
+        disabledReason: corporateMembership.canRideOnAccount
+          ? undefined
+          : getCorporateIneligibilityMessage(corporateMembership),
+        remainingMessage: corporateMembership.lowestRemaining
+          ? `Te quedan ${corporateMembership.lowestRemaining.formattedAmount} este mes`
+          : null,
+      }
+    : null;
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
   const onPanelLayout = (event: LayoutChangeEvent) => setPanelHeight(event.nativeEvent.layout.height);
@@ -125,7 +141,12 @@ export function PricingScreen() {
               onAddGuest={() => router.push('/guest')}
             />
 
-            <PaymentMethodPills value={paymentMethod} disabled={isConfirming} onChange={setPaymentMethod} />
+            <PaymentMethodPills
+              value={paymentMethod}
+              disabled={isConfirming}
+              corporateOption={corporateOption}
+              onChange={setPaymentMethod}
+            />
 
             <BoardingPinToggle value={requirePin} disabled={isConfirming} onChange={setRequirePin} />
 

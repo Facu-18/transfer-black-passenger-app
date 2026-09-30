@@ -2,8 +2,8 @@
 
 import type { Coordinates } from './places';
 
-/** Medio de pago que ofrece la pantalla de cotizacion. */
-export type PaymentMethod = 'account_money' | 'cash';
+/** Medio de pago que ofrece la pantalla de cotizacion. `corporate` solo se ofrece con vinculo empresarial habilitado. */
+export type PaymentMethod = 'account_money' | 'cash' | 'corporate';
 
 export interface FareOption {
   /** `fare_quote_id` de la confirmacion. */
