@@ -1,5 +1,5 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Check, ChevronRight, Download } from 'lucide-react-native';
+import { Check, ChevronRight, Download, MessageCircle } from 'lucide-react-native';
 import { useCallback } from 'react';
 import { BackHandler, Image, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -202,6 +202,17 @@ export function ReceiptScreen() {
                     </Typography>
                   ) : null}
                 </View>
+                {trip.driverId ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Chat con tu chofer"
+                    hitSlop={8}
+                    onPress={() => router.push({ pathname: '/chat/[tripId]', params: { tripId } })}
+                    className="h-10 w-10 items-center justify-center rounded-full bg-charcoal active:opacity-80"
+                  >
+                    <MessageCircle size={18} color={colors.platinum} />
+                  </Pressable>
+                ) : null}
               </View>
 
               {alreadyRated ? (
