@@ -182,6 +182,7 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y viaje en curso, en vivo |
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
 | `/trips/[tripId]` | `(app)/trips/[tripId].tsx` | Detalle de un viaje del historial (plural: distinta de `/trip/[tripId]`) |
+| `/chat/[tripId]` | `(app)/chat/[tripId].tsx` | Chat 1 a 1 con el chofer asignado |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
@@ -271,7 +272,17 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 - **ETA y ruta al origen** (`useDriverEta`): Geoapify Routing detrás de `RoutesProvider` (`core/api/routes-provider.ts`, migrable a Google igual que los lugares). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición, para no gastar cuota. Si el proveedor falla, estima con la distancia en línea recta.
 - **Cancelar**: confirmación y `POST /rides/{tripId}/cancel` con `reason_code: passenger_cancelled`; vuelve al Home. La penalidad por cancelación todavía no existe en el backend.
 - **Viaje para un invitado**: si el detalle trae `third_party`, la pantalla muestra "Sos el coordinador · viaja `<nombre>`" (`CoordinatorBanner`) y, cuando el backend también manda `tracking_url` (solo al titular que pidió el viaje), un botón "Enviar seguimiento por WhatsApp" que abre `wa.me` al número del invitado con el link ya escrito. Sin chat: no hay forma de escribirle al invitado desde la app.
-- **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint), chat y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. Compartir ETA, Destino, Confort, Concierge, el botón de seguridad y el PDF del comprobante se muestran como en el diseño y avisan "Próximamente".
+- **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint) y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. Compartir ETA, Destino, Confort, Concierge, el botón de seguridad y el PDF del comprobante se muestran como en el diseño y avisan "Próximamente". El chat con el chofer si esta implementado (ver mas abajo).
+
+### Chat del viaje
+
+Chat 1 a 1 con el chofer asignado, en `/chat/[tripId]` (`TripChatScreen`, hook `useTripChat`). Se entra desde el botón "Chat" de "Conductor en camino" y del panel "A bordo" (deshabilitado hasta que hay chofer asignado, con badge de mensajes sin leer) y desde el recibo, dentro de la ventana de gracia.
+
+- **REST siempre para leer y mandar**: `GET/POST /trips/{tripId}/messages` (paginación por cursor, `before` para historial viejo y `after` para "lo nuevo desde tal mensaje") y `POST /trips/{tripId}/messages/read`. El envío es optimista, con un `client_message_id` (UUID de `expo-crypto`) que identifica el intento y no el mensaje: reintentar un envío fallido con el mismo id nunca lo duplica (el backend responde 200 en vez de 201).
+- **Tiempo real con fallback a polling**: al abrir la pantalla se emite `chat.join` con un ack; si nadie responde en 3 s (hoy siempre pasa: ver "Cosas del backend que sorprenden" en `CLAUDE.md`), la pantalla cae a polling con `after` cada ~4 s mientras está enfocada y la app en primer plano. Con tiempo real, la lectura de mensajes propios ("Leído") llega por el evento `chat.message.read`; sin él, se refresca la página más reciente cada 15 s porque `after` no trae de vuelta los mensajes ya cargados.
+- **Marcar como leído**: se manda con un debounce corto al ver mensajes nuevos del chofer, con el id del más reciente (el backend marca todos los anteriores).
+- **Estado cerrado**: si el backend responde `CHAT_CLOSED` (viaje terminado fuera de la ventana de gracia de 24 h, o intento del chofer con el viaje en curso) se oculta el cuadro de texto; el historial se puede seguir leyendo. La app no calcula la ventana de gracia por su cuenta porque el backend la basa en un campo (`updatedAt`) que no coincide necesariamente con `finishedAt`/`cancelledAt`.
+- **429**: el backend limita a 20 mensajes por minuto y manda `Retry-After`; la pantalla muestra una cuenta regresiva y deshabilita el envío mientras dure.
 
 ### Recibo y calificación
 
@@ -298,7 +309,7 @@ La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHis
 ## API y sesión
 
 - **Cliente**: `core/api/transfer-black-api.ts`, instancia de Axios con `baseURL = EXPO_PUBLIC_API_URL`. Documentación del backend: https://transfer-black-api.onrender.com/docs
-- **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend.
+- **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`, `retryAfterSeconds`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend. Los endpoints del chat mandan el error en la raíz (`{ code, message }`) en vez de `{ error: { code, message } }` como el resto de la API; el interceptor reconoce las dos formas. `retryAfterSeconds` sale del header `Retry-After` (hoy solo lo manda el 429 del chat).
 - **Timeout de 60s**: el backend en Render se duerme tras unos minutos sin tráfico y la primera solicitud puede tardar cerca de un minuto en despertarlo.
 - **Tokens**: `useAuthStore` (Zustand) guarda el access token solo en memoria y el refresh token en `expo-secure-store` (Keychain / Keystore; AsyncStorage no cifra). El interceptor de solicitud agrega `Authorization: Bearer` con el access token vigente.
 - **Renovación**: el access token dura 15 minutos. Ante un 401, el interceptor de respuesta pide `POST /auth/refresh`, guarda el refresh token nuevo (rota en cada uso) y repite la solicitud una vez. Las solicitudes que fallan a la vez esperan la misma renovación (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh token cerraría la sesión. Si el backend rechaza el refresh token, el 401 llega a la pantalla y `handleExpiredSession()` vuelve al login; si la renovación falla por red, la pantalla recibe un error de conexión y la sesión sigue.

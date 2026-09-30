@@ -83,6 +83,17 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Render se duerme:** la primera solicitud tras un rato sin tráfico puede tardar ~1 minuto; por eso
   el timeout de Axios es de 60 s. No es un bug de la app.
 - **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
+- **Chat del viaje:** las rutas cuelgan de `/trips/:tripId/messages` (no `/rides/...`), montadas bajo el mismo
+  `/api/v1` que el resto. Los errores del chat vienen en la raíz (`{ code, message }`), no en
+  `{ error: { code, message } }` como el resto de la API, y en `VALIDATION_ERROR` `message` es un array.
+  El `senderRole` real de un mensaje es `'passenger' | 'provider'`: el contrato del backend
+  (`chat-contract.md`) documenta `'passenger'` pero nunca muestra el valor del lado del chofer, que es
+  `'provider'` y no `'driver'` como sugeriría el resto de la API. El `ChatGateway` de Socket.IO nunca se
+  instancia en producción (solo en tests): `chat.join` no tiene quien conteste, así que la app siempre cae a
+  polling con `after` cada ~4 s. La sala del chat es `ride_<tripId>` (guion bajo), distinta de la sala del
+  seguimiento del viaje, `ride:<tripId>` (dos puntos): entrar a una no entra a la otra. La ventana de gracia
+  post-viaje (`CHAT_CLOSED` a las 24 h) la calcula el backend desde `trip.updatedAt`, no desde `finishedAt`/
+  `cancelledAt`; la app no la replica y confía en la respuesta real de cada `POST`.
 - **Cuenta corriente corporativa** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
   checkout, como efectivo. La elegibilidad para pagar así no sale de un endpoint aparte: viaja en
   `GET /corporate/membership/me` (`can_ride_on_account`, `reason`, `consumption` por empleado/centro
@@ -114,11 +125,12 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 
 Terminado: registro, login, verificación por PIN, home con mapa, búsqueda de direcciones,
 cotización, pago (Mercado Pago y efectivo), radar, chofer en camino, viaje a bordo, recibo,
-calificación, viaje para un pasajero invitado e historial de viajes (listado con filtros y detalle).
+calificación, viaje para un pasajero invitado, historial de viajes (listado con filtros y detalle)
+y chat con el chofer asignado.
 
 Pendiente, no por olvido:
 
-- PIN de validación a bordo, chat y llamada: el backend no tiene endpoint ni expone el teléfono.
+- PIN de validación a bordo y llamada: el backend no tiene endpoint ni expone el teléfono.
 - Reembolso y penalidad al cancelar: falta definir la política (especificación §24, punto 12).
 - Restaurar la sesión al abrir la app, y por lo tanto retomar un viaje activo si la app se cerró.
 - `back_urls` / deep link de vuelta desde el checkout.
