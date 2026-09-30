@@ -17,12 +17,21 @@ export class ApiRequestError extends Error {
   readonly status: number | null;
   readonly code: string;
   readonly details: unknown;
+  /** Header `Retry-After` en segundos (ej. 429 del chat); `null` si no vino. */
+  readonly retryAfterSeconds: number | null;
 
-  constructor(status: number | null, code: string, message: string, details: unknown = null) {
+  constructor(
+    status: number | null,
+    code: string,
+    message: string,
+    details: unknown = null,
+    retryAfterSeconds: number | null = null,
+  ) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
     this.code = code;
     this.details = details;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }

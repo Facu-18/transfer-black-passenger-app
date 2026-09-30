@@ -1,6 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 
 import type { ApiErrorResponse } from '@/infrastructure/interfaces/api-responses';
+import type { ChatErrorResponse } from '@/infrastructure/interfaces/chat-api';
 
 import { getApiUrl } from './api-config';
 import { ApiRequestError, CONNECTION_ERROR_CODES } from './api-request-error';
@@ -103,6 +104,26 @@ function isApiErrorResponse(body: unknown): body is ApiErrorResponse {
   return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
 }
 
+/**
+ * Los errores del chat viajan en la raiz (`{ code, message }`) y no envueltos
+ * en `error` como el resto de la API. Se descarta cualquier cuerpo que ya haya
+ * matcheado `isApiErrorResponse` para no confundir una forma con la otra.
+ */
+function isChatErrorResponse(body: unknown): body is ChatErrorResponse {
+  if (typeof body !== 'object' || body === null || 'error' in body) {
+    return false;
+  }
+
+  return 'code' in body && 'message' in body && typeof (body as { code: unknown }).code === 'string';
+}
+
+/** El backend del chat manda el numero de segundos en `Retry-After` (429). */
+function getRetryAfterSeconds(headers: Record<string, unknown> | undefined): number | null {
+  const raw = headers?.['retry-after'];
+  const seconds = typeof raw === 'string' ? Number(raw) : null;
+  return seconds !== null && Number.isFinite(seconds) ? seconds : null;
+}
+
 function toApiRequestError(error: unknown): ApiRequestError {
   if (!isAxiosError(error)) {
     return new ApiRequestError(null, CONNECTION_ERROR_CODES.UNKNOWN, 'Error inesperado');
@@ -116,11 +137,24 @@ function toApiRequestError(error: unknown): ApiRequestError {
     return new ApiRequestError(null, CONNECTION_ERROR_CODES.NETWORK, 'No se pudo conectar con el servidor');
   }
 
-  const { status, data } = error.response;
+  const { status, data, headers } = error.response;
+  const retryAfterSeconds = getRetryAfterSeconds(headers as Record<string, unknown> | undefined);
 
   if (isApiErrorResponse(data)) {
-    return new ApiRequestError(status, data.error.code, data.error.message, data.error.details ?? null);
+    return new ApiRequestError(status, data.error.code, data.error.message, data.error.details ?? null, retryAfterSeconds);
   }
 
-  return new ApiRequestError(status, CONNECTION_ERROR_CODES.UNKNOWN, `Respuesta inesperada del servidor (${status})`);
+  if (isChatErrorResponse(data)) {
+    // En VALIDATION_ERROR el backend manda un array de issues en vez de un solo texto.
+    const message = Array.isArray(data.message) ? data.message.join(' ') : data.message;
+    return new ApiRequestError(status, data.code, message, null, retryAfterSeconds);
+  }
+
+  return new ApiRequestError(
+    status,
+    CONNECTION_ERROR_CODES.UNKNOWN,
+    `Respuesta inesperada del servidor (${status})`,
+    null,
+    retryAfterSeconds,
+  );
 }
