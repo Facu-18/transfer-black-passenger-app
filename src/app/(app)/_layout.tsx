@@ -60,6 +60,8 @@ export default function AppLayout() {
       <Stack.Screen name="pricing" />
       {/* Sin gesto de volver: mientras el viaje sigue, la pantalla no se abandona. */}
       <Stack.Screen name="trip/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
+      {/* Chat del viaje con el chofer asignado. */}
+      <Stack.Screen name="chat/[tripId]" options={{ animation: 'slide_from_right' }} />
       {/* Se llega con replace desde el seguimiento; salir es calificar u omitir. */}
       <Stack.Screen name="receipt/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
       {/* Detalle de un viaje ya terminado, desde el historial. */}

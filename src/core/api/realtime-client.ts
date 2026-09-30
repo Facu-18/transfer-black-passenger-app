@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 
+import type { ChatMessageReadEvent, ChatMessageResponse } from '@/infrastructure/interfaces/chat-api';
 import type {
   DriverLocation,
   DriverLocationEvent,
@@ -13,6 +14,17 @@ import { getCurrentAccessToken } from './transfer-black-api';
 
 /** Errores del middleware de autenticacion del socket que se arreglan renovando el token. */
 const TOKEN_ERRORS = new Set(['MISSING_TOKEN', 'INVALID_TOKEN']);
+
+/**
+ * Cuanto se espera el ack de `chat.join` antes de asumir que nadie va a
+ * responder y pasar a polling. Hoy el backend nunca instancia el gateway del
+ * chat en produccion (ver README), asi que este timeout se cumple siempre.
+ */
+const CHAT_JOIN_ACK_TIMEOUT_MS = 3_000;
+
+interface ChatJoinAckResponse {
+  ok: boolean;
+}
 
 type Listener<T> = (value: T) => void;
 
@@ -36,6 +48,8 @@ const stateListeners = new Set<Listener<RealtimeConnectionState>>();
 const statusListeners = new Set<Listener<TripStatusChangedEvent>>();
 const locationListeners = new Set<Listener<DriverLocation>>();
 const joinedListeners = new Set<Listener<string>>();
+const chatMessageCreatedListeners = new Set<Listener<ChatMessageResponse>>();
+const chatMessageReadListeners = new Set<Listener<ChatMessageReadEvent>>();
 
 function setState(next: RealtimeConnectionState): void {
   if (state === next) return;
@@ -130,6 +144,17 @@ function getSocket(): Socket {
     locationListeners.forEach((listener) => listener(location));
   });
 
+  // Chat del viaje: sala aparte (`ride_<tripId>`, con guion bajo) de la del
+  // seguimiento (`ride:<tripId>`, con dos puntos). Hay que unirse con
+  // `chat.join` aunque ya se este siguiendo el viaje.
+  created.on('chat.message.created', (payload: ChatMessageResponse) => {
+    chatMessageCreatedListeners.forEach((listener) => listener(payload));
+  });
+
+  created.on('chat.message.read', (payload: ChatMessageReadEvent) => {
+    chatMessageReadListeners.forEach((listener) => listener(payload));
+  });
+
   socket = created;
   return created;
 }
@@ -201,5 +226,58 @@ export const realtimeClient = {
 
   onDriverLocation(listener: Listener<DriverLocation>): () => void {
     return subscribe(locationListeners, listener);
+  },
+
+  /**
+   * Entra a la sala del chat del viaje con ack. Si nadie responde en
+   * {@link CHAT_JOIN_ACK_TIMEOUT_MS} (el backend no tiene el gateway del chat
+   * instanciado en produccion), resuelve `false`: la pantalla cae a polling.
+   */
+  joinChat(tripId: string): Promise<boolean> {
+    const current = getSocket();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const settle = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(ok);
+      };
+
+      const timer = setTimeout(() => settle(false), CHAT_JOIN_ACK_TIMEOUT_MS);
+
+      const emitJoin = () => {
+        current.emit('chat.join', { tripId }, (response: ChatJoinAckResponse) => {
+          clearTimeout(timer);
+          settle(Boolean(response?.ok));
+        });
+      };
+
+      if (current.connected) {
+        emitJoin();
+        return;
+      }
+
+      current.once('connect', emitJoin);
+      if (!current.active) {
+        setState('connecting');
+        current.connect();
+      }
+    });
+  },
+
+  /** Sale de la sala del chat. Sin ack: si falla, la sala se libera sola al desconectar. */
+  leaveChat(tripId: string): void {
+    if (socket?.connected) {
+      socket.emit('chat.leave', { tripId });
+    }
+  },
+
+  onChatMessageCreated(listener: Listener<ChatMessageResponse>): () => void {
+    return subscribe(chatMessageCreatedListeners, listener);
+  },
+
+  onChatMessageRead(listener: Listener<ChatMessageReadEvent>): () => void {
+    return subscribe(chatMessageReadListeners, listener);
   },
 };

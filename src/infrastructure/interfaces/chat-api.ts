@@ -34,6 +34,14 @@ export interface MarkChatMessagesReadBody {
   up_to_message_id: string;
 }
 
+/** `chat.message.read` del socket (unico evento del chat en `snake_case`). */
+export interface ChatMessageReadEvent {
+  trip_id: string;
+  up_to_message_id: string;
+  read_at: string;
+  reader_id: string;
+}
+
 /**
  * Los errores del chat viajan en la raiz (`{ code, message }`), a diferencia
  * del resto de la API (`{ error: { code, message } }`). En `VALIDATION_ERROR`
