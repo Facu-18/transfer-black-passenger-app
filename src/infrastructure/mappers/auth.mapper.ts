@@ -1,5 +1,5 @@
-import type { AuthUser, AuthSession } from '../interfaces/auth';
-import type { AuthProfileResponse, AuthTokensResponse } from '../interfaces/auth-api';
+import type { AuthUser, AuthSession, ResetPasswordToken } from '../interfaces/auth';
+import type { AuthProfileResponse, AuthTokensResponse, VerifyResetPasswordResponse } from '../interfaces/auth-api';
 
 export const AuthMapper = {
   toUser(profile: AuthProfileResponse): AuthUser {
@@ -28,6 +28,13 @@ export const AuthMapper = {
       refreshToken: tokens.refresh_token,
       accessTokenExpiresAt: new Date(receivedAt.getTime() + tokens.expires_in * 1000),
       refreshTokenExpiresAt: new Date(tokens.refresh_expires_at),
+    };
+  },
+
+  toResetPasswordToken(response: VerifyResetPasswordResponse, receivedAt: Date = new Date()): ResetPasswordToken {
+    return {
+      token: response.reset_token,
+      expiresAt: new Date(receivedAt.getTime() + response.expires_in * 1000),
     };
   },
 };

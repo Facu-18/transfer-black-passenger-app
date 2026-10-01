@@ -6,11 +6,11 @@ import type { OtpInputRef } from 'react-native-otp-entry';
 import { resendVerificationAction } from '@/core/actions/resend-verification.action';
 import { verifyEmailAction } from '@/core/actions/verify-email.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
-import type { VerificationErrorDetails } from '@/infrastructure/interfaces/auth-api';
 import { useCountdown } from '@/presentation/hooks/useCountdown';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession as showExpiredSession } from '@/presentation/utils/expired-session';
+import { describeVerificationCodeError, readVerificationCodeDetail } from '@/presentation/utils/verification-code-error';
 
 export const VERIFICATION_CODE_LENGTH = 6;
 
@@ -18,34 +18,6 @@ export const VERIFICATION_CODE_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 45;
 
 type Feedback = { tone: 'danger' | 'accent'; message: string } | null;
-
-function readDetail(error: ApiRequestError, key: keyof VerificationErrorDetails): number | null {
-  const details = error.details;
-  if (typeof details !== 'object' || details === null || !(key in details)) {
-    return null;
-  }
-  const value = (details as Record<string, unknown>)[key];
-  return typeof value === 'number' ? value : null;
-}
-
-function describeVerifyError(error: unknown): string {
-  if (error instanceof ApiRequestError) {
-    switch (error.code) {
-      case 'VERIFICATION_CODE_INVALID': {
-        const remaining = readDetail(error, 'attempts_remaining');
-        return remaining === null
-          ? 'El código no es correcto.'
-          : `El código no es correcto. Te ${remaining === 1 ? 'queda 1 intento' : `quedan ${remaining} intentos`}.`;
-      }
-      case 'VERIFICATION_CODE_LOCKED':
-        return 'Superaste los intentos permitidos. Pide un código nuevo.';
-      case 'VERIFICATION_CODE_EXPIRED':
-        return 'El código venció. Pide uno nuevo.';
-    }
-  }
-
-  return getApiErrorMessage(error, 'No pudimos validar el código. Intenta de nuevo.');
-}
 
 export function useVerifyEmail() {
   const email = useAuthStore((state) => state.user?.email ?? null);
@@ -94,7 +66,10 @@ export function useVerifyEmail() {
       }
 
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setFeedback({ tone: 'danger', message: describeVerifyError(error) });
+      setFeedback({
+        tone: 'danger',
+        message: describeVerificationCodeError(error, 'No pudimos validar el código. Intenta de nuevo.'),
+      });
       setCode('');
       otpRef.current?.clear();
       otpRef.current?.focus();
@@ -131,7 +106,7 @@ export function useVerifyEmail() {
           return;
         }
         if (error.code === 'VERIFICATION_RECENTLY_SENT') {
-          countdown.restart(readDetail(error, 'retry_in_seconds') ?? RESEND_COOLDOWN_SECONDS);
+          countdown.restart(readVerificationCodeDetail(error, 'retry_in_seconds') ?? RESEND_COOLDOWN_SECONDS);
           setFeedback({ tone: 'danger', message: 'Ya te enviamos un código hace instantes. Espera para pedir otro.' });
           return;
         }
