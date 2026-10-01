@@ -1,4 +1,5 @@
 import type {
+  CorporateCompanyBalance,
   CorporateConsumption,
   CorporateConsumptionScope,
   CorporateMembership,
@@ -7,21 +8,26 @@ import type {
 } from '@/infrastructure/interfaces/corporate';
 import { formatAmount } from '@/infrastructure/mappers/trip-quote.mapper';
 
-// El backend no informa moneda para los topes corporativos; la app opera solo en Argentina.
+// El backend no informa moneda para los topes de empleado/centro de costo; la app opera solo en Argentina.
 const CORPORATE_CURRENCY = 'ARS';
 
-/** Menor remanente entre empleado, centro de costo y empresa: el que primero frena el viaje. */
+/**
+ * Menor remanente entre el tope individual y el del centro de costo: el que
+ * primero frena el viaje. El tope de empresa queda afuera porque en el modelo
+ * prepago es opcional (puede no estar configurado) y lo que de verdad habilita
+ * el viaje es el saldo de la empresa (`companyBalance`), no este remanente.
+ */
 function toLowestRemaining(consumption: CorporateConsumption): CorporateRemainingSummary | null {
   const scopes: { scope: CorporateRemainingSummary['scope']; value: CorporateConsumptionScope | null }[] = [
     { scope: 'employee', value: consumption.employee },
     { scope: 'costCenter', value: consumption.costCenter },
-    { scope: 'company', value: consumption.company },
   ];
 
   let lowest: { scope: CorporateRemainingSummary['scope']; remaining: number; remainingText: string } | null = null;
 
   for (const { scope, value } of scopes) {
-    if (!value) continue;
+    // `remaining: null` es "sin tope configurado en este alcance", no "$0": no frena nada.
+    if (!value || value.remaining === null) continue;
 
     const remaining = Number(value.remaining);
     if (!Number.isFinite(remaining)) continue;
@@ -32,6 +38,15 @@ function toLowestRemaining(consumption: CorporateConsumption): CorporateRemainin
   }
 
   return lowest ? { scope: lowest.scope, formattedAmount: formatAmount(lowest.remainingText, CORPORATE_CURRENCY) } : null;
+}
+
+function toCompanyBalance(response: CorporateMembershipResponse): CorporateCompanyBalance | null {
+  if (!response.company_balance) {
+    return null;
+  }
+
+  const { available, currency } = response.company_balance;
+  return { available, currency, formatted: formatAmount(available, currency) };
 }
 
 export const CorporateMembershipMapper = {
@@ -56,6 +71,7 @@ export const CorporateMembershipMapper = {
       ineligibilityReason: response.reason ?? null,
       consumption,
       lowestRemaining: toLowestRemaining(consumption),
+      companyBalance: toCompanyBalance(response),
     };
   },
 };

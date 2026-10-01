@@ -94,15 +94,18 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   seguimiento del viaje, `ride:<tripId>` (dos puntos): entrar a una no entra a la otra. La ventana de gracia
   post-viaje (`CHAT_CLOSED` a las 24 h) la calcula el backend desde `trip.updatedAt`, no desde `finishedAt`/
   `cancelledAt`; la app no la replica y confía en la respuesta real de cada `POST`.
-- **Cuenta corriente corporativa** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
-  checkout, como efectivo. La elegibilidad para pagar así no sale de un endpoint aparte: viaja en
-  `GET /corporate/membership/me` (`can_ride_on_account`, `reason`, `consumption` por empleado/centro
-  de costo/empresa). Errores al confirmar: `CORPORATE_MEMBERSHIP_REQUIRED` (403),
-  `COMPANY_SUSPENDED`, `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (409, con
-  `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED` (403),
-  `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. La app no ofrece elegir centro de costo
-  (solo lo puede mandar un responsable, y esta versión no lo expone), así que nunca manda
-  `cost_center_id`.
+- **Saldo prepago corporativo** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
+  checkout, como efectivo; descuenta el saldo que la empresa ya cargó (prepago, no cuenta corriente). La
+  elegibilidad para pagar así no sale de un endpoint aparte: viaja en `GET /corporate/membership/me`
+  (`can_ride_on_account`, `reason`, `company_balance.available` y `consumption` por empleado/centro de
+  costo/empresa, este último ya opcional). Si la tarifa elegida supera `company_balance.available`, la
+  app deshabilita la pastilla para esa tarifa aunque `can_ride_on_account` siga en `true`. Errores al
+  confirmar: `CORPORATE_MEMBERSHIP_REQUIRED` (403), `COMPANY_SUSPENDED`, `CORPORATE_INSUFFICIENT_BALANCE`
+  (409, con `details.available/required/currency`), `CORPORATE_LIMIT_REQUIRED` (por compatibilidad con un
+  backend viejo), `CORPORATE_LIMIT_EXCEEDED` (409, con `details.scope/limit/committed/remaining`),
+  `COST_CENTER_NOT_ALLOWED` (403), `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. La app no
+  ofrece elegir centro de costo (solo lo puede mandar un responsable, y esta versión no lo expone), así
+  que nunca manda `cost_center_id`.
 - **Servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros) no existen en el backend: viven solo en
   `presentation/utils/whatsapp-services.ts`, no se cotizan ni crean viaje, y abren `wa.me` con origen
   y destino ya escritos. Se muestran aunque la cotización falle.

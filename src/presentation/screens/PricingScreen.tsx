@@ -18,7 +18,11 @@ import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligib
 import { useRideQuote } from '@/presentation/hooks/useRideQuote';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
-import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
+import {
+  exceedsCompanyBalance,
+  getCorporateIneligibilityMessage,
+  getCorporateRemainingMessage,
+} from '@/presentation/utils/corporate-eligibility-copy';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
 const INITIAL_PANEL_HEIGHT = 400;
@@ -38,16 +42,21 @@ export function PricingScreen() {
   });
   const { membership: corporateMembership } = useCorporateEligibility();
 
+  // El saldo alcanzaba cuando se consulto membership/me, pero esta tarifa en
+  // particular puede superarlo: se avisa y se deshabilita la pastilla solo para ella.
+  const fareExceedsCompanyBalance =
+    corporateMembership && selectedFare ? exceedsCompanyBalance(corporateMembership, selectedFare.totalAmount) : false;
+
   const corporateOption: CorporatePaymentOption | null = corporateMembership
     ? {
         label: `Corporativo · ${corporateMembership.company.tradeName ?? corporateMembership.company.legalName}`,
-        enabled: corporateMembership.canRideOnAccount,
-        disabledReason: corporateMembership.canRideOnAccount
-          ? undefined
-          : getCorporateIneligibilityMessage(corporateMembership),
-        remainingMessage: corporateMembership.lowestRemaining
-          ? `Te quedan ${corporateMembership.lowestRemaining.formattedAmount} este mes`
-          : null,
+        enabled: corporateMembership.canRideOnAccount && !fareExceedsCompanyBalance,
+        disabledReason: !corporateMembership.canRideOnAccount
+          ? getCorporateIneligibilityMessage(corporateMembership)
+          : fareExceedsCompanyBalance
+            ? 'El saldo de tu empresa no alcanza para este viaje.'
+            : undefined,
+        remainingMessage: getCorporateRemainingMessage(corporateMembership),
       }
     : null;
 

@@ -8,6 +8,12 @@ interface CorporateLimitExceededDetails {
   remaining?: string;
 }
 
+interface CorporateInsufficientBalanceDetails {
+  available?: string;
+  required?: string;
+  currency?: string;
+}
+
 const SCOPE_LABELS: Record<string, string> = {
   employee: 'tu límite mensual individual',
   cost_center: 'el límite mensual de tu centro de costo',
@@ -20,6 +26,7 @@ export const CORPORATE_ERROR_CODES = new Set([
   'COMPANY_SUSPENDED',
   'CORPORATE_LIMIT_REQUIRED',
   'CORPORATE_LIMIT_EXCEEDED',
+  'CORPORATE_INSUFFICIENT_BALANCE',
   'COST_CENTER_NOT_ALLOWED',
   'COST_CENTER_COMPANY_MISMATCH',
   'COST_CENTER_NOT_ACTIVE',
@@ -41,6 +48,12 @@ export function getCorporateErrorMessage(error: unknown): string | null {
       return 'Tu empresa está suspendida por falta de pago. Elegí otro medio de pago.';
     case 'CORPORATE_LIMIT_REQUIRED':
       return 'Tu empresa todavía no configuró un límite mensual. Elegí otro medio de pago.';
+    case 'CORPORATE_INSUFFICIENT_BALANCE': {
+      const details = (error.details ?? {}) as CorporateInsufficientBalanceDetails;
+      const available = details.available ? formatAmount(details.available, details.currency ?? 'ARS') : null;
+      const availableText = available ? ` (disponible ${available})` : '';
+      return `El saldo de tu empresa no alcanza para este viaje${availableText}. Elegí otro medio de pago.`;
+    }
     case 'CORPORATE_LIMIT_EXCEEDED': {
       const details = (error.details ?? {}) as CorporateLimitExceededDetails;
       const scopeLabel = (details.scope && SCOPE_LABELS[details.scope]) ?? 'el límite mensual de tu cuenta corporativa';
