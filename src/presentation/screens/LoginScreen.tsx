@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Lock, Mail, ShieldCheck } from 'lucide-react-native';
 import { Controller } from 'react-hook-form';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { BrandLogo } from '@/presentation/components/BrandLogo';
 import { Screen } from '@/presentation/components/Screen';
@@ -10,15 +10,7 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useLoginForm } from '@/presentation/hooks/useLoginForm';
 import { colors } from '@/presentation/theme/colors';
-
-// El backend todavia no tiene endpoint para recuperar la contraseña.
-function showPasswordRecoveryUnavailable() {
-  Alert.alert(
-    'Recuperar contraseña',
-    'Esta opción estará disponible pronto. Si no puedes ingresar, contacta al equipo de Transfer Black.',
-    [{ text: 'Entendido' }],
-  );
-}
+import { emailField } from '@/presentation/utils/auth-form-fields';
 
 export function LoginScreen() {
   const { form, submit } = useLoginForm();
@@ -27,6 +19,15 @@ export function LoginScreen() {
     clearErrors,
     formState: { errors, isSubmitting },
   } = form;
+
+  // Si ya escribio un correo valido, se lo lleva al paso de recuperacion.
+  const goToForgotPassword = () => {
+    const typedEmail = emailField.safeParse(form.getValues('email'));
+    router.push({
+      pathname: '/forgot-password',
+      params: typedEmail.success ? { email: typedEmail.data } : {},
+    });
+  };
 
   // "Correo o contraseña incorrectos" deja de aplicar en cuanto el usuario corrige un campo.
   const onFieldChange = (onChange: (text: string) => void) => (text: string) => {
@@ -108,12 +109,7 @@ export function LoginScreen() {
           )}
         />
 
-        <Pressable
-          accessibilityRole="link"
-          hitSlop={8}
-          onPress={showPasswordRecoveryUnavailable}
-          className="self-end"
-        >
+        <Pressable accessibilityRole="link" hitSlop={8} onPress={goToForgotPassword} className="self-end">
           <Typography variant="caption" weight="semibold" tone="accent">
             ¿Olvidaste tu contraseña?
           </Typography>
