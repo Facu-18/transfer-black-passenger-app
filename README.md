@@ -335,7 +335,7 @@ Las reglas de contraseña del formulario replican las del backend: 8 a 128 carac
 - El formulario solo exige contraseña no vacía, sin reglas de fortaleza: una cuenta creada antes de que cambiaran tiene que poder entrar.
 - Una cuenta sin rol `passenger` (conductor, administrador) no se guarda en el store y ve un aviso: esta app es solo para pasajeros.
 - Destino: `/home` si el correo está verificado, `/verify-email` si no.
-- "¿Olvidaste tu contraseña?" solo informa: el backend no tiene endpoint de recuperación.
+- "¿Olvidaste tu contraseña?" lleva a `/forgot-password`, precargando el correo si ya es válido.
 - Login y registro se enlazan entre sí con `router.replace`, para que ir y volver no apile pantallas.
 
 ### Verificación de correo (PIN)
@@ -353,6 +353,33 @@ El correo trae un PIN de 6 dígitos. `POST /auth/verify-email` con `{ "token": "
 - Las cajas son `react-native-otp-entry` (`OtpCodeInput`): foco automático, avance y pegado. Recibe estilos como objetos en `theme`, no `className`, por eso usa la paleta de `colors.js` y la familia `Montserrat_700Bold`. Se envía solo al completar el sexto dígito; el botón "Validar Identidad" queda para reintentar.
 - No usa `blurOnFilled` ni se deshabilita mientras valida: en Android el teclado no vuelve a abrirse con `focus()` después de un blur o de un input deshabilitado.
 - **Reenviar código**: `POST /auth/resend-verification` (202). El contador (`useCountdown`, 45 s) arranca al montar la pantalla y se reinicia con cada reenvío; coincide con el cooldown del backend. Si igual responde 429 `VERIFICATION_RECENTLY_SENT`, el contador toma `details.retry_in_seconds`. Un 409 `EMAIL_ALREADY_VERIFIED` lleva directo a `/home`.
+
+### Recuperación de contraseña (PIN por email)
+
+Tres pantallas sin sesión, encadenadas con `router.push`/`router.replace` (`/forgot-password` →
+`/reset-password-verify` → `/reset-password`):
+
+1. **`/forgot-password`** (`ForgotPasswordScreen`, hook `useForgotPasswordForm`): pide el correo y
+   llama a `POST /auth/forgot-password`. Siempre responde 202 (exista o no la cuenta, para no
+   enumerar usuarios): la app no interpreta el cuerpo, solo sigue al paso del PIN y lo avisa recién
+   ahí ("Si `<email>` está registrado, te enviamos un código de 6 dígitos..."). El correo viaja como
+   parámetro de ruta al siguiente paso.
+2. **`/reset-password-verify`** (`ResetPasswordVerifyScreen`, hook `useResetPasswordVerify`): el
+   mismo `OtpCodeInput` de 6 dígitos que la verificación de email, contra
+   `POST /auth/reset-password/verify` (`{ email, code }`). Comparte con `useVerifyEmail` el
+   describer de errores `VERIFICATION_CODE_*` (`presentation/utils/verification-code-error.ts`):
+   `INVALID` (intentos restantes si vienen), `EXPIRED` y `LOCKED` (429, pedir uno nuevo). "Reenviar
+   código" vuelve a llamar `forgot-password` con el mismo cooldown de 45 s. Al validar, el
+   `reset_token` (10 minutos, un solo uso) se guarda en memoria en `usePasswordResetStore` —no en la
+   URL, a diferencia del correo— y navega al paso final.
+3. **`/reset-password`** (`ResetPasswordScreen`, hook `useResetPasswordForm`): contraseña nueva +
+   repetir (mismas reglas que el registro, compartidas ahora en
+   `presentation/utils/auth-form-fields.ts#passwordField`), contra `POST /auth/reset-password`
+   (`{ reset_token, new_password }`). Sin `reset_token` en memoria, redirige a `/forgot-password`. El
+   éxito limpia `usePasswordResetStore`, limpia también la sesión local si hubiera una
+   (`useAuthStore.clearSession()`, porque el backend ya revocó todas las del usuario) y manda a
+   `/login`. Un `reset_token` vencido o ya usado (`RESET_TOKEN_INVALID`) avisa y vuelve a pedir uno
+   nuevo desde `/forgot-password`.
 
 Los mensajes de conexión, timeout y validación comunes a los formularios salen de `presentation/utils/api-error-message.ts`, y la validación de email compartida, de `presentation/utils/auth-form-fields.ts`.
 

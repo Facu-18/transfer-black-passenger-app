@@ -106,6 +106,15 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   `COST_CENTER_NOT_ALLOWED` (403), `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. La app no
   ofrece elegir centro de costo (solo lo puede mandar un responsable, y esta versión no lo expone), así
   que nunca manda `cost_center_id`.
+- **Recuperar contraseña** son tres endpoints públicos: `POST /auth/forgot-password` `{ email }`
+  siempre responde 202 (exista o no la cuenta, para no enumerar usuarios; si está en cooldown de
+  reenvío tampoco lo avisa, solo no manda nada nuevo); `POST /auth/reset-password/verify`
+  `{ email, code }` → `{ reset_token, expires_in }` (10 min, un solo uso, se rota si se vuelve a
+  verificar un PIN válido) — un email inexistente responde igual que un PIN inválido,
+  `VERIFICATION_CODE_INVALID`, sin `details.attempts_remaining`; y `POST /auth/reset-password`
+  `{ reset_token, new_password }`, que revoca **todas** las refresh sessions del usuario (tiene que
+  volver a iniciar sesión en todos sus dispositivos) y falla con `RESET_TOKEN_INVALID` si el token
+  es desconocido, ya se usó o venció.
 - **Servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros) no existen en el backend: viven solo en
   `presentation/utils/whatsapp-services.ts`, no se cotizan ni crean viaje, y abren `wa.me` con origen
   y destino ya escritos. Se muestran aunque la cotización falle.
@@ -126,10 +135,10 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 
 ## Estado y pendientes
 
-Terminado: registro, login, verificación por PIN, home con mapa, búsqueda de direcciones,
-cotización, pago (Mercado Pago y efectivo), radar, chofer en camino, viaje a bordo, recibo,
-calificación, viaje para un pasajero invitado, historial de viajes (listado con filtros y detalle)
-y chat con el chofer asignado.
+Terminado: registro, login, verificación por PIN, recuperación de contraseña (PIN por email), home
+con mapa, búsqueda de direcciones, cotización, pago (Mercado Pago y efectivo), radar, chofer en
+camino, viaje a bordo, recibo, calificación, viaje para un pasajero invitado, historial de viajes
+(listado con filtros y detalle) y chat con el chofer asignado.
 
 Pendiente, no por olvido:
 
