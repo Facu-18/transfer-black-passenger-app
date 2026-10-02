@@ -19,8 +19,6 @@ import { handleExpiredSession } from '@/presentation/utils/expired-session';
 const MESSAGES_PAGE_SIZE = 30;
 /** Poll rapido mientras no hay tiempo real: mismo orden que un chat en vivo. */
 const POLLING_INTERVAL_MS = 4_000;
-/** Con tiempo real el socket avisa solo; esto es red de seguridad por si se pierde un evento. */
-const REALTIME_SAFETY_POLL_MS = 30_000;
 /** Sin tiempo real, `after` no trae de vuelta el `readAt` de los mensajes propios ya cargados. */
 const READ_STATE_REFRESH_MS = 15_000;
 /** Espera antes de marcar como leido: evita mandar una solicitud por cada mensaje que llega junto. */
@@ -47,8 +45,9 @@ function newestServerId(messages: ChatMessage[]): string | null {
 
 /**
  * Chat del viaje: carga y pagina el historial, manda mensajes de forma
- * optimista y se mantiene al dia por socket (si el backend confirma la sala)
- * o por polling (si no, hoy el caso real: ver README).
+ * optimista y se mantiene al dia por socket (camino principal, si el backend
+ * confirma la sala) o por polling (fallback: ack sin confirmar, timeout, o el
+ * socket caido).
  */
 export function useTripChat(tripId: string | null) {
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
@@ -179,6 +178,8 @@ export function useTripChat(tripId: string | null) {
   }, [loadHeader, loadInitial]);
 
   // Tiempo real: se intenta `chat.join`; si nadie confirma en el timeout, polling.
+  // Confirmado el join, se hace catch-up por si algo se escribio entre la carga
+  // inicial y la confirmacion de la sala (no llegaria ni por evento ni por poll).
   useEffect(() => {
     if (!tripId) return;
 
@@ -188,13 +189,14 @@ export function useTripChat(tripId: string | null) {
     realtimeClient.joinChat(tripId).then((ok) => {
       if (cancelled) return;
       setConnectionMode(ok ? 'realtime' : 'polling');
+      if (ok) void syncNew();
     });
 
     return () => {
       cancelled = true;
       realtimeClient.leaveChat(tripId);
     };
-  }, [tripId]);
+  }, [tripId, syncNew]);
 
   // Eventos del socket: solo importan en modo tiempo real.
   useEffect(() => {
@@ -223,9 +225,14 @@ export function useTripChat(tripId: string | null) {
     };
   }, [tripId, currentUserId, connectionMode]);
 
-  // Reconexion del socket: lo que paso mientras estuvo caido no llego por evento.
+  // Reconexion del socket: el servidor olvida las salas al perder la conexion,
+  // y lo que paso mientras estuvo caido no llego por evento. Se vuelve a pedir
+  // `chat.join` sin importar el modo actual, tanto para mantenerse en tiempo
+  // real como para volver a el si antes habia caido a polling (ver `joinChat`
+  // en `realtime-client.ts`: un `ok:false` no reintenta solo, pero esta
+  // reconexion si es una nueva oportunidad).
   useEffect(() => {
-    if (!tripId || connectionMode !== 'realtime') return;
+    if (!tripId) return;
     let wasDisconnected = false;
 
     return realtimeClient.onConnectionStateChange((state) => {
@@ -233,11 +240,13 @@ export function useTripChat(tripId: string | null) {
         wasDisconnected = true;
       } else if (state === 'connected' && wasDisconnected) {
         wasDisconnected = false;
-        void realtimeClient.joinChat(tripId).then((ok) => setConnectionMode(ok ? 'realtime' : 'polling'));
-        void syncNew();
+        realtimeClient.joinChat(tripId).then((ok) => {
+          setConnectionMode(ok ? 'realtime' : 'polling');
+          void syncNew();
+        });
       }
     });
-  }, [tripId, connectionMode, syncNew]);
+  }, [tripId, syncNew]);
 
   // Poll rapido: solo mientras no hay tiempo real, y solo con la pantalla enfocada.
   useFocusEffect(
@@ -256,14 +265,6 @@ export function useTripChat(tripId: string | null) {
     const timer = setInterval(() => {
       if (isFocusedRef.current) void syncNew();
     }, POLLING_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [connectionMode, syncNew]);
-
-  useEffect(() => {
-    if (connectionMode !== 'realtime') return;
-    const timer = setInterval(() => {
-      if (isFocusedRef.current) void syncNew();
-    }, REALTIME_SAFETY_POLL_MS);
     return () => clearInterval(timer);
   }, [connectionMode, syncNew]);
 

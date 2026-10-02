@@ -17,8 +17,9 @@ const TOKEN_ERRORS = new Set(['MISSING_TOKEN', 'INVALID_TOKEN']);
 
 /**
  * Cuanto se espera el ack de `chat.join` antes de asumir que nadie va a
- * responder y pasar a polling. Hoy el backend nunca instancia el gateway del
- * chat en produccion (ver README), asi que este timeout se cumple siempre.
+ * responder y pasar a polling. El gateway del chat ya esta instanciado en el
+ * servidor (backend `e0a5f77`): este timeout es la red de seguridad para una
+ * conexion lenta o caida, no el camino esperado.
  */
 const CHAT_JOIN_ACK_TIMEOUT_MS = 3_000;
 
@@ -236,9 +237,12 @@ export const realtimeClient = {
   },
 
   /**
-   * Entra a la sala del chat del viaje con ack. Si nadie responde en
-   * {@link CHAT_JOIN_ACK_TIMEOUT_MS} (el backend no tiene el gateway del chat
-   * instanciado en produccion), resuelve `false`: la pantalla cae a polling.
+   * Entra a la sala del chat del viaje con ack. Si el servidor responde
+   * `{ ok: false }` (por ejemplo `FORBIDDEN`, el usuario no es parte del
+   * viaje) o nadie responde en {@link CHAT_JOIN_ACK_TIMEOUT_MS} (conexion
+   * lenta o caida), resuelve `false`: la pantalla cae a polling sin reintentar
+   * el join en loop. El llamador puede volver a intentarlo mas adelante (por
+   * ejemplo al reconectar el socket) para volver a tiempo real.
    *
    * Si `leaveChat` se llama para el mismo `tripId` antes de resolver (la
    * pantalla se cerro sin conexion o sin ack todavia), esto se cancela: ni se
