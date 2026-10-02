@@ -31,7 +31,11 @@ const BASE_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'cash', label: 'Efectivo' },
 ];
 
-/** Fila "Método de pago" con las pastillas del diseño. */
+/**
+ * Metodo de pago: segmentado de ancho completo con opciones de igual ancho,
+ * para que entren todas sin scroll horizontal (antes se cortaban en una fila
+ * deslizable).
+ */
 export function PaymentMethodPills({
   value,
   disabled = false,
@@ -44,45 +48,49 @@ export function PaymentMethodPills({
 
   return (
     <View className="gap-2">
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-row items-center gap-2">
-          <CreditCard size={18} color={colors.ash} />
-          <Typography tone="secondary">Método de pago</Typography>
-        </View>
+      <View className="flex-row items-center gap-2">
+        <CreditCard size={18} color={colors.ash} />
+        <Typography tone="secondary">Método de pago</Typography>
+      </View>
 
-        <View className="flex-row flex-wrap items-center justify-end gap-2">
-          {methods.map((method) => {
-            const selected = method.value === value;
-            const corporateBlocked = method.value === 'corporate' && corporateOption ? !corporateOption.enabled : false;
+      <View className="flex-row gap-2">
+        {methods.map((method) => {
+          const selected = method.value === value;
+          const corporateBlocked = method.value === 'corporate' && corporateOption ? !corporateOption.enabled : false;
 
-            return (
-              <Pressable
-                key={method.value}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected, disabled: disabled || corporateBlocked }}
-                disabled={disabled}
-                onPress={() => {
-                  if (corporateBlocked) {
-                    Alert.alert(
-                      'Cuenta corporativa no disponible',
-                      corporateOption?.disabledReason ?? 'No podés pagar así por ahora.',
-                      [{ text: 'Entendido' }],
-                    );
-                    return;
-                  }
-                  onChange(method.value);
-                }}
-                className={`rounded-full px-4 py-2 active:opacity-80 ${
-                  selected ? 'bg-gold/20 border border-gold/50' : 'border border-charcoal'
-                } ${corporateBlocked ? 'opacity-50' : ''}`}
+          return (
+            <Pressable
+              key={method.value}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected, disabled: disabled || corporateBlocked }}
+              disabled={disabled}
+              onPress={() => {
+                if (corporateBlocked) {
+                  Alert.alert(
+                    'Cuenta corporativa no disponible',
+                    corporateOption?.disabledReason ?? 'No podés pagar así por ahora.',
+                    [{ text: 'Entendido' }],
+                  );
+                  return;
+                }
+                onChange(method.value);
+              }}
+              className={`flex-1 items-center rounded-full px-2 py-2.5 active:opacity-80 ${
+                selected ? 'border border-gold/50 bg-gold/20' : 'border border-charcoal'
+              } ${corporateBlocked ? 'opacity-50' : ''}`}
+            >
+              <Typography
+                variant="caption"
+                weight="semibold"
+                tone={selected ? 'accent' : 'secondary'}
+                numberOfLines={1}
+                className="text-center"
               >
-                <Typography variant="caption" weight="semibold" tone={selected ? 'accent' : 'secondary'}>
-                  {method.label}
-                </Typography>
-              </Pressable>
-            );
-          })}
-        </View>
+                {method.label}
+              </Typography>
+            </Pressable>
+          );
+        })}
       </View>
 
       {value === 'corporate' && corporateOption?.enabled && corporateOption.remainingMessage ? (
