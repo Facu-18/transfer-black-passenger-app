@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { MapPin, MessageCircle, Navigation, SlidersHorizontal, Sparkles, Star, type LucideIcon } from 'lucide-react-native';
+import { MapPin, MessageCircle, Navigation, Star, type LucideIcon } from 'lucide-react-native';
 import { Image, Pressable, View } from 'react-native';
 
 import type { Trip } from '@/infrastructure/interfaces/trips';
@@ -127,8 +127,6 @@ export function OnBoardPanel({ trip, etaMinutes, unreadChatCount = 0 }: OnBoardP
           onPress={() => router.push({ pathname: '/chat/[tripId]', params: { tripId: trip.id } })}
         />
         <QuickAction icon={Navigation} label="Destino" onPress={() => showComingSoon('Destino')} />
-        <QuickAction icon={SlidersHorizontal} label="Confort" onPress={() => showComingSoon('Confort')} />
-        <QuickAction icon={Sparkles} label="Concierge" onPress={() => showComingSoon('Concierge')} />
       </View>
     </View>
   );
