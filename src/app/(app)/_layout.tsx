@@ -8,6 +8,9 @@ import { colors } from '@/presentation/theme/colors';
 
 const PROFILE_REQUIRED_ROUTES = new Set(['/search', '/guest', '/pricing']);
 
+/** Clave corta del pedido interrumpido, para volver ahi despues de completar el perfil. */
+const RETURN_KEY_BY_ROUTE: Record<string, string> = { '/search': 'search', '/guest': 'guest', '/pricing': 'pricing' };
+
 /**
  * Zona privada: solo con sesion y correo verificado. Sin sesion vuelve al
  * login; con el correo sin verificar, a la pantalla del PIN.
@@ -40,9 +43,10 @@ export default function AppLayout() {
   }
 
   // El perfil incompleto no bloquea la app: solo frena las rutas que inician
-  // una solicitud, y lleva al formulario que vive dentro de Mi cuenta.
+  // una solicitud, y lleva al formulario, con el aviso de por que y la vuelta
+  // al pedido en curso cuando se guarda.
   if (!user.profileComplete && PROFILE_REQUIRED_ROUTES.has(pathname)) {
-    return <Redirect href="/account" />;
+    return <Redirect href={{ pathname: '/complete-profile', params: { returnTo: RETURN_KEY_BY_ROUTE[pathname] } }} />;
   }
 
   return (
@@ -55,6 +59,8 @@ export default function AppLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
+      {/* Perfil incompleto al pedir un viaje: ver el guard arriba. */}
+      <Stack.Screen name="complete-profile" />
       <Stack.Screen name="search" />
       <Stack.Screen name="guest" />
       <Stack.Screen name="pricing" />

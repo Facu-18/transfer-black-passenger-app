@@ -6,7 +6,10 @@ import { logoutAction } from '@/core/actions/logout.action';
 import { revokePushDeviceAction } from '@/core/actions/revoke-push-device.action';
 import { pushDeviceStorage } from '@/infrastructure/storage/push-device-storage';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
+import { BrandLogo } from '@/presentation/components/BrandLogo';
 import { CorporateMembershipSection } from '@/presentation/components/CorporateMembershipSection';
+import { ProfileSummaryCard } from '@/presentation/components/ProfileSummaryCard';
+import { Screen } from '@/presentation/components/Screen';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { Typography } from '@/presentation/components/Typography';
 import { useCorporateMembership } from '@/presentation/hooks/useCorporateMembership';
@@ -17,6 +20,8 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 
 export default function AccountRoute() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const user = useAuthStore((state) => state.user);
   const clearSession = useAuthStore((state) => state.clearSession);
   const resetTrip = useTripStore((state) => state.resetTrip);
   const permission = usePushNotificationsStore((state) => state.permission);
@@ -61,48 +66,69 @@ export default function AccountRoute() {
     }
   };
 
-  return (
-    <CompleteProfileScreen
-      footer={
-        <View className="gap-4">
-          <CorporateMembershipSection
-            membership={corporateMembership.membership}
-            joinCode={corporateMembership.joinCode}
-            validationError={corporateMembership.validationError}
-            loadError={corporateMembership.loadError}
-            joinError={corporateMembership.joinError}
-            isLoading={corporateMembership.isLoading}
-            isJoining={corporateMembership.isJoining}
-            onJoinCodeChange={corporateMembership.setJoinCode}
-            onJoin={() => void corporateMembership.join()}
-            onRetry={() => void corporateMembership.retry()}
+  const accountFooter = (
+    <View className="gap-4">
+      <CorporateMembershipSection
+        membership={corporateMembership.membership}
+        joinCode={corporateMembership.joinCode}
+        validationError={corporateMembership.validationError}
+        loadError={corporateMembership.loadError}
+        joinError={corporateMembership.joinError}
+        isLoading={corporateMembership.isLoading}
+        isJoining={corporateMembership.isJoining}
+        onJoinCodeChange={corporateMembership.setJoinCode}
+        onJoin={() => void corporateMembership.join()}
+        onRetry={() => void corporateMembership.retry()}
+      />
+
+      <View className="gap-3 rounded-3xl border border-charcoal bg-surface/90 p-5">
+        <Typography variant="h3">Notificaciones</Typography>
+        <Typography tone={registration === 'error' ? 'danger' : 'secondary'}>
+          {notificationStatusMessage(permission, registration, notificationError)}
+        </Typography>
+        {permission !== 'granted' || registration === 'error' ? (
+          <VIPButton
+            title={permission === 'denied' ? 'Abrir ajustes' : 'Activar notificaciones'}
+            loading={registration === 'registering'}
+            onPress={() => {
+              if (permission === 'denied') {
+                void Linking.openSettings();
+              } else {
+                void syncNotifications(true);
+              }
+            }}
           />
+        ) : null}
+      </View>
 
-          <View className="gap-3 rounded-3xl border border-charcoal bg-surface/90 p-5">
-            <Typography variant="h3">Notificaciones</Typography>
-            <Typography tone={registration === 'error' ? 'danger' : 'secondary'}>
-              {notificationStatusMessage(permission, registration, notificationError)}
-            </Typography>
-            {permission !== 'granted' || registration === 'error' ? (
-              <VIPButton
-                title={permission === 'denied' ? 'Abrir ajustes' : 'Activar notificaciones'}
-                loading={registration === 'registering'}
-                onPress={() => {
-                  if (permission === 'denied') {
-                    void Linking.openSettings();
-                  } else {
-                    void syncNotifications(true);
-                  }
-                }}
-              />
-            ) : null}
-          </View>
-
-          <VIPButton title="Cerrar sesión" loading={isLoggingOut} onPress={() => void logout()} />
-        </View>
-      }
-    />
+      <VIPButton title="Cerrar sesión" loading={isLoggingOut} onPress={() => void logout()} />
+    </View>
   );
+
+  // Con el perfil completo, por defecto se muestra el resumen y no el
+  // formulario: "Modificar datos" abre el mismo formulario precargado.
+  if (user?.profileComplete && !isEditing) {
+    return (
+      <Screen scrollable contentClassName="gap-7">
+        <View className="items-center gap-3">
+          <BrandLogo size="md" />
+          <Typography variant="h2" className="text-center">
+            Mi cuenta
+          </Typography>
+          <Typography tone="secondary" className="text-center">
+            Mantén tus datos personales actualizados.
+          </Typography>
+        </View>
+
+        <ProfileSummaryCard user={user} onEdit={() => setIsEditing(true)} />
+
+        {accountFooter}
+        <View className="h-20" />
+      </Screen>
+    );
+  }
+
+  return <CompleteProfileScreen onSaved={() => setIsEditing(false)} footer={accountFooter} />;
 }
 
 function notificationStatusMessage(
