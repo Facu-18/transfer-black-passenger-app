@@ -1,7 +1,7 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronRight, Download, MessageCircle } from 'lucide-react-native';
 import { useCallback } from 'react';
-import { BackHandler, Image, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { RatingTag, Trip } from '@/infrastructure/interfaces/trips';
@@ -9,11 +9,11 @@ import { RatingStars } from '@/presentation/components/RatingStars';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
+import { useDownloadReceipt } from '@/presentation/hooks/useDownloadReceipt';
 import { useRateTrip } from '@/presentation/hooks/useRateTrip';
 import { useTripReceipt } from '@/presentation/hooks/useTripReceipt';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
-import { showComingSoon } from '@/presentation/utils/coming-soon';
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
 
 const STAR_LABELS = ['', 'Muy malo', 'Malo', 'Regular', 'Muy bueno', 'Excelente servicio'];
@@ -52,11 +52,13 @@ function ReceiptCard({ trip }: { trip: Trip }) {
 
   return (
     <View className="gap-4 rounded-2xl border border-charcoal bg-surface p-5">
-      <View className="flex-row items-start justify-between gap-3">
+      <View className="gap-2">
         <Typography variant="caption" tone="secondary" className="uppercase tracking-widest">
           Comprobante oficial
         </Typography>
-        <View className={`rounded-md border px-2 py-1 ${paid ? 'border-gold/40 bg-gold/10' : 'border-charcoal'}`}>
+        {/* Fila propia: un medio de pago largo ("Cuenta corporativa · Pagado") no
+            entra al lado del titulo sin desbordar la card. */}
+        <View className={`self-start rounded-md border px-2 py-1 ${paid ? 'border-gold/40 bg-gold/10' : 'border-charcoal'}`}>
           <Typography variant="caption" weight="semibold" tone={paid ? 'accent' : 'secondary'} className="uppercase">
             {status ? `${method} · ${status}` : method}
           </Typography>
@@ -123,6 +125,7 @@ export function ReceiptScreen() {
   }, [resetTrip]);
 
   const { stars, selectStars, tags, toggleTag, submit, isSubmitting } = useRateTrip(tripId, { onRated: goHome });
+  const { download, isDownloading, error: downloadError } = useDownloadReceipt();
 
   // "Atras" en Android equivale a omitir: no hay pantalla previa a la que volver.
   useFocusEffect(
@@ -275,16 +278,30 @@ export function ReceiptScreen() {
           </>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => showComingSoon('El comprobante en PDF')}
-          className="flex-row items-center justify-center gap-2 active:opacity-80"
-        >
-          <Download size={14} color={colors.ash} />
-          <Typography variant="caption" tone="secondary">
-            Descargar comprobante en PDF
+        {trip ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isDownloading }}
+            disabled={isDownloading}
+            onPress={() => void download(trip)}
+            className="flex-row items-center justify-center gap-2 active:opacity-80"
+          >
+            {isDownloading ? (
+              <ActivityIndicator size="small" color={colors.ash} />
+            ) : (
+              <Download size={14} color={colors.ash} />
+            )}
+            <Typography variant="caption" tone="secondary">
+              {isDownloading ? 'Generando comprobante…' : 'Descargar comprobante en PDF'}
+            </Typography>
+          </Pressable>
+        ) : null}
+
+        {downloadError ? (
+          <Typography variant="caption" tone="danger" className="text-center">
+            {downloadError}
           </Typography>
-        </Pressable>
+        ) : null}
       </View>
     </View>
   );
