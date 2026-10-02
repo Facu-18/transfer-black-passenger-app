@@ -84,16 +84,20 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   el timeout de Axios es de 60 s. No es un bug de la app.
 - **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
 - **Chat del viaje:** las rutas cuelgan de `/trips/:tripId/messages` (no `/rides/...`), montadas bajo el mismo
-  `/api/v1` que el resto. Los errores del chat vienen en la raíz (`{ code, message }`), no en
-  `{ error: { code, message } }` como el resto de la API, y en `VALIDATION_ERROR` `message` es un array.
-  El `senderRole` real de un mensaje es `'passenger' | 'provider'`: el contrato del backend
+  `/api/v1` que el resto. Desde el backend `e0a5f77` los errores del chat vienen envueltos en
+  `{ error: { code, message } }` como el resto de la API (antes iban en la raíz, `{ code, message }`: el
+  interceptor sigue reconociendo esa forma vieja por si algún ambiente no se redesplegó); en
+  `VALIDATION_ERROR` `message` es el array de `issues` de Zod (objetos con `message`, `path`, no strings
+  sueltos). El `senderRole` real de un mensaje es `'passenger' | 'provider'`: el contrato del backend
   (`chat-contract.md`) documenta `'passenger'` pero nunca muestra el valor del lado del chofer, que es
-  `'provider'` y no `'driver'` como sugeriría el resto de la API. El `ChatGateway` de Socket.IO nunca se
-  instancia en producción (solo en tests): `chat.join` no tiene quien conteste, así que la app siempre cae a
-  polling con `after` cada ~4 s. La sala del chat es `ride_<tripId>` (guion bajo), distinta de la sala del
-  seguimiento del viaje, `ride:<tripId>` (dos puntos): entrar a una no entra a la otra. La ventana de gracia
-  post-viaje (`CHAT_CLOSED` a las 24 h) la calcula el backend desde `trip.updatedAt`, no desde `finishedAt`/
-  `cancelledAt`; la app no la replica y confía en la respuesta real de cada `POST`.
+  `'provider'` y no `'driver'` como sugeriría el resto de la API. El `ChatGateway` de Socket.IO ya se
+  instancia en el servidor (mismo namespace y autenticación que el seguimiento del viaje): `chat.join`
+  confirma con ack y la app se mantiene por eventos, con polling solo como respaldo si el ack falla o
+  tarda, o si el socket está caído. La sala del chat es `ride_<tripId>` (guion bajo), distinta de la sala
+  del seguimiento del viaje, `ride:<tripId>` (dos puntos): entrar a una no entra a la otra. Las salas de
+  Socket.IO se pierden en cada reconexión, así que hay que volver a mandar `chat.join`. La ventana de
+  gracia post-viaje (`CHAT_CLOSED` a las 24 h) la calcula el backend desde `finishedAt`/`cancelledAt`
+  (antes era desde `updatedAt`); la app no la replica y confía en la respuesta real de cada `POST`.
 - **Saldo prepago corporativo** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
   checkout, como efectivo; descuenta el saldo que la empresa ya cargó (prepago, no cuenta corriente). La
   elegibilidad para pagar así no sale de un endpoint aparte: viaja en `GET /corporate/membership/me`
