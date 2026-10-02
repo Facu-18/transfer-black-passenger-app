@@ -64,6 +64,8 @@ export default function AppLayout() {
       <Stack.Screen name="search" />
       <Stack.Screen name="guest" />
       <Stack.Screen name="pricing" />
+      {/* Reservar un viaje para mas adelante: la agencia lo confirma por WhatsApp. */}
+      <Stack.Screen name="reserve" />
       {/* Sin gesto de volver: mientras el viaje sigue, la pantalla no se abandona. */}
       <Stack.Screen name="trip/[tripId]" options={{ gestureEnabled: false, animation: 'fade' }} />
       {/* Chat del viaje con el chofer asignado. */}

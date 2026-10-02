@@ -1,6 +1,8 @@
 import { Bus, Construction, Ellipsis, Truck, type LucideIcon } from 'lucide-react-native';
 import { Alert, Linking } from 'react-native';
 
+import { formatClockTime, formatReservationDate } from '@/presentation/utils/format-date';
+
 /**
  * Servicios que no pasan por el backend: el pasajero escribe por WhatsApp y
  * el equipo arma el pedido por fuera de la app. Se cambian solo en este archivo.
@@ -36,14 +38,20 @@ function buildMessage(service: WhatsAppService, trip: WhatsAppTrip): string {
   return lines.join('\n');
 }
 
-async function openChat(number: string, message: string): Promise<void> {
+/**
+ * Abre wa.me con el mensaje ya escrito. Devuelve si se pudo abrir, para que
+ * quien llama (la reserva) sepa si avisar al usuario que ya se mando.
+ */
+async function openWhatsApp(number: string, message: string): Promise<boolean> {
   // wa.me abre la app si esta instalada y, si no, WhatsApp Web: no hace falta canOpenURL.
   const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 
   try {
     await Linking.openURL(url);
+    return true;
   } catch {
     Alert.alert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 926-0327.', [{ text: 'Entendido' }]);
+    return false;
   }
 }
 
@@ -52,7 +60,55 @@ export function contactWhatsAppService(service: WhatsAppService, trip: WhatsAppT
   const message = buildMessage(service, trip);
 
   Alert.alert(service.name, 'Lo coordinamos por WhatsApp. ¿Con qué línea querés hablar?', [
-    ...WHATSAPP_LINES.map((line) => ({ text: line.label, onPress: () => void openChat(line.number, message) })),
+    ...WHATSAPP_LINES.map((line) => ({ text: line.label, onPress: () => void openWhatsApp(line.number, message) })),
+    { text: 'Cancelar', style: 'cancel' as const },
+  ]);
+}
+
+/** Datos del viaje reservado que van en el mensaje a la agencia. */
+export interface ReservationWhatsAppDetails {
+  origin: string;
+  destination: string;
+  scheduledAt: Date;
+  /** Cantidad de pasajeros o cualquier aclaracion; `null` si no cargo nada. */
+  notes: string | null;
+  /** Para que la agencia encuentre la cuenta; `null` solo si el perfil no tiene nombre todavia. */
+  passengerName: string | null;
+  passengerEmail: string | null;
+}
+
+/** Mensaje de la reserva: la agencia arregla precio y horario por esta via, la app no cotiza. */
+export function buildReservationMessage(details: ReservationWhatsAppDetails): string {
+  const lines = [
+    'Hola, quiero reservar un viaje.',
+    `Fecha: ${formatReservationDate(details.scheduledAt)}`,
+    `Hora: ${formatClockTime(details.scheduledAt)}`,
+    `Origen: ${details.origin}`,
+    `Destino: ${details.destination}`,
+  ];
+  if (details.notes) lines.push(`Pasajeros/notas: ${details.notes}`);
+  if (details.passengerName) lines.push(`Nombre: ${details.passengerName}`);
+  if (details.passengerEmail) lines.push(`Email: ${details.passengerEmail}`);
+  return lines.join('\n');
+}
+
+/**
+ * Pregunta con que linea hablar y abre el chat con la reserva ya escrita.
+ * `onOpened` solo se llama si WhatsApp se abrio: si no se pudo, ya se avisa
+ * con la alerta de `openWhatsApp` y la pantalla de reserva se queda como esta.
+ */
+export function contactWhatsAppReservation(details: ReservationWhatsAppDetails, onOpened: () => void): void {
+  const message = buildReservationMessage(details);
+
+  Alert.alert('Reservar viaje', 'Lo coordinamos por WhatsApp. ¿Con qué línea querés hablar?', [
+    ...WHATSAPP_LINES.map((line) => ({
+      text: line.label,
+      onPress: () => {
+        void openWhatsApp(line.number, message).then((opened) => {
+          if (opened) onOpened();
+        });
+      },
+    })),
     { text: 'Cancelar', style: 'cancel' as const },
   ]);
 }

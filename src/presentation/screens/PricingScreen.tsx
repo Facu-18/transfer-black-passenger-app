@@ -148,6 +148,21 @@ export function PricingScreen() {
 
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} disabled={isConfirming} />
 
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Reservar este viaje para más tarde"
+              disabled={isConfirming}
+              onPress={() => router.push('/reserve')}
+              className={`flex-row items-center justify-center gap-1.5 py-1 active:opacity-70 ${isConfirming ? 'opacity-50' : ''}`}
+            >
+              <Typography variant="caption" tone="secondary">
+                ¿Es para más tarde?
+              </Typography>
+              <Typography variant="caption" weight="semibold" tone="accent">
+                Reservar viaje
+              </Typography>
+            </Pressable>
+
             <GuestPassengerChip
               guest={guestPassenger}
               disabled={isConfirming}

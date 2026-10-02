@@ -1,5 +1,15 @@
 import { router } from 'expo-router';
-import { Bell, BriefcaseBusiness, Clock, MapPin, Search, ShieldCheck, UserPlus, UserRound } from 'lucide-react-native';
+import {
+  Bell,
+  BriefcaseBusiness,
+  CalendarClock,
+  Clock,
+  MapPin,
+  Search,
+  ShieldCheck,
+  UserPlus,
+  UserRound,
+} from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Alert, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -237,6 +247,14 @@ export function HomeScreen() {
           >
             <UserPlus size={16} color={colors.gold} />
             <Typography weight="medium">Para un invitado</Typography>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/reserve')}
+            className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
+          >
+            <CalendarClock size={16} color={colors.gold} />
+            <Typography weight="medium">Reservar viaje</Typography>
           </Pressable>
         </ScrollView>
 
