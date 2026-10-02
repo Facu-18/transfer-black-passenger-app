@@ -1,6 +1,6 @@
 import axios, { isAxiosError } from 'axios';
 
-import type { ApiErrorResponse } from '@/infrastructure/interfaces/api-responses';
+import type { ApiErrorResponse, ApiValidationIssue } from '@/infrastructure/interfaces/api-responses';
 import type { ChatErrorResponse } from '@/infrastructure/interfaces/chat-api';
 
 import { getApiUrl } from './api-config';
@@ -105,9 +105,12 @@ function isApiErrorResponse(body: unknown): body is ApiErrorResponse {
 }
 
 /**
- * Los errores del chat viajan en la raiz (`{ code, message }`) y no envueltos
- * en `error` como el resto de la API. Se descarta cualquier cuerpo que ya haya
- * matcheado `isApiErrorResponse` para no confundir una forma con la otra.
+ * Compatibilidad con un backend del chat todavia no redesplegado: antes
+ * mandaba los errores en la raiz (`{ code, message }`) en vez de envueltos en
+ * `error` como el resto de la API. Desde `e0a5f77` el chat tambien envuelve,
+ * pero esta rama se deja por si algun ambiente sigue en la version vieja. Se
+ * descarta cualquier cuerpo que ya haya matcheado `isApiErrorResponse` para no
+ * confundir una forma con la otra.
  */
 function isChatErrorResponse(body: unknown): body is ChatErrorResponse {
   if (typeof body !== 'object' || body === null || 'error' in body) {
@@ -122,6 +125,19 @@ function getRetryAfterSeconds(headers: Record<string, unknown> | undefined): num
   const raw = headers?.['retry-after'];
   const seconds = typeof raw === 'string' ? Number(raw) : null;
   return seconds !== null && Number.isFinite(seconds) ? seconds : null;
+}
+
+/**
+ * En `VALIDATION_ERROR` el backend manda un array de `issues` de Zod en vez de
+ * un solo texto: se junta en una sola linea para que `ApiRequestError.message`
+ * sea siempre un string, sin importar que endpoint respondio.
+ */
+function joinValidationMessage(message: string | ApiValidationIssue[]): string {
+  if (!Array.isArray(message)) return message;
+
+  return message
+    .map((issue) => (typeof issue === 'object' && issue !== null ? issue.message : String(issue)))
+    .join(' ');
 }
 
 function toApiRequestError(error: unknown): ApiRequestError {
@@ -141,7 +157,13 @@ function toApiRequestError(error: unknown): ApiRequestError {
   const retryAfterSeconds = getRetryAfterSeconds(headers as Record<string, unknown> | undefined);
 
   if (isApiErrorResponse(data)) {
-    return new ApiRequestError(status, data.error.code, data.error.message, data.error.details ?? null, retryAfterSeconds);
+    return new ApiRequestError(
+      status,
+      data.error.code,
+      joinValidationMessage(data.error.message),
+      data.error.details ?? null,
+      retryAfterSeconds,
+    );
   }
 
   if (isChatErrorResponse(data)) {
