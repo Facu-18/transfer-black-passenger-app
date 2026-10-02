@@ -180,6 +180,7 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/guest` | `(app)/guest.tsx` | "Pasajero invitado": carga los datos de un tercero para viajar en su nombre |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
+| `/reserve` | `(app)/reserve.tsx` | "Reservar viaje": origen, destino, fecha y hora para mandar por WhatsApp |
 | `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y viaje en curso, en vivo |
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
 | `/trips/[tripId]` | `(app)/trips/[tripId].tsx` | Detalle de un viaje del historial (plural: distinta de `/trip/[tripId]`) |
@@ -220,6 +221,32 @@ La pantalla `GuestPassengerScreen` (hook `useGuestPassengerForm`, RHF + Zod) car
 - **Teléfono**: el campo solo pide el número local (el "+54 9" es un prefijo fijo en pantalla). `presentation/utils/phone.ts` normaliza a E.164 (`normalizeArgentineMobile`): saca espacios/guiones, un "0" inicial y un "15" inicial, y exige que queden exactamente 10 dígitos (código de área + número). No cubre el "15" escrito después del código de área (ej. "0351 15 555 0199"): ahí alcanza con escribir el número sin el 0 ni el 15, como lo guarda cualquier agenda moderna. El mismo archivo expone `phoneE164Field`, el campo genérico en E.164 que también usa el registro.
 - **Entradas**: la píldora "Para un invitado" del Home (`from=home`, al confirmar sigue a `/search`) y, en Cotización, un chip que pide, edita o quita el invitado (`GuestPassengerChip`); sin `from=home` el paso siguiente es `router.back()`, así que desde Cotización se vuelve ahí.
 - **Sin SMS**: el backend no tiene proveedor de SMS. Si se carga email, el invitado recibe ahí el link de seguimiento; siempre se lo puede mandar también por WhatsApp desde el viaje activo (ver más abajo). No hay "Agenda", "Compartir mi seguimiento" propio ni "Cobro a cuenta del anfitrión": no tienen soporte en el backend.
+
+## Reservar un viaje (para más tarde)
+
+`ReservationScreen` (ruta `/reserve`, hook `useReservationForm`) deja elegir origen, destino, fecha y
+hora para un viaje futuro y manda todo por WhatsApp; la agencia arregla el precio y crea el viaje a
+mano (todavía no hay endpoint). Sin llamada al backend: es el mismo patrón que los "Otros servicios
+por WhatsApp" de Cotización, pero con fecha y hora.
+
+- **Store propio** (`useReservationStore`): origen, destino, fecha/hora y notas de la reserva viven
+  separados de `useTripStore`. Comparten un solo store haría que elegir origen/destino para una
+  reserva pisara un viaje "Ahora" a medio armar (o al revés).
+- **Reusa la búsqueda de siempre**: tocar "Origen" o "Destino" en la reserva navega a `/search` con
+  `?mode=reserve&field=origin|destino`. `usePlanTrip` lee ese `mode` para guardar en
+  `useReservationStore` en vez de `useTripStore`, y para volver (`router.back()`) a la reserva en vez
+  de seguir a Cotización una vez elegidos los dos puntos.
+- **Fecha y hora**: `ReservationScheduleField` usa `@react-native-community/datetimepicker` (compact
+  en iOS, diálogo nativo en Android), igual que `BirthDateField`. El selector de fecha no deja elegir
+  un día pasado; el mínimo real —30 minutos desde ahora— lo valida el formulario, porque depende de
+  qué día se elija.
+- **Entradas**: una píldora "Reservar viaje" en el Home (misma fila que "Viaje corporativo" y "Para
+  un invitado"), la pestaña "Reserva" de "Planifica tu viaje", y un link "Reservar viaje" en
+  Cotización, debajo de los servicios por WhatsApp.
+- **Mensaje**: "Hola, quiero reservar un viaje" + fecha (`sábado 3 de octubre`), hora (`18:30`),
+  origen, destino, pasajeros/notas si se cargó algo, y nombre y email del pasajero logueado, para que
+  la agencia encuentre la cuenta. Al confirmarse la línea y abrirse WhatsApp, la pantalla pasa a un
+  estado de "ya te contactamos" con un botón al inicio que limpia la reserva.
 
 ## Cotización y confirmación del viaje
 

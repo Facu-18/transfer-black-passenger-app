@@ -142,7 +142,8 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 Terminado: registro, login, verificación por PIN, recuperación de contraseña (PIN por email), home
 con mapa, búsqueda de direcciones, cotización, pago (Mercado Pago y efectivo), radar, chofer en
 camino, viaje a bordo, recibo, calificación, viaje para un pasajero invitado, historial de viajes
-(listado con filtros y detalle) y chat con el chofer asignado.
+(listado con filtros y detalle), chat con el chofer asignado y reserva de un viaje por WhatsApp
+(sin backend: la agencia arregla precio y lo crea a mano).
 
 Pendiente, no por olvido:
 
