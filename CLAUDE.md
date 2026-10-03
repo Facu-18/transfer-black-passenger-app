@@ -136,14 +136,28 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   suma `service_type` (categoría) y `fare_breakdown` (`base`/`distance`/`time`/`discount`/`fees`/
   `total`, como texto); `cancelled_at` y `cancellation_reason_code` ya estaban en el contrato pero la
   app no los tipaba. Sin TanStack Query en el listado: es una decisión del ticket, no un olvido.
+- **Viajes reservados** (`booking_type: 'scheduled'`): la agencia los crea a mano desde Swagger (no
+  hay panel todavía) con fecha y hora fijas (`scheduled_at`) y, opcionalmente, un chofer fijo; el
+  pasajero ya los paga por adelantado (`prepaid_at`, por WhatsApp con la agencia, no desde la app) y
+  el backend los activa solo unos 20 minutos antes del horario (pasan a `assigned` o `searching`, con
+  los avisos de siempre). Mientras siguen en `scheduled`, `GET /rides`, `GET /rides/{tripId}` y el
+  nuevo `GET /rides/upcoming` (los reservados del pasajero sin activar, más próximos primero; mismo
+  sobre `{ trips: [...] }` que el historial) traen también `reserved_driver` (el chofer que la
+  agencia le asignó, sin teléfono; en el detalle con avatar y calificación, en el historial sin
+  ninguno de los dos) en vez de `driver`/`vehicle`, que siguen en `null` hasta que se activa. El
+  pasajero no puede cancelar uno ya pago desde la app: `POST /rides/{tripId}/cancel` responde 409
+  `SCHEDULED_TRIP_CANCEL_VIA_AGENCY` y hay que escribirle a la agencia (ella gestiona el reembolso si
+  corresponde); un admin sí puede, por el mismo endpoint.
 
 ## Estado y pendientes
 
 Terminado: registro, login, verificación por PIN, recuperación de contraseña (PIN por email), home
 con mapa, búsqueda de direcciones, cotización, pago (Mercado Pago y efectivo), radar, chofer en
 camino, viaje a bordo, recibo, calificación, viaje para un pasajero invitado, historial de viajes
-(listado con filtros y detalle), chat con el chofer asignado y reserva de un viaje por WhatsApp
-(sin backend: la agencia arregla precio y lo crea a mano).
+(listado con filtros y detalle), chat con el chofer asignado, reserva de un viaje por WhatsApp (sin
+backend propio: la agencia arregla precio y lo crea a mano) y, del lado de ese mismo viaje reservado
+una vez creado por la agencia, su "Próximo viaje" en el home, su filtro y tarjeta en el historial, y
+su detalle (con cancelación bloqueada hacia la agencia).
 
 Pendiente, no por olvido:
 

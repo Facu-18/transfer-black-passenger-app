@@ -248,6 +248,33 @@ por WhatsApp" de Cotización, pero con fecha y hora.
   la agencia encuentre la cuenta. Al confirmarse la línea y abrirse WhatsApp, la pantalla pasa a un
   estado de "ya te contactamos" con un botón al inicio que limpia la reserva.
 
+### El viaje reservado, del lado del pasajero
+
+Una vez que la agencia arma el viaje (admin, por Swagger), `GET /rides`, `GET /rides/{tripId}` y el
+nuevo `GET /rides/upcoming` lo traen con `booking_type: 'scheduled'`, `scheduled_at` (hora de
+retiro), `prepaid_at` (si ya se acreditó el cobro por adelantado) y, mientras sigue sin activar
+(`status: 'scheduled'`), `reserved_driver` en vez de `driver`/`vehicle`.
+
+- **"Próximo viaje reservado" en el Home** (`UpcomingTripCard`, hook `useUpcomingTrips`): el primero
+  de `GET /rides/upcoming` (ya viene ordenado, más próximo primero), con fecha y hora de retiro,
+  origen → destino, la píldora "Pagado" / "Pendiente de pago" y el chofer reservado si ya hay uno.
+  Se recarga con cada foco del Home; un error se traga en silencio, la tarjeta simplemente no
+  aparece (no hay nada crítico que avisar ahí). Toca a `/trips/[tripId]`.
+- **Historial**: filtro "Reservados" (`status=scheduled`, el backend ya lo acepta como cualquier
+  otro estado). La tarjeta muestra la hora de retiro pedida en vez de cuándo se armó el viaje, y
+  "Reservado" en vez de "En curso".
+- **Detalle** (`TripDetailScreen`): con `booking_type: 'scheduled'` y `status: 'scheduled'` todavía,
+  la sección "Pago" se reemplaza por "Reserva" (retiro, estado del pago, el chofer reservado o "Se
+  asigna un chofer antes del viaje", y la aclaración de que el viaje se activa solo). "Chofer y
+  vehículo" sigue oculta: `driver`/`vehicle` siguen en `null` hasta la activación.
+- **Cancelar una reserva ya paga**: el backend responde 409 `SCHEDULED_TRIP_CANCEL_VIA_AGENCY`
+  (`useCancelReservedTrip`); la pantalla cambia el botón "Cancelar reserva" por un aviso para
+  escribirle a la agencia por WhatsApp (`contactWhatsAppToCancelReservation`, mismo patrón de
+  elegir línea que el resto de `whatsapp-services.ts`).
+- **Si se activa mientras se mira el detalle** (o entre que se lista y se toca): `TripDetailScreen`
+  detecta que ya no está en `scheduled` y hace `router.replace` a `/trip/[tripId]`, el seguimiento
+  en vivo.
+
 ## Cotización y confirmación del viaje
 
 `POST /rides/quote` (201) crea el viaje en `draft` y devuelve `{ draft, route, quotes[] }`. Origen y destino viajan como `{ address_text, place_id, latitude, longitude }`, con el `placeId` del mismo proveedor de mapas que usa el backend.
@@ -327,13 +354,13 @@ Para probar sin la app del chofer hace falta un chofer que esté conectado por s
 
 ## Mis viajes
 
-La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHistoryScreen`: historial paginado con filtros Todos / Completados / Cancelados, scroll infinito, pull to refresh y estado vacío.
+La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHistoryScreen`: historial paginado con filtros Todos / Reservados / Completados / Cancelados, scroll infinito, pull to refresh y estado vacío.
 
-- **Listado**: `GET /rides?page&limit&status` (rol pasajero, solicitante o pasajero, sin borradores). "Todos" no manda `status`: el backend ya devuelve todo lo no-borrador, incluidos los viajes en curso, así que ese filtro también muestra lo que está pasando ahora. "Completados" y "Cancelados" mandan `status=completed` / `status=cancelled`; el backend también acepta el alias `active` (todo lo que no sea `completed` ni `cancelled`), pero la app no lo necesita porque no ofrece ese filtro.
+- **Listado**: `GET /rides?page&limit&status` (rol pasajero, solicitante o pasajero, sin borradores). "Todos" no manda `status`: el backend ya devuelve todo lo no-borrador, incluidos los viajes en curso, así que ese filtro también muestra lo que está pasando ahora. "Reservados", "Completados" y "Cancelados" mandan `status=scheduled` / `completed` / `cancelled`; el backend también acepta el alias `active` (todo lo que no sea `completed` ni `cancelled`), pero la app no lo necesita porque no ofrece ese filtro.
 - **Paginación**: a mano, sin TanStack Query (decisión del ticket). `useTripHistory` guarda un `requestId` que se incrementa en cada pedido: una respuesta que llega con un id viejo (por ejemplo, la del filtro anterior, tarde) se descarta en vez de pisar la lista. Cambiar de filtro reinicia la página a 1; `loadMore` no dispara un segundo pedido mientras uno sigue en marcha ni pasado el último `total_pages`.
-- **Tarjeta**: ícono del servicio, destino (o el origen si no hay destino), fecha (`formatTripDate`, ver abajo) y tarifa (`final_fare` o, si todavía no hay, `estimated_fare`). Muestra "Cancelado" (rojo), un tilde gold para "Completado" o "En curso" (gold) para cualquier otro estado, y "Para `<nombre>`" si el viaje es para un invitado.
+- **Tarjeta**: ícono del servicio, destino (o el origen si no hay destino), fecha (`formatTripDate`, ver abajo) y tarifa (`final_fare` o, si todavía no hay, `estimated_fare`). Muestra "Cancelado" (rojo), un tilde gold para "Completado", "Reservado" (gold) para un viaje reservado sin activar o "En curso" (gold) para cualquier otro estado, y "Para `<nombre>`" si el viaje es para un invitado. Un reservado muestra la hora de retiro pedida (`scheduledAt`, con `formatReservationDate`/`formatClockTime`) en vez de cuándo se armó el viaje.
 - **Fechas relativas**: `presentation/utils/format-date.ts` calcula "Hoy, 15:30" / "Ayer, 15:30" / "Hace 3 días" a mano (no con `Intl.RelativeTimeFormat`, que no arma ese formato) y usa `Intl.DateTimeFormat` para el resto ("14 de agosto, 15:30", con el año si no es el actual). Recibe `now` como parámetro para que el resultado sea determinista.
-- **Toque en una tarjeta**: un viaje activo (ni completado ni cancelado) va a `/trip/[tripId]` (la pantalla en vivo); el resto va al detalle, `/trips/[tripId]` (plural, distinto de `/trip/[tripId]`).
+- **Toque en una tarjeta**: un reservado sin activar (`status: 'scheduled'`) o ya terminado (completado o cancelado) va al detalle, `/trips/[tripId]` (plural, distinto de `/trip/[tripId]`); cualquier otro estado activo va a `/trip/[tripId]`, la pantalla en vivo.
 - **Detalle** (`TripDetailScreen`): relee `GET /rides/{tripId}`, que además del detalle que ya usaba el recibo trae `service_type` (categoría elegida) y `fare_breakdown` (`base`, `distance`, `time`, `discount`, `fees`, `total`, todos como texto). Si el desglose no coincide con `final_fare` (puede pasar: el total cotizado no es necesariamente lo que se liquidó), se muestra aparte como "Total cobrado" con una aclaración. El descuento y los cargos solo se muestran si son mayores a cero. Un viaje cancelado muestra `cancelled_at`; el motivo (`cancellation_reason_code`) solo se traduce si hay una entrada en `CANCELLATION_REASON_LABELS` (hoy, solo `passenger_cancelled`) — cualquier otro código se omite en vez de mostrar el código crudo.
 - Los textos de medio y estado de pago (`PAYMENT_METHOD_LABELS`, `PAYMENT_STATUS_LABELS`) están en `presentation/utils/payment-labels.ts`, compartidos con `ReceiptScreen`.
 
