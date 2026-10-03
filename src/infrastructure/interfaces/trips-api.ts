@@ -108,6 +108,25 @@ export interface TripDetailResponse extends TripResponse {
     model: string;
     color: string;
   } | null;
+  /** `scheduled` es un viaje reservado con fecha y hora fijas. Ausente en un backend anterior. */
+  booking_type?: 'immediate' | 'scheduled';
+  /** Hora de retiro pedida. `null` en un viaje inmediato. */
+  scheduled_at?: string | null;
+  /** Cuando se acredito el cobro por adelantado de un reservado. `null` en uno inmediato o sin cobrar. */
+  prepaid_at?: string | null;
+  /**
+   * Chofer que la agencia reservo (viajes reservados), mientras el viaje
+   * todavia no se activo. `null` en un viaje inmediato, en uno reservado sin
+   * chofer fijo, o una vez activado (ahi ya llega por `driver`/`vehicle`).
+   */
+  reserved_driver?: {
+    first_name: string;
+    last_initial: string | null;
+    avatar_url: string | null;
+    rating_average: number;
+    rating_count: number;
+    vehicle: { plate: string; brand: string; model: string; color: string } | null;
+  } | null;
   final_fare?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
@@ -199,6 +218,13 @@ export interface ConfirmTripResponse {
  * `GET /rides`: vista liviana de un viaje para la lista del historial. El
  * detalle completo se pide aparte, con `GET /rides/{tripId}`.
  */
+/** Chofer reservado en la vista liviana del historial: sin foto ni calificacion. */
+export interface TripHistoryReservedDriverResponse {
+  first_name: string;
+  last_initial: string | null;
+  vehicle: { plate: string; brand: string; model: string; color: string } | null;
+}
+
 export interface TripListItemResponse {
   id: string;
   public_code: string;
@@ -216,6 +242,14 @@ export interface TripListItemResponse {
   is_third_party: boolean;
   third_party_name: string | null;
   rated: boolean;
+  /** `scheduled` es un viaje reservado. Ausente en un backend anterior. */
+  booking_type?: 'immediate' | 'scheduled';
+  /** Hora de retiro pedida. `null` en un viaje inmediato. */
+  scheduled_at?: string | null;
+  /** Cuando se acredito el cobro por adelantado. `null` en uno inmediato o sin cobrar. */
+  prepaid_at?: string | null;
+  /** Chofer reservado, mientras el viaje reservado todavia no se activo. */
+  reserved_driver?: TripHistoryReservedDriverResponse | null;
 }
 
 export interface PaginationResponse {
@@ -228,4 +262,9 @@ export interface PaginationResponse {
 export interface TripListResponse {
   trips: TripListItemResponse[];
   pagination: PaginationResponse;
+}
+
+/** `GET /rides/upcoming`: viajes reservados del pasajero que todavia no se activaron. */
+export interface TripUpcomingResponse {
+  trips: TripListItemResponse[];
 }

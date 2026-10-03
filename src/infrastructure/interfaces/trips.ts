@@ -105,6 +105,9 @@ export interface TripCoordinator {
   thirdParty: { name: string; phoneE164: string } | null;
 }
 
+/** `scheduled` es un viaje reservado con fecha y hora fijas; `immediate` es un viaje normal. */
+export type BookingType = 'immediate' | 'scheduled';
+
 export interface Trip {
   id: string;
   /** Codigo corto que ve el pasajero, por ejemplo `TB-8F3K2A`. */
@@ -147,6 +150,19 @@ export interface Trip {
   requirePin: boolean;
   /** Codigo visible para el pasajero; `null` cuando no se solicito o no esta disponible. */
   boardingPin: string | null;
+  /** `scheduled` es un viaje reservado (ver tambien `status === 'scheduled'`, antes de activarse). */
+  bookingType: BookingType;
+  /** Hora de retiro pedida. `null` en un viaje inmediato. */
+  scheduledAt: Date | null;
+  /** Cuando se acredito el cobro por adelantado de un reservado. `null` en uno inmediato o sin cobrar. */
+  prepaidAt: Date | null;
+  /**
+   * Chofer que la agencia reservo para este viaje, mientras todavia no se
+   * activo. `null` en un viaje inmediato, en uno reservado sin chofer fijo, o
+   * una vez activado (ahi ya corresponde mirar `driver`/`vehicle`).
+   */
+  reservedDriver: TripDriver | null;
+  reservedVehicle: TripVehicle | null;
 }
 
 /** Un renglon del desglose, con el importe crudo (para comparar) y el listo para mostrar. */
@@ -168,9 +184,16 @@ export interface FareBreakdown {
 }
 
 /** Filtro de la pestaña "Viajes"; sin filtro el backend trae todo lo no-borrador. */
-export type TripHistoryFilter = 'all' | 'completed' | 'cancelled';
+export type TripHistoryFilter = 'all' | 'scheduled' | 'completed' | 'cancelled';
 
-/** Un renglon del historial, la vista liviana de `GET /rides`. */
+/** Chofer reservado en la vista liviana del historial: sin foto ni calificacion. */
+export interface TripHistoryReservedDriver {
+  displayName: string;
+  initials: string;
+  vehicle: TripVehicle | null;
+}
+
+/** Un renglon del historial, la vista liviana de `GET /rides` (y de `GET /rides/upcoming`). */
 export interface TripHistoryItem {
   id: string;
   publicCode: string;
@@ -186,6 +209,14 @@ export interface TripHistoryItem {
   isThirdParty: boolean;
   thirdPartyName: string | null;
   rated: boolean;
+  /** `scheduled` es un viaje reservado con fecha y hora fijas. */
+  bookingType: BookingType;
+  /** Hora de retiro pedida. `null` en un viaje inmediato. */
+  scheduledAt: Date | null;
+  /** Cuando se acredito el cobro por adelantado. `null` en uno inmediato o sin cobrar. */
+  prepaidAt: Date | null;
+  /** Chofer reservado, mientras el viaje reservado todavia no se activo. */
+  reservedDriver: TripHistoryReservedDriver | null;
 }
 
 export interface TripHistoryPage {

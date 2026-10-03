@@ -19,10 +19,12 @@ import type { Place } from '@/infrastructure/interfaces/places';
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
+import { UpcomingTripCard } from '@/presentation/components/UpcomingTripCard';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useLocationPermissions, type LocationStatus } from '@/presentation/hooks/useLocationPermissions';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
+import { useUpcomingTrips } from '@/presentation/hooks/useUpcomingTrips';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
@@ -57,6 +59,7 @@ export function HomeScreen() {
   const origin = useTripStore((state) => state.origin);
   const setDestination = useTripStore((state) => state.setDestination);
   const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
+  const { nextTrip } = useUpcomingTrips();
   const {
     membership: corporateMembership,
     isLoading: isLoadingCorporateMembership,
@@ -230,6 +233,13 @@ export function HomeScreen() {
             Ahora
           </Typography>
         </Pressable>
+
+        {nextTrip ? (
+          <UpcomingTripCard
+            item={nextTrip}
+            onPress={() => router.push({ pathname: '/trips/[tripId]', params: { tripId: nextTrip.id } })}
+          />
+        ) : null}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
           <Pressable

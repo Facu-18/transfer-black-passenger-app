@@ -4,8 +4,9 @@ import type { TripHistoryFilter, TripHistoryPage } from '@/infrastructure/interf
 import type { TripListResponse } from '@/infrastructure/interfaces/trips-api';
 import { TripHistoryMapper } from '@/infrastructure/mappers/trip-history.mapper';
 
-/** El backend solo entiende `completed` y `cancelled`: "Todos" no manda `status`. */
+/** El backend entiende cada estado tal cual; "Todos" no manda `status`. */
 const STATUS_BY_FILTER: Partial<Record<TripHistoryFilter, string>> = {
+  scheduled: 'scheduled',
   completed: 'completed',
   cancelled: 'cancelled',
 };

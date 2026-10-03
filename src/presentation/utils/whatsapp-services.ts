@@ -112,3 +112,25 @@ export function contactWhatsAppReservation(details: ReservationWhatsAppDetails, 
     { text: 'Cancelar', style: 'cancel' as const },
   ]);
 }
+
+/** Mensaje para pedirle a la agencia que gestione la cancelación de un viaje reservado ya pago. */
+function buildCancelReservationMessage(publicCode: string): string {
+  return `Hola, quiero cancelar mi viaje reservado ${publicCode}. ¿Me ayudan con la cancelación?`;
+}
+
+/**
+ * El backend bloquea la cancelación de un reservado ya pago desde la app
+ * (`SCHEDULED_TRIP_CANCEL_VIA_AGENCY`): la agencia es quien la gestiona, y
+ * también el reembolso si corresponde.
+ */
+export function contactWhatsAppToCancelReservation(publicCode: string): void {
+  const message = buildCancelReservationMessage(publicCode);
+
+  Alert.alert('Cancelar viaje reservado', '¿Con qué línea querés hablar?', [
+    ...WHATSAPP_LINES.map((line) => ({
+      text: line.label,
+      onPress: () => void openWhatsApp(line.number, message),
+    })),
+    { text: 'Cancelar', style: 'cancel' as const },
+  ]);
+}
