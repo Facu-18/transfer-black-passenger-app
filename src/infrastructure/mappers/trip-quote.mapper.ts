@@ -8,6 +8,7 @@ import type {
   TripCoordinator,
   TripDriver,
   TripPoint,
+  TripRefund,
   TripStatus,
   TripThirdParty,
   TripVehicle,
@@ -113,6 +114,14 @@ function toFareBreakdown(fareBreakdown: TripFareBreakdownResponse | null | undef
   };
 }
 
+function toTripRefund(refund: TripDetailResponse['refund'], currency: string): TripRefund | null {
+  if (!refund) {
+    return null;
+  }
+
+  return { status: refund.status, formattedAmount: formatAmount(refund.amount, currency) };
+}
+
 function toTripCoordinator(chat: TripDetailResponse['chat']): TripCoordinator | null {
   if (!chat) {
     return null;
@@ -149,6 +158,7 @@ export const TripQuoteMapper = {
       cancellationReasonCode: trip.cancellation_reason_code ?? null,
       distanceKm: trip.estimated_distance_meters !== undefined ? trip.estimated_distance_meters / 1000 : null,
       paymentStatus: trip.payment_status ?? null,
+      refund: toTripRefund(trip.refund ?? null, trip.currency),
       ratingGiven: trip.rating?.rating ?? null,
       thirdParty: toTripThirdParty(trip.third_party ?? null),
       trackingUrl: trip.tracking_url ?? null,

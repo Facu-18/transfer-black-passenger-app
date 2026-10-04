@@ -99,6 +99,8 @@ export function ActiveTripScreen() {
   const onPanelLayout = (event: LayoutChangeEvent) => setPanelHeight(event.nativeEvent.layout.height);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
+  // El sistema cancelo porque nadie busco mas de `TRIP_SEARCH_TIMEOUT_MINUTES`: se ofrece reintentar.
+  const noDriverFound = trip?.status === 'cancelled' && trip.cancellationReasonCode === 'no_driver_found';
 
   // Badge del chat: solo tiene sentido con chofer asignado y esta pantalla al frente.
   const unreadChatCount = useChatUnreadCount(tripId, trip?.driverId != null && !isFinished);
@@ -120,6 +122,11 @@ export function ActiveTripScreen() {
     resetTrip();
     router.dismissTo('/home');
   }, [resetTrip]);
+
+  // Mismo origen/destino, sin tocar el store: una nueva cotizacion crea otro borrador.
+  const retrySearch = useCallback(() => {
+    router.replace('/pricing');
+  }, []);
 
   // Mientras el viaje sigue, "atras" no saca de aca: se perderia el seguimiento
   // y hoy no hay otra forma de volver a esta pantalla.
@@ -199,7 +206,7 @@ export function ActiveTripScreen() {
               destination={trip?.dropoff?.address ?? plannedDestination?.address ?? null}
               fare={trip?.formattedFare ?? null}
               isCancelling={isCancelling}
-              onCancel={() => requestCancel(false)}
+              onCancel={() => void requestCancel(false)}
             />
           ) : (view === 'enRoute' || view === 'arrived') && trip ? (
             <DriverEnRoutePanel
@@ -208,7 +215,7 @@ export function ActiveTripScreen() {
               etaMinutes={eta.minutes}
               distanceKm={eta.distanceKm}
               isCancelling={isCancelling}
-              onCancel={() => requestCancel(true)}
+              onCancel={() => void requestCancel(true)}
               unreadChatCount={unreadChatCount}
             />
           ) : onBoard && trip ? (
@@ -218,7 +225,11 @@ export function ActiveTripScreen() {
               status={trip?.status ?? null}
               publicCode={trip?.publicCode ?? null}
               error={error}
+              reasonCode={trip?.cancellationReasonCode ?? null}
+              paymentMethod={trip?.paymentMethod ?? null}
+              paymentStatus={trip?.paymentStatus ?? null}
               {...(isFinished ? { onGoHome: goHome } : {})}
+              {...(noDriverFound ? { onRetry: retrySearch } : {})}
             />
           )}
         </Animated.View>

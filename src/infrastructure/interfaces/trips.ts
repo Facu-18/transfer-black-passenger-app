@@ -134,6 +134,8 @@ export interface Trip {
   /** Distancia de la ruta cotizada, en km. */
   distanceKm: number | null;
   paymentStatus: PaymentStatus | null;
+  /** Reintegro en curso hacia Mercado Pago; `null` sin ninguno (ver `TripRefund`). */
+  refund: TripRefund | null;
   /** Estrellas que dejo el pasajero; `null` mientras no califico. */
   ratingGiven: number | null;
   /** Invitado que viaja; `null` si el titular viaja. */
@@ -227,6 +229,37 @@ export interface TripHistoryPage {
 }
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
+
+/** Como se reintegra `refund`, cuando corresponde: `automatic` (un worker llama a Mercado Pago),
+ *  `claim` (reclamo: lo resuelve un admin a mano) o `none` (no hay nada que reintegrar). */
+export type RefundMode = 'automatic' | 'claim' | 'none';
+export type RefundKind = 'none' | 'full' | 'partial';
+/** Estado del reintegro hacia Mercado Pago; `claim_required` queda a cargo de un admin. */
+export type RefundClaimStatus = 'pending' | 'processing' | 'processed' | 'failed' | 'claim_required';
+
+/** Reintegro en curso de un viaje cancelado; `null` sin pago por Mercado Pago que reintegrar. */
+export interface TripRefund {
+  status: RefundClaimStatus;
+  formattedAmount: string;
+}
+
+/** Vista previa de la politica de cancelacion (`GET /rides/{tripId}/cancellation-preview`), sin ejecutarla. */
+export interface CancellationPreview {
+  cancellable: boolean;
+  penalty: FareBreakdownItem;
+  refund: FareBreakdownItem;
+  refundKind: RefundKind;
+  refundMode: RefundMode;
+  /** Fin de la ventana de reembolso automatico; `null` sin pago acreditado todavia. */
+  autoRefundWindowEndsAt: Date | null;
+}
+
+/** Como quedo la cancelacion recien hecha (respuesta de `POST /rides/{tripId}/cancel`). */
+export interface CancellationResult {
+  refund: FareBreakdownItem;
+  refundKind: RefundKind;
+  refundMode: RefundMode;
+}
 
 /** Motivos que se pueden marcar junto a las estrellas. */
 export type RatingTag = 'punctuality' | 'smooth_driving' | 'clean_vehicle';
