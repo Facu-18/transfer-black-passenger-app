@@ -1,7 +1,7 @@
 import { Redirect, router } from 'expo-router';
 import { ArrowRight, ChevronLeft } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, ScrollView, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip';
@@ -18,13 +18,20 @@ import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligib
 import { useRideQuote } from '@/presentation/hooks/useRideQuote';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
-import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
+import {
+  exceedsCompanyBalance,
+  getCorporateIneligibilityMessage,
+  getCorporateRemainingMessage,
+} from '@/presentation/utils/corporate-eligibility-copy';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
 const INITIAL_PANEL_HEIGHT = 400;
+/** Lugar para la barra superior (volver + destino), asi la hoja nunca la tapa. */
+const TOP_BAR_SPACE = 72;
 
 export function PricingScreen() {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const origin = useTripStore((state) => state.origin);
   const destination = useTripStore((state) => state.destinationLocation);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
@@ -38,16 +45,21 @@ export function PricingScreen() {
   });
   const { membership: corporateMembership } = useCorporateEligibility();
 
+  // El saldo alcanzaba cuando se consulto membership/me, pero esta tarifa en
+  // particular puede superarlo: se avisa y se deshabilita la pastilla solo para ella.
+  const fareExceedsCompanyBalance =
+    corporateMembership && selectedFare ? exceedsCompanyBalance(corporateMembership, selectedFare.totalAmount) : false;
+
   const corporateOption: CorporatePaymentOption | null = corporateMembership
     ? {
         label: `Corporativo · ${corporateMembership.company.tradeName ?? corporateMembership.company.legalName}`,
-        enabled: corporateMembership.canRideOnAccount,
-        disabledReason: corporateMembership.canRideOnAccount
-          ? undefined
-          : getCorporateIneligibilityMessage(corporateMembership),
-        remainingMessage: corporateMembership.lowestRemaining
-          ? `Te quedan ${corporateMembership.lowestRemaining.formattedAmount} este mes`
-          : null,
+        enabled: corporateMembership.canRideOnAccount && !fareExceedsCompanyBalance,
+        disabledReason: !corporateMembership.canRideOnAccount
+          ? getCorporateIneligibilityMessage(corporateMembership)
+          : fareExceedsCompanyBalance
+            ? 'El saldo de tu empresa no alcanza para este viaje.'
+            : undefined,
+        remainingMessage: getCorporateRemainingMessage(corporateMembership),
       }
     : null;
 
@@ -94,10 +106,13 @@ export function PricingScreen() {
         </View>
       </View>
 
-      <View
+      <ScrollView
         onLayout={onPanelLayout}
-        className="absolute bottom-0 left-0 right-0 gap-4 rounded-t-3xl border-t border-charcoal bg-obsidian px-5 pt-3"
-        style={{ paddingBottom: insets.bottom + 16 }}
+        className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-charcoal bg-obsidian"
+        style={{ maxHeight: windowHeight - insets.top - TOP_BAR_SPACE }}
+        contentContainerClassName="gap-4 px-5 pt-3"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        showsVerticalScrollIndicator={false}
       >
         <View className="h-1 w-10 self-center rounded-full bg-charcoal" />
 
@@ -133,6 +148,21 @@ export function PricingScreen() {
 
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} disabled={isConfirming} />
 
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Reservar este viaje para más tarde"
+              disabled={isConfirming}
+              onPress={() => router.push('/reserve')}
+              className={`flex-row items-center justify-center gap-1.5 py-1 active:opacity-70 ${isConfirming ? 'opacity-50' : ''}`}
+            >
+              <Typography variant="caption" tone="secondary">
+                ¿Es para más tarde?
+              </Typography>
+              <Typography variant="caption" weight="semibold" tone="accent">
+                Reservar viaje
+              </Typography>
+            </Pressable>
+
             <GuestPassengerChip
               guest={guestPassenger}
               disabled={isConfirming}
@@ -160,7 +190,7 @@ export function PricingScreen() {
             />
           </>
         ) : null}
-      </View>
+      </ScrollView>
     </View>
   );
 }

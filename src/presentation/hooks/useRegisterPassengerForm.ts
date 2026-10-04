@@ -7,7 +7,7 @@ import { registerPassengerAction } from '@/core/actions/register-passenger.actio
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
-import { emailField } from '@/presentation/utils/auth-form-fields';
+import { emailField, passwordField } from '@/presentation/utils/auth-form-fields';
 import { phoneE164Field } from '@/presentation/utils/phone';
 
 // La contraseña replica las reglas del backend (register-passenger.dto):
@@ -20,13 +20,7 @@ const registerPassengerSchema = z.object({
     .max(201, 'El nombre es demasiado largo'),
   email: emailField,
   phone: phoneE164Field,
-  password: z
-    .string()
-    .min(8, 'Mínimo 8 caracteres')
-    .max(128, 'Máximo 128 caracteres')
-    .regex(/[a-z]/, 'Debe incluir una minúscula')
-    .regex(/[A-Z]/, 'Debe incluir una mayúscula')
-    .regex(/[0-9]/, 'Debe incluir un número'),
+  password: passwordField,
   acceptedTerms: z.boolean().refine((accepted) => accepted, 'Debes aceptar los términos para continuar'),
 });
 

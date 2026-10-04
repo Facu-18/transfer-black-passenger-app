@@ -1,4 +1,5 @@
-import { MapPin, Navigation, SlidersHorizontal, Sparkles, Star, type LucideIcon } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { MapPin, MessageCircle, Navigation, Star, type LucideIcon } from 'lucide-react-native';
 import { Image, Pressable, View } from 'react-native';
 
 import type { Trip } from '@/infrastructure/interfaces/trips';
@@ -12,28 +13,47 @@ interface OnBoardPanelProps {
   trip: Trip;
   /** Minutos hasta el destino; `null` mientras no hay posicion del auto. */
   etaMinutes: number | null;
+  /** Mensajes del chofer sin leer, para el badge del chat. */
+  unreadChatCount?: number;
 }
 
 const timeFormatter = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-function QuickAction({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+function QuickAction({
+  icon: Icon,
+  label,
+  badgeCount = 0,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  badgeCount?: number;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      onPress={() => showComingSoon(label)}
-      className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-charcoal bg-field py-3 active:opacity-80"
+      onPress={onPress}
+      className="relative flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-charcoal bg-field py-3 active:opacity-80"
     >
       <Icon size={16} color={colors.gold} />
       <Typography variant="caption" weight="medium">
         {label}
       </Typography>
+      {badgeCount > 0 ? (
+        <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-gold px-1 py-0.5">
+          <Typography variant="caption" weight="bold" tone="inverse">
+            {badgeCount > 9 ? '9+' : badgeCount}
+          </Typography>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
 
 /** Panel "a bordo": cuanto falta para llegar, a donde, y con quien. */
-export function OnBoardPanel({ trip, etaMinutes }: OnBoardPanelProps) {
+export function OnBoardPanel({ trip, etaMinutes, unreadChatCount = 0 }: OnBoardPanelProps) {
   const { driver, vehicle } = trip;
   const arrivalTime = etaMinutes !== null ? timeFormatter.format(new Date(Date.now() + etaMinutes * 60_000)) : null;
 
@@ -100,9 +120,13 @@ export function OnBoardPanel({ trip, etaMinutes }: OnBoardPanelProps) {
       </View>
 
       <View className="flex-row gap-2">
-        <QuickAction icon={Navigation} label="Destino" />
-        <QuickAction icon={SlidersHorizontal} label="Confort" />
-        <QuickAction icon={Sparkles} label="Concierge" />
+        <QuickAction
+          icon={MessageCircle}
+          label="Chat"
+          badgeCount={unreadChatCount}
+          onPress={() => router.push({ pathname: '/chat/[tripId]', params: { tripId: trip.id } })}
+        />
+        <QuickAction icon={Navigation} label="Destino" onPress={() => showComingSoon('Destino')} />
       </View>
     </View>
   );

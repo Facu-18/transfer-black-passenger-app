@@ -36,7 +36,12 @@ const completeProfileSchema = z
     }
   });
 
-export function useCompleteProfileForm() {
+interface UseCompleteProfileFormOptions {
+  /** Se llama despues de guardar bien, por ejemplo para volver al pedido de viaje en curso. */
+  onSaved?: () => void;
+}
+
+export function useCompleteProfileForm({ onSaved }: UseCompleteProfileFormOptions = {}) {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const [wasSaved, setWasSaved] = useState(false);
@@ -72,6 +77,7 @@ export function useCompleteProfileForm() {
 
       setUser(updatedUser);
       setWasSaved(true);
+      onSaved?.();
     } catch (error: unknown) {
       if (error instanceof ApiRequestError && error.status === 401) {
         handleExpiredSession();

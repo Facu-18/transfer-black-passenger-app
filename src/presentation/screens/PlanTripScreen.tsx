@@ -89,7 +89,7 @@ export function PlanTripScreen() {
             </View>
             <Pressable
               accessibilityRole="button"
-              onPress={() => showComingSoon('Reservar un viaje')}
+              onPress={() => router.replace('/reserve')}
               className="flex-1 items-center justify-center rounded-xl py-2 active:opacity-70"
             >
               <Typography tone="secondary">Reserva</Typography>
@@ -122,6 +122,8 @@ export function PlanTripScreen() {
               value={trip.originQuery}
               placeholder={trip.origin?.name ?? 'Punto de partida'}
               badge={originIsCurrentPlace ? 'Ubicación actual' : null}
+              // Autofoco solo si se entro a elegir justo este campo (p. ej. desde la reserva).
+              autoFocus={activeField === 'origin'}
               onChangeText={trip.setOriginQuery}
               onFocus={trip.setActiveField}
             />
@@ -132,7 +134,8 @@ export function PlanTripScreen() {
               active={activeField === 'destination'}
               value={trip.destinationQuery}
               placeholder={trip.destination?.name ?? '¿A dónde vas?'}
-              autoFocus
+              // Por defecto el flujo arranca pidiendo el destino.
+              autoFocus={activeField === 'destination'}
               onChangeText={trip.setDestinationQuery}
               onFocus={trip.setActiveField}
             />

@@ -59,7 +59,8 @@ function toTripPoint(point: TripStopPointResponse | null | undefined): TripPoint
     : null;
 }
 
-function toTripDriver(driver: TripDetailResponse['driver']): TripDriver | null {
+/** Tambien la usa `toTrip` para `reserved_driver`: misma forma minima, con o sin vehiculo adentro. */
+export function toTripDriver(driver: TripDetailResponse['driver']): TripDriver | null {
   if (!driver) {
     return null;
   }
@@ -76,7 +77,10 @@ function toTripDriver(driver: TripDetailResponse['driver']): TripDriver | null {
   };
 }
 
-function toTripVehicle(vehicle: TripDetailResponse['vehicle']): TripVehicle | null {
+/** Tambien la usa el mapper del historial para el vehiculo del chofer reservado. */
+export function toTripVehicle(
+  vehicle: { plate: string; brand: string; model: string; color: string } | null | undefined,
+): TripVehicle | null {
   return vehicle
     ? { name: `${vehicle.brand} ${vehicle.model}`, color: vehicle.color, plate: vehicle.plate }
     : null;
@@ -153,6 +157,11 @@ export const TripQuoteMapper = {
       fareBreakdown: toFareBreakdown(trip.fare_breakdown),
       requirePin: trip.require_pin ?? false,
       boardingPin: trip.boarding_pin ?? null,
+      bookingType: trip.booking_type ?? 'immediate',
+      scheduledAt: trip.scheduled_at ? new Date(trip.scheduled_at) : null,
+      prepaidAt: trip.prepaid_at ? new Date(trip.prepaid_at) : null,
+      reservedDriver: toTripDriver(trip.reserved_driver ?? null),
+      reservedVehicle: toTripVehicle(trip.reserved_driver?.vehicle ?? null),
     };
   },
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { FileText, MapPin, Phone, UserRound } from 'lucide-react-native';
+import { FileText, Info, MapPin, Phone, UserRound } from 'lucide-react-native';
 import { Controller } from 'react-hook-form';
 import { Pressable, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useCompleteProfileForm } from '@/presentation/hooks/useCompleteProfileForm';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
+import { colors } from '@/presentation/theme/colors';
 
 interface Choice<T extends string> {
   label: string;
@@ -77,11 +78,15 @@ const DOCUMENT_CHOICES: Choice<DocumentType>[] = [
 
 interface CompleteProfileScreenProps {
   footer?: ReactNode;
+  /** Explica por que se interrumpio el pedido de viaje para pedir estos datos. */
+  reason?: string;
+  /** Se llama despues de guardar bien, por ejemplo para volver al pedido de viaje en curso. */
+  onSaved?: () => void;
 }
 
-export function CompleteProfileScreen({ footer }: CompleteProfileScreenProps) {
+export function CompleteProfileScreen({ footer, reason, onSaved }: CompleteProfileScreenProps) {
   const profileComplete = useAuthStore((state) => state.user?.profileComplete ?? false);
-  const { form, submit, wasSaved } = useCompleteProfileForm();
+  const { form, submit, wasSaved } = useCompleteProfileForm({ onSaved });
   const { control, formState: { errors, isSubmitting } } = form;
 
   return (
@@ -95,6 +100,15 @@ export function CompleteProfileScreen({ footer }: CompleteProfileScreenProps) {
             : 'Completa estos datos para poder solicitar viajes. Tu foto de perfil es opcional.'}
         </Typography>
       </View>
+
+      {reason ? (
+        <View className="flex-row items-start gap-2 rounded-2xl border border-gold/30 bg-gold/10 px-4 py-3">
+          <Info size={16} color={colors.gold} />
+          <Typography variant="caption" tone="accent" className="flex-1">
+            {reason}
+          </Typography>
+        </View>
+      ) : null}
 
       <View className="gap-4 rounded-3xl border border-charcoal bg-surface/90 p-5">
         <Controller control={control} name="firstName" render={({ field: { onChange, onBlur, value } }) => (

@@ -27,3 +27,9 @@ export interface AuthSession {
   accessTokenExpiresAt: Date;
   refreshTokenExpiresAt: Date;
 }
+
+/** Token de un solo uso para `POST /auth/reset-password`. Solo vive en memoria. */
+export interface ResetPasswordToken {
+  token: string;
+  expiresAt: Date;
+}

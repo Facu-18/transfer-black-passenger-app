@@ -4,7 +4,7 @@ import { Pressable, View } from 'react-native';
 import type { TripHistoryItem } from '@/infrastructure/interfaces/trips';
 import { Typography } from '@/presentation/components/Typography';
 import { colors } from '@/presentation/theme/colors';
-import { formatTripDate } from '@/presentation/utils/format-date';
+import { formatClockTime, formatReservationDate, formatTripDate } from '@/presentation/utils/format-date';
 
 interface TripHistoryCardProps {
   item: TripHistoryItem;
@@ -17,13 +17,20 @@ interface TripHistoryCardProps {
 export function TripHistoryCard({ item, now, onPress }: TripHistoryCardProps) {
   const isCancelled = item.status === 'cancelled';
   const isCompleted = item.status === 'completed';
-  const isActive = !isCancelled && !isCompleted;
+  // Reservado sin activar: todavia no hay nada "en curso" que mostrar.
+  const isScheduled = item.status === 'scheduled';
+  const isActive = !isCancelled && !isCompleted && !isScheduled;
   const destinationLabel = item.destination ?? item.origin ?? 'Viaje';
+  // Un reservado muestra la hora de retiro pedida, no cuando se armo el viaje.
+  const dateLabel =
+    isScheduled && item.scheduledAt
+      ? `${formatReservationDate(item.scheduledAt)} · ${formatClockTime(item.scheduledAt)}`
+      : formatTripDate(item.date, now);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Viaje a ${destinationLabel}, ${formatTripDate(item.date, now)}`}
+      accessibilityLabel={`Viaje a ${destinationLabel}, ${dateLabel}`}
       onPress={onPress}
       className="flex-row items-center gap-3 rounded-2xl border border-charcoal bg-surface p-4 active:opacity-80"
     >
@@ -40,7 +47,7 @@ export function TripHistoryCard({ item, now, onPress }: TripHistoryCardProps) {
         </View>
 
         <Typography variant="caption" tone="secondary">
-          {formatTripDate(item.date, now)}
+          {dateLabel}
         </Typography>
 
         {item.isThirdParty && item.thirdPartyName ? (
@@ -49,10 +56,10 @@ export function TripHistoryCard({ item, now, onPress }: TripHistoryCardProps) {
           </Typography>
         ) : null}
 
-        {isCancelled || isActive ? (
+        {isCancelled || isActive || isScheduled ? (
           <View className={`self-start rounded-full px-2 py-0.5 ${isCancelled ? 'bg-danger/15' : 'bg-gold/15'}`}>
             <Typography variant="caption" weight="semibold" tone={isCancelled ? 'danger' : 'accent'}>
-              {isCancelled ? 'Cancelado' : 'En curso'}
+              {isCancelled ? 'Cancelado' : isScheduled ? 'Reservado' : 'En curso'}
             </Typography>
           </View>
         ) : null}

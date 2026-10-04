@@ -11,6 +11,7 @@ import { invalidateCorporateEligibility, useCorporateEligibility } from '@/prese
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { getCorporateErrorMessage } from '@/presentation/utils/corporate-error-message';
+import { exceedsCompanyBalance } from '@/presentation/utils/corporate-eligibility-copy';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
 
@@ -34,7 +35,11 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
   // que no se puede viajar a cuenta corporativa, no se puede dejar ese medio
   // elegido a ciegas, aunque venga precargado desde el Home.
   const { membership: corporateMembership, isLoading: isCorporateEligibilityLoading } = useCorporateEligibility();
-  const canUseCorporate = corporateMembership?.canRideOnAccount === true;
+  // El saldo alcanzaba cuando se consulto membership/me, pero esta tarifa en
+  // particular puede superarlo: no se puede dejar `corporate` elegido en ese caso.
+  const canUseCorporate =
+    corporateMembership?.canRideOnAccount === true &&
+    !(selectedFare && exceedsCompanyBalance(corporateMembership, selectedFare.totalAmount));
 
   useEffect(() => {
     if (!isCorporateEligibilityLoading && paymentMethod === 'corporate' && !canUseCorporate) {

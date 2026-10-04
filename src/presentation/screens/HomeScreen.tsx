@@ -1,5 +1,15 @@
 import { router } from 'expo-router';
-import { Bell, BriefcaseBusiness, Clock, MapPin, Search, ShieldCheck, UserPlus, UserRound } from 'lucide-react-native';
+import {
+  Bell,
+  BriefcaseBusiness,
+  CalendarClock,
+  Clock,
+  MapPin,
+  Search,
+  ShieldCheck,
+  UserPlus,
+  UserRound,
+} from 'lucide-react-native';
 import { useEffect, useRef } from 'react';
 import { Alert, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -9,10 +19,12 @@ import type { Place } from '@/infrastructure/interfaces/places';
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
+import { UpcomingTripCard } from '@/presentation/components/UpcomingTripCard';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useLocationPermissions, type LocationStatus } from '@/presentation/hooks/useLocationPermissions';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
+import { useUpcomingTrips } from '@/presentation/hooks/useUpcomingTrips';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
@@ -47,6 +59,7 @@ export function HomeScreen() {
   const origin = useTripStore((state) => state.origin);
   const setDestination = useTripStore((state) => state.setDestination);
   const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
+  const { nextTrip } = useUpcomingTrips();
   const {
     membership: corporateMembership,
     isLoading: isLoadingCorporateMembership,
@@ -221,6 +234,13 @@ export function HomeScreen() {
           </Typography>
         </Pressable>
 
+        {nextTrip ? (
+          <UpcomingTripCard
+            item={nextTrip}
+            onPress={() => router.push({ pathname: '/trips/[tripId]', params: { tripId: nextTrip.id } })}
+          />
+        ) : null}
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
           <Pressable
             accessibilityRole="button"
@@ -237,6 +257,14 @@ export function HomeScreen() {
           >
             <UserPlus size={16} color={colors.gold} />
             <Typography weight="medium">Para un invitado</Typography>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/reserve')}
+            className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
+          >
+            <CalendarClock size={16} color={colors.gold} />
+            <Typography weight="medium">Reservar viaje</Typography>
           </Pressable>
         </ScrollView>
 

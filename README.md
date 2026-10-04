@@ -175,13 +175,16 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/verify-email` | `verify-email.tsx` | Validación del PIN; destino después del registro o de un login sin correo verificado |
 | `/home` | `(app)/(tabs)/home.tsx` | Mapa principal |
 | `/activity` | `(app)/(tabs)/activity.tsx` | "Viajes": historial paginado, con filtros |
-| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; permite cerrar sesión |
+| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; con el perfil completo muestra un resumen de solo lectura con "Modificar datos", y permite cerrar sesión |
+| `/complete-profile` | `(app)/complete-profile.tsx` | A donde manda el guard de perfil incompleto al pedir un viaje; mismo formulario que `/account`, con el aviso de por qué y vuelta al pedido en curso al guardar |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/guest` | `(app)/guest.tsx` | "Pasajero invitado": carga los datos de un tercero para viajar en su nombre |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
+| `/reserve` | `(app)/reserve.tsx` | "Reservar viaje": origen, destino, fecha y hora para mandar por WhatsApp |
 | `/trip/[tripId]` | `(app)/trip/[tripId].tsx` | Viaje activo: radar, chofer en camino y viaje en curso, en vivo |
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
 | `/trips/[tripId]` | `(app)/trips/[tripId].tsx` | Detalle de un viaje del historial (plural: distinta de `/trip/[tripId]`) |
+| `/chat/[tripId]` | `(app)/chat/[tripId].tsx` | Chat 1 a 1 con el chofer asignado |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
@@ -219,6 +222,59 @@ La pantalla `GuestPassengerScreen` (hook `useGuestPassengerForm`, RHF + Zod) car
 - **Entradas**: la píldora "Para un invitado" del Home (`from=home`, al confirmar sigue a `/search`) y, en Cotización, un chip que pide, edita o quita el invitado (`GuestPassengerChip`); sin `from=home` el paso siguiente es `router.back()`, así que desde Cotización se vuelve ahí.
 - **Sin SMS**: el backend no tiene proveedor de SMS. Si se carga email, el invitado recibe ahí el link de seguimiento; siempre se lo puede mandar también por WhatsApp desde el viaje activo (ver más abajo). No hay "Agenda", "Compartir mi seguimiento" propio ni "Cobro a cuenta del anfitrión": no tienen soporte en el backend.
 
+## Reservar un viaje (para más tarde)
+
+`ReservationScreen` (ruta `/reserve`, hook `useReservationForm`) deja elegir origen, destino, fecha y
+hora para un viaje futuro y manda todo por WhatsApp; la agencia arregla el precio y crea el viaje a
+mano (todavía no hay endpoint). Sin llamada al backend: es el mismo patrón que los "Otros servicios
+por WhatsApp" de Cotización, pero con fecha y hora.
+
+- **Store propio** (`useReservationStore`): origen, destino, fecha/hora y notas de la reserva viven
+  separados de `useTripStore`. Comparten un solo store haría que elegir origen/destino para una
+  reserva pisara un viaje "Ahora" a medio armar (o al revés).
+- **Reusa la búsqueda de siempre**: tocar "Origen" o "Destino" en la reserva navega a `/search` con
+  `?mode=reserve&field=origin|destino`. `usePlanTrip` lee ese `mode` para guardar en
+  `useReservationStore` en vez de `useTripStore`, y para volver (`router.back()`) a la reserva en vez
+  de seguir a Cotización una vez elegidos los dos puntos.
+- **Fecha y hora**: `ReservationScheduleField` usa `@react-native-community/datetimepicker` (compact
+  en iOS, diálogo nativo en Android), igual que `BirthDateField`. El selector de fecha no deja elegir
+  un día pasado; el mínimo real —30 minutos desde ahora— lo valida el formulario, porque depende de
+  qué día se elija.
+- **Entradas**: una píldora "Reservar viaje" en el Home (misma fila que "Viaje corporativo" y "Para
+  un invitado"), la pestaña "Reserva" de "Planifica tu viaje", y un link "Reservar viaje" en
+  Cotización, debajo de los servicios por WhatsApp.
+- **Mensaje**: "Hola, quiero reservar un viaje" + fecha (`sábado 3 de octubre`), hora (`18:30`),
+  origen, destino, pasajeros/notas si se cargó algo, y nombre y email del pasajero logueado, para que
+  la agencia encuentre la cuenta. Al confirmarse la línea y abrirse WhatsApp, la pantalla pasa a un
+  estado de "ya te contactamos" con un botón al inicio que limpia la reserva.
+
+### El viaje reservado, del lado del pasajero
+
+Una vez que la agencia arma el viaje (admin, por Swagger), `GET /rides`, `GET /rides/{tripId}` y el
+nuevo `GET /rides/upcoming` lo traen con `booking_type: 'scheduled'`, `scheduled_at` (hora de
+retiro), `prepaid_at` (si ya se acreditó el cobro por adelantado) y, mientras sigue sin activar
+(`status: 'scheduled'`), `reserved_driver` en vez de `driver`/`vehicle`.
+
+- **"Próximo viaje reservado" en el Home** (`UpcomingTripCard`, hook `useUpcomingTrips`): el primero
+  de `GET /rides/upcoming` (ya viene ordenado, más próximo primero), con fecha y hora de retiro,
+  origen → destino, la píldora "Pagado" / "Pendiente de pago" y el chofer reservado si ya hay uno.
+  Se recarga con cada foco del Home; un error se traga en silencio, la tarjeta simplemente no
+  aparece (no hay nada crítico que avisar ahí). Toca a `/trips/[tripId]`.
+- **Historial**: filtro "Reservados" (`status=scheduled`, el backend ya lo acepta como cualquier
+  otro estado). La tarjeta muestra la hora de retiro pedida en vez de cuándo se armó el viaje, y
+  "Reservado" en vez de "En curso".
+- **Detalle** (`TripDetailScreen`): con `booking_type: 'scheduled'` y `status: 'scheduled'` todavía,
+  la sección "Pago" se reemplaza por "Reserva" (retiro, estado del pago, el chofer reservado o "Se
+  asigna un chofer antes del viaje", y la aclaración de que el viaje se activa solo). "Chofer y
+  vehículo" sigue oculta: `driver`/`vehicle` siguen en `null` hasta la activación.
+- **Cancelar una reserva ya paga**: el backend responde 409 `SCHEDULED_TRIP_CANCEL_VIA_AGENCY`
+  (`useCancelReservedTrip`); la pantalla cambia el botón "Cancelar reserva" por un aviso para
+  escribirle a la agencia por WhatsApp (`contactWhatsAppToCancelReservation`, mismo patrón de
+  elegir línea que el resto de `whatsapp-services.ts`).
+- **Si se activa mientras se mira el detalle** (o entre que se lista y se toca): `TripDetailScreen`
+  detecta que ya no está en `scheduled` y hace `router.replace` a `/trip/[tripId]`, el seguimiento
+  en vivo.
+
 ## Cotización y confirmación del viaje
 
 `POST /rides/quote` (201) crea el viaje en `draft` y devuelve `{ draft, route, quotes[] }`. Origen y destino viajan como `{ address_text, place_id, latitude, longitude }`, con el `placeId` del mismo proveedor de mapas que usa el backend.
@@ -236,17 +292,19 @@ La pantalla `GuestPassengerScreen` (hook `useGuestPassengerForm`, RHF + Zod) car
 |---|---|---|
 | Efectivo | `cash` | El viaje pasa a `searching` y la app va a `/trip/[tripId]`, que arranca con el radar |
 | Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
-| Cuenta corporativa | `corporate` | Igual que efectivo (sin checkout): el viaje pasa directo a `searching`. Se paga contra el límite mensual de la empresa, que factura por resumen aparte |
+| Cuenta corporativa | `corporate` | Igual que efectivo (sin checkout): el viaje pasa directo a `searching`. Se paga contra el **saldo prepago** de la empresa (la empresa carga saldo antes; el límite mensual es solo un control interno opcional) |
 
 Errores: 409 `FARE_QUOTE_EXPIRED` recotiza sola, 409 `INVALID_TRIP_TRANSITION` vuelve al Home, 400 al cotizar ofrece reintentar y 401 reusa `handleExpiredSession()`.
 
-### Cuenta corriente corporativa
+### Saldo prepago corporativo
 
-La pastilla "Corporativo" de "Método de pago" solo aparece con un vínculo empresarial (`GET /corporate/membership/me`, ya consumido por `useCorporateMembership` en Mi Cuenta): la elegibilidad para pagar así (`can_ride_on_account`, `reason` y `consumption` por empleado/centro de costo/empresa) viaja en esa misma respuesta, mapeada en `CorporateMembershipMapper`. `useCorporateEligibility` (hook nuevo, no confundir con `useCorporateMembership`) la consulta una vez y la cachea 60 segundos en memoria de módulo, porque Home ("Viaje corporativo") y Cotización la piden casi al mismo tiempo. Sin vínculo, la pastilla ni se muestra; con vínculo pero sin permiso, se muestra deshabilitada y al tocarla explica el motivo (`COMPANY_SUSPENDED` o `CORPORATE_LIMIT_REQUIRED`, en `presentation/utils/corporate-eligibility-copy.ts`); habilitada, muestra "Te quedan $X este mes" con el menor remanente entre los topes vigentes.
+La pastilla "Corporativo" de "Método de pago" solo aparece con un vínculo empresarial (`GET /corporate/membership/me`, ya consumido por `useCorporateMembership` en Mi Cuenta): la elegibilidad para pagar así (`can_ride_on_account`, `reason`, `company_balance` y `consumption` por empleado/centro de costo/empresa) viaja en esa misma respuesta, mapeada en `CorporateMembershipMapper`. `useCorporateEligibility` (hook nuevo, no confundir con `useCorporateMembership`) la consulta una vez y la cachea 60 segundos en memoria de módulo, porque Home ("Viaje corporativo") y Cotización la piden casi al mismo tiempo. Sin vínculo, la pastilla ni se muestra; con vínculo pero sin permiso, se muestra deshabilitada y al tocarla explica el motivo (`COMPANY_SUSPENDED` o `CORPORATE_INSUFFICIENT_BALANCE`, en `presentation/utils/corporate-eligibility-copy.ts`; `CORPORATE_LIMIT_REQUIRED` queda por si responde un backend viejo); habilitada, muestra el saldo de la empresa y, si hay tope individual o de centro de costo vigente, también "Te quedan $X este mes" con el menor remanente entre esos dos.
+
+La empresa carga saldo antes de viajar (prepago): el límite mensual por empleado o centro de costo sigue existiendo como control interno opcional, pero ya no hace falta un límite de empresa configurado, y lo que habilita o no el viaje es el saldo disponible (`company_balance.available`, puede quedar chico en negativo y se recupera en la próxima carga). Si la tarifa elegida supera ese saldo, Cotización deshabilita la pastilla para esa tarifa puntual (`exceedsCompanyBalance` en `corporate-eligibility-copy.ts`) aunque `can_ride_on_account` siga en `true`.
 
 "Viaje corporativo" del Home hace lo mismo con `Alert.alert` (sin vínculo invita a Mi Cuenta; sin permiso explica el motivo) y, si puede, guarda `corporate` en `useTripStore.preferredPaymentMethod` antes de ir a `/search`: `useConfirmRide` arranca con ese medio ya elegido. La preferencia se limpia sola al empezar cualquier otro viaje (`startSearch`, elegir un reciente) y con `resetTrip()`.
 
-`POST /rides/{tripId}/confirm` con `corporate` no abre checkout (como efectivo): la empresa paga después por un resumen mensual que hoy no gestiona la app. El backend no expone selección de centro de costo al pasajero (solo un responsable podría elegirlo, y esta versión no lo ofrece), así que la app nunca manda `cost_center_id`. Errores propios de este medio (`presentation/utils/corporate-error-message.ts`): `CORPORATE_MEMBERSHIP_REQUIRED`, `COMPANY_SUSPENDED`, `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (con `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED`, `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. Ante cualquiera de estos, la pantalla vuelve el medio de pago a Mercado Pago y muestra el motivo, sin salir de Cotización.
+`POST /rides/{tripId}/confirm` con `corporate` no abre checkout (como efectivo): descuenta el saldo de la empresa, no genera deuda. El backend no expone selección de centro de costo al pasajero (solo un responsable podría elegirlo, y esta versión no lo ofrece), así que la app nunca manda `cost_center_id`. Errores propios de este medio (`presentation/utils/corporate-error-message.ts`): `CORPORATE_MEMBERSHIP_REQUIRED`, `COMPANY_SUSPENDED`, `CORPORATE_INSUFFICIENT_BALANCE` (409, con `details.available/required/currency`), `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (con `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED`, `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. Ante cualquiera de estos, la pantalla vuelve el medio de pago a Mercado Pago y muestra el motivo, sin salir de Cotización.
 
 Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador).
 
@@ -260,18 +318,28 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 | `searching` | Radar (`RadarPulse`) sobre el origen, "Contactando choferes VIP…", resumen del recorrido y "Cancelar búsqueda" |
 | `assigned` / `driver_arriving` | "Conductor en camino": ETA, distancia, chofer (nombre, calificación), auto con patente, Llamar / Chat (próximamente) y Cancelar |
 | `driver_arrived` | El mismo panel con "Tu chofer llegó" |
-| `in_progress` | **A bordo**: el auto va al destino, ETA ("12 min", "Llegada 10:18"), chofer y patente, barra con destino y "Compartir ETA" |
+| `in_progress` | **A bordo**: el auto va al destino, ETA ("12 min", "Llegada 10:18"), chofer y patente, barra con el destino |
 | `completed` | Pasa al recibo con `router.replace`: "atrás" no vuelve al mapa |
 | `cancelled` | Estado simple con "Volver al inicio" |
 
 - **REST es la verdad, el socket acelera.** `useActiveTrip` consulta `GET /rides/{tripId}` (estado, origen, destino, chofer y auto) y se suscribe a `core/api/realtime-client.ts`. Cada `trip:status_changed` muestra el estado nuevo al instante y vuelve a consultar el detalle; también se re-consulta al reconectar el socket, al volver del segundo plano y al confirmarse la entrada a la sala (`ride:joined`): un aviso emitido antes de entrar a la sala se pierde, y con tarjeta el pago suele acreditarse justo en ese hueco. Mientras el socket está caído, consulta cada 10 s y muestra "Reconectando…"; con el socket conectado, igual consulta cada 15 s mientras el viaje está en `draft` o `searching`, los estados que avanzan solos.
 - **Socket.IO** (`socket.io-client`): una sola conexión para toda la app, abierta solo mientras hay un viaje que seguir. El token va en `auth` como función, así cada reconexión usa el vigente; un rechazo por token vencido lo renueva y reconecta. Hay que emitir `ride:join` para entrar a la sala del viaje, y el cliente lo repite en cada reconexión. Con `__DEV__` deja logs `[socket]` en la consola de Metro.
 - **Despacho**: no lo pide la app. El backend ofrece solo los viajes en `searching` a los choferes cercanos cada 10 s y reintenta mientras nadie acepte.
-- **El auto** (`DriverCarMarker`) recibe `driver:location` cada ~3 s. `useAnimatedCoordinate` interpola entre posiciones durante esos 3 s (sin `AnimatedRegion`, que depende de clases internas de React Native) y gira la flecha según el rumbo; un salto de más de 1 km se mueve sin animar.
+- **El auto** (`DriverCarMarker`) recibe `driver:location` cada ~3 s: un sedán visto desde arriba, dibujado con `react-native-svg` (gradiente, sombra, parabrisas/luneta) en vez de una flecha. `useAnimatedCoordinate` interpola entre posiciones durante esos 3 s (sin `AnimatedRegion`, que depende de clases internas de React Native) y gira el auto según el rumbo; un salto de más de 1 km se mueve sin animar. La polilínea se recorta desde el punto de la ruta más cercano a la posición del chofer (`geo.trimRouteFromPosition`), así el tramo ya recorrido no queda dibujado detrás del auto.
 - **ETA y ruta al origen** (`useDriverEta`): Geoapify Routing detrás de `RoutesProvider` (`core/api/routes-provider.ts`, migrable a Google igual que los lugares). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición, para no gastar cuota. Si el proveedor falla, estima con la distancia en línea recta.
 - **Cancelar**: confirmación y `POST /rides/{tripId}/cancel` con `reason_code: passenger_cancelled`; vuelve al Home. La penalidad por cancelación todavía no existe en el backend.
 - **Viaje para un invitado**: si el detalle trae `third_party`, la pantalla muestra "Sos el coordinador · viaja `<nombre>`" (`CoordinatorBanner`) y, cuando el backend también manda `tracking_url` (solo al titular que pidió el viaje), un botón "Enviar seguimiento por WhatsApp" que abre `wa.me` al número del invitado con el link ya escrito. Sin chat: no hay forma de escribirle al invitado desde la app.
-- **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint), chat y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. Compartir ETA, Destino, Confort, Concierge, el botón de seguridad y el PDF del comprobante se muestran como en el diseño y avisan "Próximamente".
+- **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint) y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. El botón de seguridad, "Compartir ETA", "Confort" y "Concierge" de la barra y el panel "A bordo" se sacaron: no tenían funcionalidad propia (el seguimiento real del invitado sigue por `CoordinatorBanner`, más abajo). "Destino" queda y avisa "Próximamente". El chat con el chofer si esta implementado (ver mas abajo).
+
+### Chat del viaje
+
+Chat 1 a 1 con el chofer asignado, en `/chat/[tripId]` (`TripChatScreen`, hook `useTripChat`). Se entra desde el botón "Chat" de "Conductor en camino" y del panel "A bordo" (deshabilitado hasta que hay chofer asignado, con badge de mensajes sin leer) y desde el recibo, dentro de la ventana de gracia.
+
+- **REST siempre para leer y mandar**: `GET/POST /trips/{tripId}/messages` (paginación por cursor, `before` para historial viejo y `after` para "lo nuevo desde tal mensaje") y `POST /trips/{tripId}/messages/read`. El envío es optimista, con un `client_message_id` (UUID de `expo-crypto`) que identifica el intento y no el mensaje: reintentar un envío fallido con el mismo id nunca lo duplica (el backend responde 200 en vez de 201).
+- **Tiempo real como camino principal, con fallback a polling**: al abrir la pantalla se emite `chat.join` con un ack; si confirma, la pantalla se mantiene al día por los eventos del socket (`chat.message.created`, `chat.message.read`) y no hace polling periódico, solo catch-up puntual (`after`) al confirmarse el join, al reconectar el socket y al volver del segundo plano. Si nadie responde en 3 s o el ack llega `ok: false` (por ejemplo `FORBIDDEN`), o el socket está desconectado, cae a polling con `after` cada ~4 s mientras está enfocada y la app en primer plano, y recarga la página más reciente cada 15 s porque `after` no trae de vuelta los mensajes ya cargados (la lectura "Leído" sin tiempo real solo se nota así). El socket vuelve a pedir `chat.join` en cada reconexión (las salas de Socket.IO no sobreviven una caída) y, si esa vez confirma, la pantalla vuelve a tiempo real.
+- **Marcar como leído**: se manda con un debounce corto al ver mensajes nuevos del chofer, con el id del más reciente (el backend marca todos los anteriores).
+- **Estado cerrado**: si el backend responde `CHAT_CLOSED` (viaje terminado fuera de la ventana de gracia de 24 h, o intento del chofer con el viaje en curso) se oculta el cuadro de texto; el historial se puede seguir leyendo. La ventana de gracia la calcula el backend desde `finishedAt`/`cancelledAt`; la app no la replica y confía en la respuesta real de cada `POST`.
+- **429**: el backend limita a 20 mensajes por minuto y manda `Retry-After`; la pantalla muestra una cuenta regresiva y deshabilita el envío mientras dure.
 
 ### Recibo y calificación
 
@@ -280,25 +348,26 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 - Las estrellas arrancan en 0 y "Calificar y finalizar" queda deshabilitado hasta elegir al menos una. Los motivos (Puntualidad, Conducción suave, Vehículo impecable) viajan como `tags`.
 - `POST /rides/{tripId}/ratings` con `{ rating, tags? }`: 201 vuelve al Home y limpia el viaje en armado (`resetTrip`). Un 409 `RATING_ALREADY_EXISTS` se trata igual que el éxito (por ejemplo, un reintento).
 - "Omitir" y el botón atrás de Android vuelven al Home sin calificar. Si el viaje ya estaba calificado, se muestran las estrellas dadas y "Volver al inicio".
+- **"Descargar comprobante en PDF"**: arma un HTML con los mismos datos del recibo (`presentation/utils/receipt-pdf.ts`, función pura) y lo convierte en PDF con `expo-print` (`Print.printToFileAsync`); `useDownloadReceipt` es el hook de la acción, con estado de carga y error, y abre la hoja de compartir del sistema con `expo-sharing`. Por ahora solo está en `ReceiptScreen`: el detalle del historial (`/trips/[tripId]`) no tiene ese botón.
 
 Para probar sin la app del chofer hace falta un chofer que esté conectado por socket y mande su posición (una cuenta demo con un script). Swagger no alcanza: el despacho solo encuentra choferes online con ubicación.
 
 ## Mis viajes
 
-La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHistoryScreen`: historial paginado con filtros Todos / Completados / Cancelados, scroll infinito, pull to refresh y estado vacío.
+La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHistoryScreen`: historial paginado con filtros Todos / Reservados / Completados / Cancelados, scroll infinito, pull to refresh y estado vacío.
 
-- **Listado**: `GET /rides?page&limit&status` (rol pasajero, solicitante o pasajero, sin borradores). "Todos" no manda `status`: el backend ya devuelve todo lo no-borrador, incluidos los viajes en curso, así que ese filtro también muestra lo que está pasando ahora. "Completados" y "Cancelados" mandan `status=completed` / `status=cancelled`; el backend también acepta el alias `active` (todo lo que no sea `completed` ni `cancelled`), pero la app no lo necesita porque no ofrece ese filtro.
+- **Listado**: `GET /rides?page&limit&status` (rol pasajero, solicitante o pasajero, sin borradores). "Todos" no manda `status`: el backend ya devuelve todo lo no-borrador, incluidos los viajes en curso, así que ese filtro también muestra lo que está pasando ahora. "Reservados", "Completados" y "Cancelados" mandan `status=scheduled` / `completed` / `cancelled`; el backend también acepta el alias `active` (todo lo que no sea `completed` ni `cancelled`), pero la app no lo necesita porque no ofrece ese filtro.
 - **Paginación**: a mano, sin TanStack Query (decisión del ticket). `useTripHistory` guarda un `requestId` que se incrementa en cada pedido: una respuesta que llega con un id viejo (por ejemplo, la del filtro anterior, tarde) se descarta en vez de pisar la lista. Cambiar de filtro reinicia la página a 1; `loadMore` no dispara un segundo pedido mientras uno sigue en marcha ni pasado el último `total_pages`.
-- **Tarjeta**: ícono del servicio, destino (o el origen si no hay destino), fecha (`formatTripDate`, ver abajo) y tarifa (`final_fare` o, si todavía no hay, `estimated_fare`). Muestra "Cancelado" (rojo), un tilde gold para "Completado" o "En curso" (gold) para cualquier otro estado, y "Para `<nombre>`" si el viaje es para un invitado.
+- **Tarjeta**: ícono del servicio, destino (o el origen si no hay destino), fecha (`formatTripDate`, ver abajo) y tarifa (`final_fare` o, si todavía no hay, `estimated_fare`). Muestra "Cancelado" (rojo), un tilde gold para "Completado", "Reservado" (gold) para un viaje reservado sin activar o "En curso" (gold) para cualquier otro estado, y "Para `<nombre>`" si el viaje es para un invitado. Un reservado muestra la hora de retiro pedida (`scheduledAt`, con `formatReservationDate`/`formatClockTime`) en vez de cuándo se armó el viaje.
 - **Fechas relativas**: `presentation/utils/format-date.ts` calcula "Hoy, 15:30" / "Ayer, 15:30" / "Hace 3 días" a mano (no con `Intl.RelativeTimeFormat`, que no arma ese formato) y usa `Intl.DateTimeFormat` para el resto ("14 de agosto, 15:30", con el año si no es el actual). Recibe `now` como parámetro para que el resultado sea determinista.
-- **Toque en una tarjeta**: un viaje activo (ni completado ni cancelado) va a `/trip/[tripId]` (la pantalla en vivo); el resto va al detalle, `/trips/[tripId]` (plural, distinto de `/trip/[tripId]`).
+- **Toque en una tarjeta**: un reservado sin activar (`status: 'scheduled'`) o ya terminado (completado o cancelado) va al detalle, `/trips/[tripId]` (plural, distinto de `/trip/[tripId]`); cualquier otro estado activo va a `/trip/[tripId]`, la pantalla en vivo.
 - **Detalle** (`TripDetailScreen`): relee `GET /rides/{tripId}`, que además del detalle que ya usaba el recibo trae `service_type` (categoría elegida) y `fare_breakdown` (`base`, `distance`, `time`, `discount`, `fees`, `total`, todos como texto). Si el desglose no coincide con `final_fare` (puede pasar: el total cotizado no es necesariamente lo que se liquidó), se muestra aparte como "Total cobrado" con una aclaración. El descuento y los cargos solo se muestran si son mayores a cero. Un viaje cancelado muestra `cancelled_at`; el motivo (`cancellation_reason_code`) solo se traduce si hay una entrada en `CANCELLATION_REASON_LABELS` (hoy, solo `passenger_cancelled`) — cualquier otro código se omite en vez de mostrar el código crudo.
 - Los textos de medio y estado de pago (`PAYMENT_METHOD_LABELS`, `PAYMENT_STATUS_LABELS`) están en `presentation/utils/payment-labels.ts`, compartidos con `ReceiptScreen`.
 
 ## API y sesión
 
 - **Cliente**: `core/api/transfer-black-api.ts`, instancia de Axios con `baseURL = EXPO_PUBLIC_API_URL`. Documentación del backend: https://transfer-black-api.onrender.com/docs
-- **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend.
+- **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`, `retryAfterSeconds`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend. `message` puede llegar como un array de `issues` de Zod en `VALIDATION_ERROR`; el interceptor lo junta en un solo texto. El interceptor también reconoce el formato viejo del chat (error en la raíz, `{ code, message }`, en vez de `{ error: { code, message } }` como el resto de la API) como respaldo, por si algún ambiente no se redesplegó con el arreglo del backend. `retryAfterSeconds` sale del header `Retry-After` (hoy solo lo manda el 429 del chat).
 - **Timeout de 60s**: el backend en Render se duerme tras unos minutos sin tráfico y la primera solicitud puede tardar cerca de un minuto en despertarlo.
 - **Tokens**: `useAuthStore` (Zustand) guarda el access token solo en memoria y el refresh token en `expo-secure-store` (Keychain / Keystore; AsyncStorage no cifra). El interceptor de solicitud agrega `Authorization: Bearer` con el access token vigente.
 - **Renovación**: el access token dura 15 minutos. Ante un 401, el interceptor de respuesta pide `POST /auth/refresh`, guarda el refresh token nuevo (rota en cada uso) y repite la solicitud una vez. Las solicitudes que fallan a la vez esperan la misma renovación (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh token cerraría la sesión. Si el backend rechaza el refresh token, el 401 llega a la pantalla y `handleExpiredSession()` vuelve al login; si la renovación falla por red, la pantalla recibe un error de conexión y la sesión sigue.
@@ -322,7 +391,7 @@ Las reglas de contraseña del formulario replican las del backend: 8 a 128 carac
 - El formulario solo exige contraseña no vacía, sin reglas de fortaleza: una cuenta creada antes de que cambiaran tiene que poder entrar.
 - Una cuenta sin rol `passenger` (conductor, administrador) no se guarda en el store y ve un aviso: esta app es solo para pasajeros.
 - Destino: `/home` si el correo está verificado, `/verify-email` si no.
-- "¿Olvidaste tu contraseña?" solo informa: el backend no tiene endpoint de recuperación.
+- "¿Olvidaste tu contraseña?" lleva a `/forgot-password`, precargando el correo si ya es válido.
 - Login y registro se enlazan entre sí con `router.replace`, para que ir y volver no apile pantallas.
 
 ### Verificación de correo (PIN)
@@ -340,6 +409,33 @@ El correo trae un PIN de 6 dígitos. `POST /auth/verify-email` con `{ "token": "
 - Las cajas son `react-native-otp-entry` (`OtpCodeInput`): foco automático, avance y pegado. Recibe estilos como objetos en `theme`, no `className`, por eso usa la paleta de `colors.js` y la familia `Montserrat_700Bold`. Se envía solo al completar el sexto dígito; el botón "Validar Identidad" queda para reintentar.
 - No usa `blurOnFilled` ni se deshabilita mientras valida: en Android el teclado no vuelve a abrirse con `focus()` después de un blur o de un input deshabilitado.
 - **Reenviar código**: `POST /auth/resend-verification` (202). El contador (`useCountdown`, 45 s) arranca al montar la pantalla y se reinicia con cada reenvío; coincide con el cooldown del backend. Si igual responde 429 `VERIFICATION_RECENTLY_SENT`, el contador toma `details.retry_in_seconds`. Un 409 `EMAIL_ALREADY_VERIFIED` lleva directo a `/home`.
+
+### Recuperación de contraseña (PIN por email)
+
+Tres pantallas sin sesión, encadenadas con `router.push`/`router.replace` (`/forgot-password` →
+`/reset-password-verify` → `/reset-password`):
+
+1. **`/forgot-password`** (`ForgotPasswordScreen`, hook `useForgotPasswordForm`): pide el correo y
+   llama a `POST /auth/forgot-password`. Siempre responde 202 (exista o no la cuenta, para no
+   enumerar usuarios): la app no interpreta el cuerpo, solo sigue al paso del PIN y lo avisa recién
+   ahí ("Si `<email>` está registrado, te enviamos un código de 6 dígitos..."). El correo viaja como
+   parámetro de ruta al siguiente paso.
+2. **`/reset-password-verify`** (`ResetPasswordVerifyScreen`, hook `useResetPasswordVerify`): el
+   mismo `OtpCodeInput` de 6 dígitos que la verificación de email, contra
+   `POST /auth/reset-password/verify` (`{ email, code }`). Comparte con `useVerifyEmail` el
+   describer de errores `VERIFICATION_CODE_*` (`presentation/utils/verification-code-error.ts`):
+   `INVALID` (intentos restantes si vienen), `EXPIRED` y `LOCKED` (429, pedir uno nuevo). "Reenviar
+   código" vuelve a llamar `forgot-password` con el mismo cooldown de 45 s. Al validar, el
+   `reset_token` (10 minutos, un solo uso) se guarda en memoria en `usePasswordResetStore` —no en la
+   URL, a diferencia del correo— y navega al paso final.
+3. **`/reset-password`** (`ResetPasswordScreen`, hook `useResetPasswordForm`): contraseña nueva +
+   repetir (mismas reglas que el registro, compartidas ahora en
+   `presentation/utils/auth-form-fields.ts#passwordField`), contra `POST /auth/reset-password`
+   (`{ reset_token, new_password }`). Sin `reset_token` en memoria, redirige a `/forgot-password`. El
+   éxito limpia `usePasswordResetStore`, limpia también la sesión local si hubiera una
+   (`useAuthStore.clearSession()`, porque el backend ya revocó todas las del usuario) y manda a
+   `/login`. Un `reset_token` vencido o ya usado (`RESET_TOKEN_INVALID`) avisa y vuelve a pedir uno
+   nuevo desde `/forgot-password`.
 
 Los mensajes de conexión, timeout y validación comunes a los formularios salen de `presentation/utils/api-error-message.ts`, y la validación de email compartida, de `presentation/utils/auth-form-fields.ts`.
 

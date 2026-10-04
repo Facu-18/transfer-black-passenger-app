@@ -19,6 +19,7 @@ import { TripStatusPanel } from '@/presentation/components/TripStatusPanel';
 import { useActiveTrip } from '@/presentation/hooks/useActiveTrip';
 import { useAnimatedCoordinate } from '@/presentation/hooks/useAnimatedCoordinate';
 import { useCancelTrip } from '@/presentation/hooks/useCancelTrip';
+import { useChatUnreadCount } from '@/presentation/hooks/useChatUnreadCount';
 import { useDriverEta } from '@/presentation/hooks/useDriverEta';
 import { useTripStore } from '@/presentation/store/useTripStore';
 
@@ -98,6 +99,10 @@ export function ActiveTripScreen() {
   const onPanelLayout = (event: LayoutChangeEvent) => setPanelHeight(event.nativeEvent.layout.height);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
+
+  // Badge del chat: solo tiene sentido con chofer asignado y esta pantalla al frente.
+  const unreadChatCount = useChatUnreadCount(tripId, trip?.driverId != null && !isFinished);
+
   const showBoardingPin =
     trip?.requirePin === true &&
     trip.boardingPin !== null &&
@@ -204,9 +209,10 @@ export function ActiveTripScreen() {
               distanceKm={eta.distanceKm}
               isCancelling={isCancelling}
               onCancel={() => requestCancel(true)}
+              unreadChatCount={unreadChatCount}
             />
           ) : onBoard && trip ? (
-            <OnBoardPanel trip={trip} etaMinutes={eta.minutes} />
+            <OnBoardPanel trip={trip} etaMinutes={eta.minutes} unreadChatCount={unreadChatCount} />
           ) : (
             <TripStatusPanel
               status={trip?.status ?? null}

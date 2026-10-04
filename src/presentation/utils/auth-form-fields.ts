@@ -14,3 +14,12 @@ export const optionalEmailField = z
   .trim()
   .transform((value) => (value.length === 0 ? null : value))
   .pipe(z.union([z.null(), z.email('Ingresa un correo válido').max(320, 'El correo es demasiado largo')]));
+
+/** Regla de contraseña del registro (`register-passenger.dto`), tambien valida para definir una nueva. */
+export const passwordField = z
+  .string()
+  .min(8, 'Mínimo 8 caracteres')
+  .max(128, 'Máximo 128 caracteres')
+  .regex(/[a-z]/, 'Debe incluir una minúscula')
+  .regex(/[A-Z]/, 'Debe incluir una mayúscula')
+  .regex(/[0-9]/, 'Debe incluir un número');

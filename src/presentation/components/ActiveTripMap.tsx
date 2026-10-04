@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Platform, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { colors } from '@/presentation/theme/colors';
 import { darkMapStyle } from '@/presentation/theme/map-style';
+import { trimRouteFromPosition } from '@/presentation/utils/geo';
 
 import { DriverCarMarker } from './DriverCarMarker';
 
@@ -72,6 +73,17 @@ export function ActiveTripMap({
 
   const locked = mode === 'searching';
 
+  // El tramo ya recorrido no se dibuja: se recorta la polilinea desde el punto
+  // de la ruta mas cercano a donde esta el auto ahora.
+  const driverLatitude = driver?.coordinate.latitude;
+  const driverLongitude = driver?.coordinate.longitude;
+  const visibleRoute = useMemo(() => {
+    if (driverLatitude === undefined || driverLongitude === undefined || routePoints.length < 2) {
+      return routePoints;
+    }
+    return trimRouteFromPosition(routePoints, { latitude: driverLatitude, longitude: driverLongitude });
+  }, [routePoints, driverLatitude, driverLongitude]);
+
   return (
     <MapView
       ref={mapRef}
@@ -89,8 +101,8 @@ export function ActiveTripMap({
       showsCompass={false}
       toolbarEnabled={false}
     >
-      {mode === 'tracking' && routePoints.length > 1 ? (
-        <Polyline coordinates={routePoints} strokeColor={colors.gold} strokeWidth={4} />
+      {mode === 'tracking' && visibleRoute.length > 1 ? (
+        <Polyline coordinates={visibleRoute} strokeColor={colors.gold} strokeWidth={4} zIndex={1} />
       ) : null}
 
       {/* Durante la busqueda el origen lo dibuja el radar, encima del mapa. */}

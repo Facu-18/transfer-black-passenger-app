@@ -71,3 +71,25 @@ export interface VerificationErrorDetails {
   /** 429 `VERIFICATION_RECENTLY_SENT`: segundos hasta poder pedir otro correo. */
   retry_in_seconds?: number;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface VerifyResetPasswordRequest {
+  email: string;
+  /** PIN de 6 digitos. */
+  code: string;
+}
+
+export interface VerifyResetPasswordResponse {
+  /** Token de un solo uso, 10 minutos, para `POST /auth/reset-password`. */
+  reset_token: string;
+  /** Segundos de vida de `reset_token`. */
+  expires_in: number;
+}
+
+export interface ResetPasswordRequest {
+  reset_token: string;
+  new_password: string;
+}

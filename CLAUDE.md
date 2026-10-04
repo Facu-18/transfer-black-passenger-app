@@ -83,15 +83,42 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Render se duerme:** la primera solicitud tras un rato sin tráfico puede tardar ~1 minuto; por eso
   el timeout de Axios es de 60 s. No es un bug de la app.
 - **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
-- **Cuenta corriente corporativa** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
-  checkout, como efectivo. La elegibilidad para pagar así no sale de un endpoint aparte: viaja en
-  `GET /corporate/membership/me` (`can_ride_on_account`, `reason`, `consumption` por empleado/centro
-  de costo/empresa). Errores al confirmar: `CORPORATE_MEMBERSHIP_REQUIRED` (403),
-  `COMPANY_SUSPENDED`, `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (409, con
-  `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED` (403),
-  `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. La app no ofrece elegir centro de costo
-  (solo lo puede mandar un responsable, y esta versión no lo expone), así que nunca manda
-  `cost_center_id`.
+- **Chat del viaje:** las rutas cuelgan de `/trips/:tripId/messages` (no `/rides/...`), montadas bajo el mismo
+  `/api/v1` que el resto. Desde el backend `e0a5f77` los errores del chat vienen envueltos en
+  `{ error: { code, message } }` como el resto de la API (antes iban en la raíz, `{ code, message }`: el
+  interceptor sigue reconociendo esa forma vieja por si algún ambiente no se redesplegó); en
+  `VALIDATION_ERROR` `message` es el array de `issues` de Zod (objetos con `message`, `path`, no strings
+  sueltos). El `senderRole` real de un mensaje es `'passenger' | 'provider'`: el contrato del backend
+  (`chat-contract.md`) documenta `'passenger'` pero nunca muestra el valor del lado del chofer, que es
+  `'provider'` y no `'driver'` como sugeriría el resto de la API. El `ChatGateway` de Socket.IO ya se
+  instancia en el servidor (mismo namespace y autenticación que el seguimiento del viaje): `chat.join`
+  confirma con ack y la app se mantiene por eventos, con polling solo como respaldo si el ack falla o
+  tarda, o si el socket está caído. La sala del chat es `ride_<tripId>` (guion bajo), distinta de la sala
+  del seguimiento del viaje, `ride:<tripId>` (dos puntos): entrar a una no entra a la otra. Las salas de
+  Socket.IO se pierden en cada reconexión, así que hay que volver a mandar `chat.join`. La ventana de
+  gracia post-viaje (`CHAT_CLOSED` a las 24 h) la calcula el backend desde `finishedAt`/`cancelledAt`
+  (antes era desde `updatedAt`); la app no la replica y confía en la respuesta real de cada `POST`.
+- **Saldo prepago corporativo** (`payment.type: 'corporate'` en `POST /rides/{tripId}/confirm`): no abre
+  checkout, como efectivo; descuenta el saldo que la empresa ya cargó (prepago, no cuenta corriente). La
+  elegibilidad para pagar así no sale de un endpoint aparte: viaja en `GET /corporate/membership/me`
+  (`can_ride_on_account`, `reason`, `company_balance.available` y `consumption` por empleado/centro de
+  costo/empresa, este último ya opcional). Si la tarifa elegida supera `company_balance.available`, la
+  app deshabilita la pastilla para esa tarifa aunque `can_ride_on_account` siga en `true`. Errores al
+  confirmar: `CORPORATE_MEMBERSHIP_REQUIRED` (403), `COMPANY_SUSPENDED`, `CORPORATE_INSUFFICIENT_BALANCE`
+  (409, con `details.available/required/currency`), `CORPORATE_LIMIT_REQUIRED` (por compatibilidad con un
+  backend viejo), `CORPORATE_LIMIT_EXCEEDED` (409, con `details.scope/limit/committed/remaining`),
+  `COST_CENTER_NOT_ALLOWED` (403), `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. La app no
+  ofrece elegir centro de costo (solo lo puede mandar un responsable, y esta versión no lo expone), así
+  que nunca manda `cost_center_id`.
+- **Recuperar contraseña** son tres endpoints públicos: `POST /auth/forgot-password` `{ email }`
+  siempre responde 202 (exista o no la cuenta, para no enumerar usuarios; si está en cooldown de
+  reenvío tampoco lo avisa, solo no manda nada nuevo); `POST /auth/reset-password/verify`
+  `{ email, code }` → `{ reset_token, expires_in }` (10 min, un solo uso, se rota si se vuelve a
+  verificar un PIN válido) — un email inexistente responde igual que un PIN inválido,
+  `VERIFICATION_CODE_INVALID`, sin `details.attempts_remaining`; y `POST /auth/reset-password`
+  `{ reset_token, new_password }`, que revoca **todas** las refresh sessions del usuario (tiene que
+  volver a iniciar sesión en todos sus dispositivos) y falla con `RESET_TOKEN_INVALID` si el token
+  es desconocido, ya se usó o venció.
 - **Servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros) no existen en el backend: viven solo en
   `presentation/utils/whatsapp-services.ts`, no se cotizan ni crean viaje, y abren `wa.me` con origen
   y destino ya escritos. Se muestran aunque la cotización falle.
@@ -109,16 +136,32 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   suma `service_type` (categoría) y `fare_breakdown` (`base`/`distance`/`time`/`discount`/`fees`/
   `total`, como texto); `cancelled_at` y `cancellation_reason_code` ya estaban en el contrato pero la
   app no los tipaba. Sin TanStack Query en el listado: es una decisión del ticket, no un olvido.
+- **Viajes reservados** (`booking_type: 'scheduled'`): la agencia los crea a mano desde Swagger (no
+  hay panel todavía) con fecha y hora fijas (`scheduled_at`) y, opcionalmente, un chofer fijo; el
+  pasajero ya los paga por adelantado (`prepaid_at`, por WhatsApp con la agencia, no desde la app) y
+  el backend los activa solo unos 20 minutos antes del horario (pasan a `assigned` o `searching`, con
+  los avisos de siempre). Mientras siguen en `scheduled`, `GET /rides`, `GET /rides/{tripId}` y el
+  nuevo `GET /rides/upcoming` (los reservados del pasajero sin activar, más próximos primero; mismo
+  sobre `{ trips: [...] }` que el historial) traen también `reserved_driver` (el chofer que la
+  agencia le asignó, sin teléfono; en el detalle con avatar y calificación, en el historial sin
+  ninguno de los dos) en vez de `driver`/`vehicle`, que siguen en `null` hasta que se activa. El
+  pasajero no puede cancelar uno ya pago desde la app: `POST /rides/{tripId}/cancel` responde 409
+  `SCHEDULED_TRIP_CANCEL_VIA_AGENCY` y hay que escribirle a la agencia (ella gestiona el reembolso si
+  corresponde); un admin sí puede, por el mismo endpoint.
 
 ## Estado y pendientes
 
-Terminado: registro, login, verificación por PIN, home con mapa, búsqueda de direcciones,
-cotización, pago (Mercado Pago y efectivo), radar, chofer en camino, viaje a bordo, recibo,
-calificación, viaje para un pasajero invitado e historial de viajes (listado con filtros y detalle).
+Terminado: registro, login, verificación por PIN, recuperación de contraseña (PIN por email), home
+con mapa, búsqueda de direcciones, cotización, pago (Mercado Pago y efectivo), radar, chofer en
+camino, viaje a bordo, recibo, calificación, viaje para un pasajero invitado, historial de viajes
+(listado con filtros y detalle), chat con el chofer asignado, reserva de un viaje por WhatsApp (sin
+backend propio: la agencia arregla precio y lo crea a mano) y, del lado de ese mismo viaje reservado
+una vez creado por la agencia, su "Próximo viaje" en el home, su filtro y tarjeta en el historial, y
+su detalle (con cancelación bloqueada hacia la agencia).
 
 Pendiente, no por olvido:
 
-- PIN de validación a bordo, chat y llamada: el backend no tiene endpoint ni expone el teléfono.
+- PIN de validación a bordo y llamada: el backend no tiene endpoint ni expone el teléfono.
 - Reembolso y penalidad al cancelar: falta definir la política (especificación §24, punto 12).
 - Restaurar la sesión al abrir la app, y por lo tanto retomar un viaje activo si la app se cerró.
 - `back_urls` / deep link de vuelta desde el checkout.

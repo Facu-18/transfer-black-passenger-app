@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { MessageCircle, Phone, Star, X, type LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, Image, Pressable, View } from 'react-native';
 
@@ -17,6 +18,8 @@ interface DriverEnRoutePanelProps {
   distanceKm: number | null;
   isCancelling: boolean;
   onCancel: () => void;
+  /** Mensajes del chofer sin leer, para el badge del boton de chat. */
+  unreadChatCount?: number;
 }
 
 const countFormatter = new Intl.NumberFormat('es-AR');
@@ -29,24 +32,37 @@ function ActionButton({
   icon: Icon,
   label,
   loading = false,
+  disabled = false,
+  badgeCount = 0,
   onPress,
 }: {
   icon: LucideIcon;
   label: string;
   loading?: boolean;
+  disabled?: boolean;
+  badgeCount?: number;
   onPress: () => void;
 }) {
+  const isDisabled = loading || disabled;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ busy: loading, disabled: loading }}
-      disabled={loading}
+      accessibilityState={{ busy: loading, disabled: isDisabled }}
+      disabled={isDisabled}
       onPress={onPress}
-      className="flex-1 items-center gap-2 active:opacity-80"
+      className={`flex-1 items-center gap-2 active:opacity-80 ${disabled && !loading ? 'opacity-40' : ''}`}
     >
       <View className="h-14 w-14 items-center justify-center rounded-full bg-charcoal">
         {loading ? <ActivityIndicator color={colors.platinum} /> : <Icon size={22} color={colors.platinum} />}
+        {badgeCount > 0 ? (
+          <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-gold px-1 py-0.5">
+            <Typography variant="caption" weight="bold" tone="inverse">
+              {badgeCount > 9 ? '9+' : badgeCount}
+            </Typography>
+          </View>
+        ) : null}
       </View>
       <Typography variant="caption" weight="medium" tone="secondary">
         {label}
@@ -63,6 +79,7 @@ export function DriverEnRoutePanel({
   distanceKm,
   isCancelling,
   onCancel,
+  unreadChatCount = 0,
 }: DriverEnRoutePanelProps) {
   const { driver, vehicle } = trip;
 
@@ -143,7 +160,13 @@ export function DriverEnRoutePanel({
 
       <View className="flex-row">
         <ActionButton icon={Phone} label="Llamar" onPress={() => showComingSoon('La llamada con tu chofer')} />
-        <ActionButton icon={MessageCircle} label="Chat" onPress={() => showComingSoon('El chat con tu chofer')} />
+        <ActionButton
+          icon={MessageCircle}
+          label="Chat"
+          disabled={!trip.driverId}
+          badgeCount={unreadChatCount}
+          onPress={() => router.push({ pathname: '/chat/[tripId]', params: { tripId: trip.id } })}
+        />
         <ActionButton icon={X} label="Cancelar" loading={isCancelling} onPress={onCancel} />
       </View>
     </View>

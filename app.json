@@ -57,7 +57,8 @@
           "defaultChannel": "default"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-sharing"
     ],
     "extra": {
       "router": {},

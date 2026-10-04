@@ -18,12 +18,14 @@ const TAB_BAR_SPACE = 112;
 
 const FILTERS: { value: TripHistoryFilter; label: string }[] = [
   { value: 'all', label: 'Todos' },
+  { value: 'scheduled', label: 'Reservados' },
   { value: 'completed', label: 'Completados' },
   { value: 'cancelled', label: 'Cancelados' },
 ];
 
 const EMPTY_COPY: Record<TripHistoryFilter, string> = {
   all: 'Todavía no hiciste ningún viaje. Tu próximo destino te espera.',
+  scheduled: 'No tenés viajes reservados.',
   completed: 'Todavía no tenés viajes completados.',
   cancelled: 'No tenés viajes cancelados.',
 };
@@ -77,11 +79,13 @@ export function TripHistoryScreen() {
   const [now] = useState(() => new Date());
 
   const goToTrip = (item: TripHistoryItem) => {
-    if (!FINISHED_TRIP_STATUSES.includes(item.status)) {
-      router.push({ pathname: '/trip/[tripId]', params: { tripId: item.id } });
+    // Reservado sin activar (todavía `scheduled`): mismo detalle que un viaje
+    // terminado, no la pantalla de seguimiento en vivo.
+    if (item.status === 'scheduled' || FINISHED_TRIP_STATUSES.includes(item.status)) {
+      router.push({ pathname: '/trips/[tripId]', params: { tripId: item.id } });
       return;
     }
-    router.push({ pathname: '/trips/[tripId]', params: { tripId: item.id } });
+    router.push({ pathname: '/trip/[tripId]', params: { tripId: item.id } });
   };
 
   return (

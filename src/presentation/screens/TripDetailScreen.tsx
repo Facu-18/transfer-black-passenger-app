@@ -1,19 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, MessageCircle } from 'lucide-react-native';
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { TripStatus } from '@/infrastructure/interfaces/trips';
+import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { PlatePill } from '@/presentation/components/PlatePill';
 import { RatingStars } from '@/presentation/components/RatingStars';
+import { SecondaryButton } from '@/presentation/components/SecondaryButton';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { TripRouteCard } from '@/presentation/components/TripRouteCard';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
+import { useCancelReservedTrip } from '@/presentation/hooks/useCancelReservedTrip';
 import { useTripDetail } from '@/presentation/hooks/useTripDetail';
 import { colors } from '@/presentation/theme/colors';
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
+import { contactWhatsAppToCancelReservation } from '@/presentation/utils/whatsapp-services';
 
 const STATUS_LABELS: Record<TripStatus, string> = {
   draft: 'Confirmando pago',
@@ -88,6 +92,8 @@ export function TripDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { trip, isLoading, error, notFound, retry } = useTripDetail(tripId);
+  const { requestCancel: requestCancelReservation, isCancelling: isCancellingReservation, needsAgencyContact } =
+    useCancelReservedTrip(tripId, { onCancelled: retry });
 
   // Sin ninguna fecha del viaje no se muestra nada: la de hoy seria un dato falso.
   const tripDate = trip ? (trip.startedAt ?? trip.finishedAt ?? trip.cancelledAt) : null;
@@ -100,6 +106,21 @@ export function TripDetailScreen() {
   const alreadyRated = trip?.ratingGiven !== null && trip?.ratingGiven !== undefined;
   const canRate = trip?.status === 'completed' && !alreadyRated;
   const cancellationLabel = trip?.cancellationReasonCode ? CANCELLATION_REASON_LABELS[trip.cancellationReasonCode] : null;
+
+  // Reservado todavia no activado: fecha fija de retiro, pago por adelantado
+  // y, si ya hay, el chofer que la agencia le asigno (sin vehiculo/chofer
+  // definitivo hasta que el sistema active el viaje).
+  const isPendingReservation = trip?.bookingType === 'scheduled' && trip.status === 'scheduled';
+
+  // Si entre la lista y este detalle el viaje ya se activo (o la app vuelve a
+  // esta pantalla con eso ya pasado), el seguimiento en vivo es lo que
+  // corresponde mostrar, no este detalle de "viaje terminado".
+  useEffect(() => {
+    if (!tripId || !trip) return;
+    if (trip.bookingType !== 'scheduled') return;
+    if (trip.status === 'scheduled' || FINISHED_TRIP_STATUSES.includes(trip.status)) return;
+    router.replace({ pathname: '/trip/[tripId]', params: { tripId } });
+  }, [tripId, trip]);
 
   return (
     <View className="flex-1 bg-obsidian">
@@ -177,15 +198,84 @@ export function TripDetailScreen() {
               </Section>
             ) : null}
 
-            <Section title="Pago">
-              <BreakdownRow
-                label="Medio de pago"
-                value={PAYMENT_METHOD_LABELS[trip.paymentMethod] ?? 'Pago'}
-              />
-              {trip.paymentStatus ? (
-                <BreakdownRow label="Estado del pago" value={PAYMENT_STATUS_LABELS[trip.paymentStatus]} />
-              ) : null}
-            </Section>
+            {isPendingReservation ? (
+              <Section title="Reserva">
+                <BreakdownRow
+                  label="Retiro"
+                  value={trip.scheduledAt ? dateTimeFormatter.format(trip.scheduledAt) : '—'}
+                />
+                <BreakdownRow
+                  label="Estado del pago"
+                  value={trip.prepaidAt ? 'Pagado' : 'Pendiente de pago'}
+                  tone={trip.prepaidAt ? 'accent' : 'primary'}
+                />
+                {trip.reservedDriver ? (
+                  <View className="flex-row items-center gap-3 pt-1">
+                    {trip.reservedDriver.avatarUrl ? (
+                      <Image source={{ uri: trip.reservedDriver.avatarUrl }} className="h-10 w-10 rounded-full" />
+                    ) : (
+                      <View className="h-10 w-10 items-center justify-center rounded-full border border-gold/40 bg-gold/10">
+                        <Typography weight="bold" tone="accent">
+                          {trip.reservedDriver.initials}
+                        </Typography>
+                      </View>
+                    )}
+                    <View className="flex-1">
+                      <Typography weight="semibold">{trip.reservedDriver.displayName}</Typography>
+                      {trip.reservedVehicle ? (
+                        <Typography variant="caption" tone="secondary" numberOfLines={1}>
+                          {trip.reservedVehicle.name}
+                        </Typography>
+                      ) : null}
+                    </View>
+                    {trip.reservedVehicle ? <PlatePill plate={trip.reservedVehicle.plate} /> : null}
+                  </View>
+                ) : (
+                  <Typography tone="secondary">Se asigna un chofer antes del viaje.</Typography>
+                )}
+                <Typography variant="caption" tone="secondary">
+                  El viaje se activa unos minutos antes del horario.
+                </Typography>
+              </Section>
+            ) : (
+              <Section title="Pago">
+                <BreakdownRow
+                  label="Medio de pago"
+                  value={PAYMENT_METHOD_LABELS[trip.paymentMethod] ?? 'Pago'}
+                />
+                {trip.paymentStatus ? (
+                  <BreakdownRow label="Estado del pago" value={PAYMENT_STATUS_LABELS[trip.paymentStatus]} />
+                ) : null}
+              </Section>
+            )}
+
+            {isPendingReservation ? (
+              needsAgencyContact ? (
+                <View className="gap-3 rounded-2xl border border-gold/40 bg-gold/10 p-4">
+                  <Typography tone="secondary">
+                    Para cancelar un viaje reservado, escribile a la agencia por WhatsApp.
+                  </Typography>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Escribir a la agencia por WhatsApp"
+                    onPress={() => contactWhatsAppToCancelReservation(trip.publicCode)}
+                    className="flex-row items-center justify-center gap-2 self-start rounded-full bg-gold px-4 py-2 active:opacity-80"
+                  >
+                    <MessageCircle size={16} color={colors.obsidian} />
+                    <Typography variant="caption" weight="bold" tone="inverse">
+                      Escribir a la agencia
+                    </Typography>
+                  </Pressable>
+                </View>
+              ) : (
+                <SecondaryButton
+                  title="Cancelar reserva"
+                  tone="danger"
+                  loading={isCancellingReservation}
+                  onPress={requestCancelReservation}
+                />
+              )
+            ) : null}
 
             {trip.driver ? (
               <Section title="Chofer y vehículo">
