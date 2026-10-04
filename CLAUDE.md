@@ -82,7 +82,16 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   cada reintento, se puede cobrar dos veces.
 - **Render se duerme:** la primera solicitud tras un rato sin tráfico puede tardar ~1 minuto; por eso
   el timeout de Axios es de 60 s. No es un bug de la app.
-- **Cancelar** pide `reason_code` (no `reason`), y hoy **no reembolsa** el pago de Mercado Pago.
+- **Cancelar** pide `reason_code` (no `reason`). El reembolso por Mercado Pago es **automático** solo si
+  el pasajero cancela dentro de los primeros `CANCELLATION_AUTO_REFUND_WINDOW_SECONDS` (5 min) desde que
+  se acreditó el pago; pasada esa ventana queda **por reclamo** (lo resuelve un admin a mano, sin llamar a
+  Mercado Pago). Si cancela el chofer, un admin o el sistema (por ejemplo `no_driver_found`, sin chofer
+  tras `TRIP_SEARCH_TIMEOUT_MINUTES`) siempre es automático: nunca es culpa del pasajero. Un reservado
+  prepago siempre es por reclamo, sin importar quién cancele ni la ventana. `GET /rides/{tripId}/
+  cancellation-preview` adelanta `refund_mode` (`automatic` / `claim` / `none`) y `auto_refund_window_ends_at`
+  antes de cancelar de verdad; la respuesta de `POST /rides/{tripId}/cancel` trae el mismo `refund_mode` en
+  `cancellation`, y el detalle del viaje (`GET /rides/{tripId}`) expone el reintegro en curso en `refund`
+  (`status` puede ser `claim_required`).
 - **Chat del viaje:** las rutas cuelgan de `/trips/:tripId/messages` (no `/rides/...`), montadas bajo el mismo
   `/api/v1` que el resto. Desde el backend `e0a5f77` los errores del chat vienen envueltos en
   `{ error: { code, message } }` como el resto de la API (antes iban en la raíz, `{ code, message }`: el
