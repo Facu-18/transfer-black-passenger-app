@@ -37,6 +37,7 @@ The user likes the existing structure and color palette but wants the overall in
 - Android performance: no broad/dynamic blur or added dependency; translucent fills, thin highlights, and restrained elevation are used instead.
 - Verification: `npm run typecheck` could not start because `npm` is not recognized in this environment. Equivalent compiler check via bundled Node (`node node_modules/typescript/bin/tsc --noEmit`) passed (exit 0).
 - Verification: `npx expo export --platform android` could not start because `npx` is unavailable. Expo CLI export via bundled Node reached Metro, then failed with `hermesc.exe: permission denied` while generating Hermes bytecode; no device-level visual run was available.
+- Work-unit commit: `b3f3702` (`feat(ui): add lightweight liquid glass surfaces`).
 
 ## Next Step
 Parent to review the isolated work-unit commit and handle any native receipt-driven review; device-level Android visual confirmation remains user-owned.
