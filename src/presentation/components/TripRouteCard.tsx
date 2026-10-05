@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 
 import { Typography } from './Typography';
+import { GlassSurface } from './GlassSurface';
 
 interface TripRouteCardProps {
   origin: string | null;
@@ -11,7 +12,7 @@ interface TripRouteCardProps {
 /** Resumen del servicio: de donde a donde y cuanto sale. */
 export function TripRouteCard({ origin, destination, fare }: TripRouteCardProps) {
   return (
-    <View className="flex-row items-center gap-4 rounded-2xl border border-charcoal bg-surface px-4 py-3">
+    <GlassSurface className="flex-row items-center gap-4 rounded-2xl px-4 py-3">
       <View className="items-center gap-1 self-stretch py-1.5">
         <View className="h-2.5 w-2.5 rounded-full bg-gold" />
         <View className="w-px flex-1 bg-charcoal" />
@@ -42,6 +43,6 @@ export function TripRouteCard({ origin, destination, fare }: TripRouteCardProps)
           {fare}
         </Typography>
       ) : null}
-    </View>
+    </GlassSurface>
   );
 }

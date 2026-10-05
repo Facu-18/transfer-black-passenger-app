@@ -26,7 +26,11 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
       style={{ bottom: Math.max(insets.bottom, 12) }}
       pointerEvents="box-none"
     >
-      <View className="flex-row items-center justify-around rounded-full border border-charcoal bg-surface/95 px-2 py-2">
+      <View
+        className="flex-row items-center justify-around overflow-hidden rounded-full border border-platinum/15 bg-surface/90 px-2 py-2"
+        style={{ elevation: 5, shadowColor: colors.charcoal, shadowOpacity: 0.26, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } }}
+      >
+        <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" className="absolute left-6 right-6 top-0 h-px bg-platinum/25" />
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const descriptor = descriptors[route.key];

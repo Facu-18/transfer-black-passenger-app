@@ -31,7 +31,7 @@ export function ServiceOptionCard({
       accessibilityLabel={`${option.name}, ${option.formattedTotal}`}
       onPress={onPress}
       className={`w-full flex-row items-center gap-3 rounded-2xl p-4 active:opacity-80 ${
-        selected ? 'border-2 border-gold bg-field' : 'border border-charcoal bg-surface'
+        selected ? 'border-2 border-gold bg-field' : 'border border-platinum/10 bg-surface/85'
       }`}
     >
       <View

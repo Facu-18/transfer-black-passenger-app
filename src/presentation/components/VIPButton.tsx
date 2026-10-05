@@ -31,7 +31,8 @@ export function VIPButton({
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
-      className={`h-14 w-full flex-row items-center justify-center gap-2 rounded-full bg-gold active:opacity-80 ${
+      style={{ elevation: 2, shadowColor: colors.charcoal, shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}
+      className={`h-14 w-full flex-row items-center justify-center gap-2 rounded-full border border-platinum/20 bg-gold active:opacity-80 ${
         isDisabled ? 'opacity-50' : ''
       } ${className ?? ''}`}
       {...props}
