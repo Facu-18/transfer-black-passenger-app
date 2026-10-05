@@ -146,6 +146,12 @@ export interface TripDetailResponse extends TripResponse {
   service_type?: TripServiceTypeResponse | null;
   /** Desglose de la cotizacion. Ausente en un backend que todavia no lo manda. */
   fare_breakdown?: TripFareBreakdownResponse | null;
+  /**
+   * Reintegro en curso hacia Mercado Pago; `null` cuando no hay ninguno (el
+   * pago nunca se marco para reintegrar, o el viaje no se pago con MP).
+   * Ausente en un backend que todavia no lo manda.
+   */
+  refund?: { status: PaymentRefundStatusResponse; amount: string } | null;
 }
 
 export type PaymentStatusResponse = 'pending' | 'paid' | 'failed' | 'cancelled' | 'refunded' | 'charged_back';
@@ -197,10 +203,53 @@ export interface RateTripRequest {
 }
 
 export interface CancelTripRequest {
-  /** Codigo en snake_case; la penalidad todavia no esta implementada en el backend. */
+  /** Codigo en snake_case. */
   reason_code: string;
   notes?: string;
 }
+
+/** Como se va a reintegrar, cuando corresponde: ver `cancellation-policy.ts` del backend. */
+export type RefundModeResponse = 'automatic' | 'claim' | 'none';
+export type RefundKindResponse = 'none' | 'full' | 'partial';
+
+/** Como quedo la cancelacion recien hecha: solo viaja en la respuesta que efectivamente cancelo. */
+export interface TripCancellationResponse {
+  penalty_amount: string;
+  refund_amount: string;
+  refund_kind: RefundKindResponse;
+  debt_amount: string;
+  company_charge_amount: string;
+  refund_mode: RefundModeResponse;
+}
+
+/**
+ * `POST /rides/{tripId}/cancel`: la app solo tipa lo que necesita de la
+ * respuesta completa (es el mismo `Trip` que devuelve el backend).
+ */
+export interface TripCancelResponse {
+  status: string;
+  currency: string;
+  cancellation_reason_code: string | null;
+  /** `null` al repetir la cancelacion sobre un viaje ya cancelado. */
+  cancellation: TripCancellationResponse | null;
+}
+
+/** `GET /rides/{tripId}/cancellation-preview`: la politica evaluada sin ejecutarla. */
+export interface CancellationPreviewResponse {
+  cancellable: boolean;
+  penalty_amount: string;
+  refund_amount: string;
+  refund_kind: RefundKindResponse;
+  debt_amount: string;
+  company_charge_amount: string;
+  currency: string;
+  refund_mode: RefundModeResponse;
+  /** Fin de la ventana de reembolso automatico; `null` sin pago acreditado todavia. */
+  auto_refund_window_ends_at: string | null;
+}
+
+/** Estado del reintegro hacia Mercado Pago; `claim_required` queda a cargo de un admin. */
+export type PaymentRefundStatusResponse = 'pending' | 'processing' | 'processed' | 'failed' | 'claim_required';
 
 export interface ConfirmTripResponse {
   trip: TripResponse;

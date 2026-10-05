@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
+import { FINISHED_TRIP_STATUSES, type RefundClaimStatus, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { PlatePill } from '@/presentation/components/PlatePill';
 import { RatingStars } from '@/presentation/components/RatingStars';
 import { SecondaryButton } from '@/presentation/components/SecondaryButton';
@@ -15,8 +15,11 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useCancelReservedTrip } from '@/presentation/hooks/useCancelReservedTrip';
 import { useTripDetail } from '@/presentation/hooks/useTripDetail';
+import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { colors } from '@/presentation/theme/colors';
+import { CANCELLATION_REASON_LABELS } from '@/presentation/utils/cancellation-copy';
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
+import { contactWhatsAppRefundClaim } from '@/presentation/utils/refund-claim-whatsapp';
 import { contactWhatsAppToCancelReservation } from '@/presentation/utils/whatsapp-services';
 
 const STATUS_LABELS: Record<TripStatus, string> = {
@@ -31,9 +34,12 @@ const STATUS_LABELS: Record<TripStatus, string> = {
   cancelled: 'Cancelado',
 };
 
-/** Unico motivo que la app conoce hoy; cualquier otro se omite (no hay texto para inventarle). */
-const CANCELLATION_REASON_LABELS: Record<string, string> = {
-  passenger_cancelled: 'Cancelado por vos',
+const REFUND_STATUS_LABELS: Record<RefundClaimStatus, string> = {
+  pending: 'Reembolso pendiente',
+  processing: 'Procesando el reembolso',
+  processed: 'Reembolsado',
+  failed: 'No pudimos procesar el reembolso',
+  claim_required: 'Devolución pendiente de reclamo',
 };
 
 const dateTimeFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -94,6 +100,7 @@ export function TripDetailScreen() {
   const { trip, isLoading, error, notFound, retry } = useTripDetail(tripId);
   const { requestCancel: requestCancelReservation, isCancelling: isCancellingReservation, needsAgencyContact } =
     useCancelReservedTrip(tripId, { onCancelled: retry });
+  const authUser = useAuthStore((state) => state.user);
 
   // Sin ninguna fecha del viaje no se muestra nada: la de hoy seria un dato falso.
   const tripDate = trip ? (trip.startedAt ?? trip.finishedAt ?? trip.cancelledAt) : null;
@@ -106,6 +113,7 @@ export function TripDetailScreen() {
   const alreadyRated = trip?.ratingGiven !== null && trip?.ratingGiven !== undefined;
   const canRate = trip?.status === 'completed' && !alreadyRated;
   const cancellationLabel = trip?.cancellationReasonCode ? CANCELLATION_REASON_LABELS[trip.cancellationReasonCode] : null;
+  const passengerName = authUser ? `${authUser.firstName ?? ''} ${authUser.lastName ?? ''}`.trim() || null : null;
 
   // Reservado todavia no activado: fecha fija de retiro, pago por adelantado
   // y, si ya hay, el chofer que la agencia le asigno (sin vehiculo/chofer
@@ -309,6 +317,33 @@ export function TripDetailScreen() {
                 ) : null}
                 {cancellationLabel ? (
                   <Typography tone="secondary">{cancellationLabel}</Typography>
+                ) : null}
+                {trip.refund ? (
+                  <View className="gap-3 border-t border-charcoal pt-3">
+                    <BreakdownRow label="Reembolso" value={trip.refund.formattedAmount} tone="accent" />
+                    <Typography tone="secondary">{REFUND_STATUS_LABELS[trip.refund.status]}</Typography>
+                    {trip.refund.status === 'claim_required' ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Reclamar la devolución por WhatsApp"
+                        onPress={() =>
+                          contactWhatsAppRefundClaim({
+                            publicCode: trip.publicCode,
+                            cancelledAt: trip.cancelledAt,
+                            formattedAmount: trip.refund!.formattedAmount,
+                            passengerName,
+                            passengerEmail: authUser?.email ?? null,
+                          })
+                        }
+                        className="flex-row items-center justify-center gap-2 self-start rounded-full bg-gold px-4 py-2 active:opacity-80"
+                      >
+                        <MessageCircle size={16} color={colors.obsidian} />
+                        <Typography variant="caption" weight="bold" tone="inverse">
+                          Reclamar por WhatsApp
+                        </Typography>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 ) : null}
               </Section>
             ) : null}

@@ -24,8 +24,10 @@ export function UpcomingTripCard({ item, onPress }: UpcomingTripCardProps) {
       accessibilityRole="button"
       accessibilityLabel={`Próximo viaje reservado a ${item.destination ?? 'tu destino'}`}
       onPress={onPress}
-      className="gap-3 rounded-2xl border border-gold/40 bg-surface p-4 active:opacity-80"
+      className="gap-3 rounded-2xl border border-gold/35 bg-surface/85 p-4 active:opacity-80"
+      style={{ elevation: 2, shadowColor: colors.charcoal, shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}
     >
+      <View pointerEvents="none" className="absolute left-4 right-4 top-0 h-px bg-platinum/20" />
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
           <CalendarClock size={16} color={colors.gold} />

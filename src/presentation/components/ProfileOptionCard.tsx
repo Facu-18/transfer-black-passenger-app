@@ -33,7 +33,7 @@ export function ProfileOptionCard({
       accessibilityHint={unavailable ? badge : undefined}
       onPress={onPress}
       className={`flex-row items-center gap-4 rounded-3xl border p-4 active:opacity-80 ${
-        selected ? 'border-gold/40 bg-gold/10' : 'border-charcoal bg-surface/80'
+        selected ? 'border-gold/40 bg-gold/10' : 'border-platinum/10 bg-surface/85'
       }`}
     >
       <View

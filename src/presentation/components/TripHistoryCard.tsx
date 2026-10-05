@@ -32,7 +32,7 @@ export function TripHistoryCard({ item, now, onPress }: TripHistoryCardProps) {
       accessibilityRole="button"
       accessibilityLabel={`Viaje a ${destinationLabel}, ${dateLabel}`}
       onPress={onPress}
-      className="flex-row items-center gap-3 rounded-2xl border border-charcoal bg-surface p-4 active:opacity-80"
+      className="flex-row items-center gap-3 rounded-2xl border border-platinum/10 bg-surface/85 p-4 active:opacity-80"
     >
       <View className="h-11 w-11 items-center justify-center rounded-full border border-charcoal bg-obsidian">
         <CarFront size={20} color={colors.ash} />
