@@ -488,7 +488,7 @@ Los mensajes de conexión, timeout y validación comunes a los formularios salen
 - **Inicialización**: `initSentry()` se llama una sola vez, en scope global de `src/app/_layout.tsx` (antes de montar la app), y el componente raíz se envuelve con `wrapWithSentry` (captura errores de render y agrega contexto de navegación).
 - **Usuario**: `useAuthStore` llama a `setSentryUser(user.id)` al iniciar sesión, restaurarla o marcarla autenticada, y a `setSentryUser(null)` al cerrarla. **Solo el id**, nunca el email ni otro dato personal.
 - **Qué se reporta**: el interceptor de `transfer-black-api.ts` manda a Sentry únicamente los `ApiRequestError` de servidor (`status >= 500`) o con forma inesperada (`UNKNOWN_ERROR`, una respuesta que no matchea ningún contrato conocido). Un error de negocio (4xx: contraseña incorrecta, tarifa vencida, validación...) es un flujo esperado y no se reporta (`captureUnexpectedApiError`).
-- **Metro**: `metro.config.js` envuelve la config con `withSentryConfig` (de `@sentry/react-native/metro`) para que el bundle y los source maps lleven Debug ID; sin esto Sentry no puede relacionar un stack trace con el código fuente.
+- **Metro**: `metro.config.js` **no** envuelve la config con `withSentryConfig` (de `@sentry/react-native/metro`): con esta combinación de versiones de Metro/Hermes rompe `npx expo export` (`determineDebugIdFromBundleSource` recibe el bundle sin `code`). Sin eso, los reportes llegan sin Debug ID automático para relacionar un stack trace con el código fuente exacto; si una versión más nueva del paquete lo arregla, se puede volver a agregar.
 - **Plugin de Expo**: `app.config.ts` agrega `@sentry/react-native` a `plugins`, con `organization`/`project` desde las variables de entorno de build `SENTRY_ORG`/`SENTRY_PROJECT` (no `EXPO_PUBLIC_*`: no hace falta que viajen en el bundle). Sin ellas el plugin solo avisa y sigue con las variables de entorno del builder como respaldo.
 - **Subida de source maps (opcional)**: para que los stack traces de Sentry se vean legibles (no minificados) hace falta subir los source maps durante el build. Eso lo hace el plugin nativo con el secreto `SENTRY_AUTH_TOKEN` (`eas secret:create --name SENTRY_AUTH_TOKEN --value <token> --type string` o configurado en el proyecto de EAS); **sin ese secreto el build sigue funcionando igual**, solo no sube los source maps (los reportes llegan con el stack minificado).
 
@@ -500,7 +500,7 @@ Los mensajes de conexión, timeout y validación comunes a los formularios salen
 | `src/presentation/theme/colors.js` | Paleta; la usan Tailwind y los componentes que reciben color por prop |
 | `global.css` | Directivas de Tailwind; se importa una vez en `src/app/_layout.tsx` |
 | `babel.config.js` | `jsxImportSource: 'nativewind'` para que `className` funcione |
-| `metro.config.js` | `withNativeWind` (compila `global.css`) y `withSentryConfig` (Debug ID para los source maps) |
+| `metro.config.js` | `withNativeWind`: compila `global.css` (ver "Monitoreo de errores" sobre por qué no usa `withSentryConfig`) |
 | `nativewind-env.d.ts` | Tipos de `className` y declaración de imports `.css` (TypeScript 6 los verifica) |
 | `app.json` | Nombre, identificadores (`com.transferblack.passenger`), scheme, splash en obsidian, plugins |
 
