@@ -78,9 +78,11 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Un aviso emitido antes de entrar a la sala se pierde.** Por eso la app re-consulta al confirmarse
   `ride:joined`, al reconectar y al volver del segundo plano, y consulta cada 15 s mientras el viaje
   está en `draft` o `searching`. Sin eso, un pago con tarjeta deja la pantalla trabada.
-- **Mercado Pago:** siempre se abre `init_point`. El viaje queda en `draft` hasta que el pago se
-  acredita por webhook, cosa que puede tardar unos segundos. El backend **no** configura `back_urls`:
-  el checkout no vuelve solo a la app.
+- **Mercado Pago:** siempre se abre `init_point`, con `WebBrowser.openAuthSessionAsync` (la app ya
+  escucha el deep link de vuelta, `transferblack-passenger://payment-return`). El viaje queda en
+  `draft` hasta que el pago se acredita por webhook, cosa que puede tardar unos segundos. El backend
+  **no** configura `back_urls` todavia: hasta que lo haga, el checkout no redirige solo y el
+  pasajero tiene que cerrarlo a mano.
 - **Despacho:** la app no lo pide. El servidor ofrece los viajes en `searching` cada 10 s y reintenta.
 - **Tokens:** el access token dura 15 minutos y el refresh **rota** en cada uso. El interceptor
   renueva una sola vez a la vez (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh
@@ -183,7 +185,7 @@ Pendiente, no por olvido:
 
 - PIN de validación a bordo y llamada: el backend no tiene endpoint ni expone el teléfono.
 - Reembolso y penalidad al cancelar: falta definir la política (especificación §24, punto 12).
-- `back_urls` / deep link de vuelta desde el checkout.
+- `back_urls` del lado del backend (la app ya tiene el deep link de vuelta listo).
 - Cuenta (`/account`) es una pantalla provisoria.
 
 ## Probar un viaje de punta a punta

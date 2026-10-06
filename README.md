@@ -197,6 +197,7 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
 | `/trips/[tripId]` | `(app)/trips/[tripId].tsx` | Detalle de un viaje del historial (plural: distinta de `/trip/[tripId]`) |
 | `/chat/[tripId]` | `(app)/chat/[tripId].tsx` | Chat 1 a 1 con el chofer asignado |
+| `/payment-return` | `payment-return.tsx` | Deep link de vuelta desde el checkout de Mercado Pago (`transferblack-passenger://payment-return?trip_id=...`); redirige a `/trip/[tripId]` |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
@@ -303,7 +304,7 @@ retiro), `prepaid_at` (si ya se acreditó el cobro por adelantado) y, mientras s
 | Medio de pago | `payment.type` | Qué pasa |
 |---|---|---|
 | Efectivo | `cash` | El viaje pasa a `searching` y la app va a `/trip/[tripId]`, que arranca con el radar |
-| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
+| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout (`WebBrowser.openAuthSessionAsync`), que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
 | Cuenta corporativa | `corporate` | Igual que efectivo (sin checkout): el viaje pasa directo a `searching`. Se paga contra el **saldo prepago** de la empresa (la empresa carga saldo antes; el límite mensual es solo un control interno opcional) |
 
 Errores: 409 `FARE_QUOTE_EXPIRED` recotiza sola, 409 `INVALID_TRIP_TRANSITION` vuelve al Home, 400 al cotizar ofrece reintentar y 401 reusa `handleExpiredSession()`.
@@ -318,7 +319,13 @@ La empresa carga saldo antes de viajar (prepago): el límite mensual por emplead
 
 `POST /rides/{tripId}/confirm` con `corporate` no abre checkout (como efectivo): descuenta el saldo de la empresa, no genera deuda. El backend no expone selección de centro de costo al pasajero (solo un responsable podría elegirlo, y esta versión no lo ofrece), así que la app nunca manda `cost_center_id`. Errores propios de este medio (`presentation/utils/corporate-error-message.ts`): `CORPORATE_MEMBERSHIP_REQUIRED`, `COMPANY_SUSPENDED`, `CORPORATE_INSUFFICIENT_BALANCE` (409, con `details.available/required/currency`), `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (con `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED`, `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. Ante cualquiera de estos, la pantalla vuelve el medio de pago a Mercado Pago y muestra el motivo, sin salir de Cotización.
 
-Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador).
+### Volver de Mercado Pago
+
+`useConfirmRide` abre el checkout con `WebBrowser.openAuthSessionAsync(checkoutUrl, Linking.createURL('payment-return'))` (en vez de `openBrowserAsync`): el navegador se cierra solo apenas Mercado Pago redirige al deep link de vuelta de la app (`transferblack-passenger://payment-return`), en vez de quedar abierto hasta que el pasajero lo cierre a mano. Resuelva lo que resuelva esa promesa (éxito, cancelado, o el pasajero cerró el navegador), la app ya sigue a `/trip/[tripId]`, que consulta el estado real al montarse: no hace falta un refetch aparte.
+
+`src/app/payment-return.tsx` es el otro lado del mismo link, para cuando la app estaba cerrada o en segundo plano y es el sistema operativo quien lo abre (si la app seguía al frente, `openAuthSessionAsync` ya se encarga sin llegar hasta acá): lee `trip_id` de los parámetros y redirige a `/trip/[tripId]` (o a `/home` sin ese parámetro).
+
+Pendiente del lado del backend: configurar `back_urls` en la preferencia de Mercado Pago apuntando a ese esquema (hoy, sin `back_urls`, Mercado Pago no redirige solo y el pasajero tiene que cerrar el checkout a mano; la app ya está lista para cuando lo haga).
 
 ## Viaje activo y tiempo real
 

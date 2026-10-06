@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
+import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
 import { confirmRideAction } from '@/core/actions/confirm-ride.action';
@@ -127,11 +128,16 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
       // Con efectivo el viaje ya esta en `searching` y la pantalla del viaje
       // arranca con el radar. Con Mercado Pago queda en `draft` hasta que se
       // acredite el pago; ese aviso llega por webhook al backend y de ahi, por
-      // socket, a la pantalla del viaje.
+      // socket, a la pantalla del viaje. `openAuthSessionAsync` (en vez de
+      // `openBrowserAsync`) cierra el navegador solo cuando el checkout
+      // redirige al deep link de vuelta (`transferblack-passenger://payment-return`,
+      // ver `src/app/payment-return.tsx`), en vez de dejarlo abierto.
       if (trip.checkoutUrl) {
-        await WebBrowser.openBrowserAsync(trip.checkoutUrl);
+        await WebBrowser.openAuthSessionAsync(trip.checkoutUrl, Linking.createURL('payment-return'));
       }
 
+      // Entra de una al seguimiento, que ya consulta el estado real al montarse:
+      // no hace falta un refetch aparte, vuelva el navegador con exito, cancelado o sin volver.
       router.replace({ pathname: '/trip/[tripId]', params: { tripId: trip.tripId } });
     } catch (error: unknown) {
       if (error instanceof ApiRequestError) {
