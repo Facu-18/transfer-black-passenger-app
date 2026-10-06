@@ -417,6 +417,8 @@ Si falla solo el paso 2, la cuenta ya existe y la sesión es válida: se sigue i
 
 Las reglas de contraseña del formulario replican las del backend: 8 a 128 caracteres, con minúscula, mayúscula y número.
 
+"Términos de Servicio" y "Política de Privacidad" (acá y en "Mi cuenta" → "Legales") abren esas páginas del panel con `expo-web-browser` (`WebBrowser.openBrowserAsync`); las URLs están en `presentation/utils/legal-links.ts` (`TERMS_URL`, `PRIVACY_URL`), overrideables por `EXPO_PUBLIC_TERMS_URL` / `EXPO_PUBLIC_PRIVACY_URL`.
+
 ### Inicio de sesión
 
 `POST /auth/login` devuelve lo mismo que el registro (`profile` + `tokens`). Email inexistente, contraseña incorrecta y cuenta no activa responden igual, 401 `INVALID_CREDENTIALS`, así que la pantalla muestra un único "Correo o contraseña incorrectos." y vacía la contraseña.

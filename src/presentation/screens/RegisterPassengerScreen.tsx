@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Check, Lock, Mail, Phone, ShieldCheck, UserRound } from 'lucide-react-native';
 import { Controller } from 'react-hook-form';
 import { Pressable, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 import { BrandLogo } from '@/presentation/components/BrandLogo';
 import { Screen } from '@/presentation/components/Screen';
@@ -9,6 +10,7 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useRegisterPassengerForm } from '@/presentation/hooks/useRegisterPassengerForm';
+import { PRIVACY_URL, TERMS_URL } from '@/presentation/utils/legal-links';
 import { colors } from '@/presentation/theme/colors';
 
 export function RegisterPassengerScreen() {
@@ -153,11 +155,23 @@ export function RegisterPassengerScreen() {
                 </View>
                 <Typography variant="caption" tone="secondary" className="flex-1 leading-5">
                   Acepto los{' '}
-                  <Typography variant="caption" weight="semibold" tone="accent" className="underline">
+                  <Typography
+                    variant="caption"
+                    weight="semibold"
+                    tone="accent"
+                    className="underline"
+                    onPress={() => void WebBrowser.openBrowserAsync(TERMS_URL)}
+                  >
                     Términos de Servicio
                   </Typography>{' '}
                   y la{' '}
-                  <Typography variant="caption" weight="semibold" tone="accent" className="underline">
+                  <Typography
+                    variant="caption"
+                    weight="semibold"
+                    tone="accent"
+                    className="underline"
+                    onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+                  >
                     Política de Privacidad
                   </Typography>{' '}
                   de Transfer Black

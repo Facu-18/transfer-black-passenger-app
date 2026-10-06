@@ -1,7 +1,8 @@
-import { BriefcaseBusiness, ChevronRight, CircleHelp, Trash2 } from 'lucide-react-native';
+import { BriefcaseBusiness, ChevronRight, CircleHelp, FileText, ShieldCheck, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 import { logoutAction } from '@/core/actions/logout.action';
 import { revokePushDeviceAction } from '@/core/actions/revoke-push-device.action';
@@ -17,6 +18,7 @@ import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { usePushNotificationsStore } from '@/presentation/store/usePushNotificationsStore';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
+import { PRIVACY_URL, TERMS_URL } from '@/presentation/utils/legal-links';
 import { contactWhatsAppHelp } from '@/presentation/utils/whatsapp-services';
 
 interface AccountActionProps {
@@ -163,6 +165,24 @@ export default function AccountRoute() {
             }}
           />
         ) : null}
+      </View>
+
+      <View className="gap-3">
+        <Typography variant="caption" weight="semibold" tone="secondary" className="uppercase tracking-widest">
+          Legales
+        </Typography>
+        <AccountAction
+          title="Términos de Servicio"
+          description="Las condiciones de uso de Transfer Black"
+          icon={FileText}
+          onPress={() => void WebBrowser.openBrowserAsync(TERMS_URL)}
+        />
+        <AccountAction
+          title="Política de Privacidad"
+          description="Cómo tratamos tus datos personales"
+          icon={ShieldCheck}
+          onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+        />
       </View>
 
       <DestructiveAccountAction
