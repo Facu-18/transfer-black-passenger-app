@@ -162,21 +162,21 @@ export function PlanTripScreen() {
               <Typography variant="caption" weight="semibold" tone="secondary" className="uppercase tracking-widest">
                 Sugerencias
               </Typography>
-              {search.isLoading ? <ActivityIndicator size="small" color={colors.gold} /> : null}
+              {search.isLoading || trip.isResolvingSuggestion ? <ActivityIndicator size="small" color={colors.gold} /> : null}
             </View>
 
             {search.error ? (
               <Typography tone="danger">{search.error}</Typography>
             ) : search.results.length > 0 ? (
               <View className="overflow-hidden rounded-2xl border border-charcoal bg-surface">
-                {search.results.map((place, index) => (
+                {search.results.map((suggestion, index) => (
                   <PlaceRow
-                    key={place.placeId}
+                    key={suggestion.placeId}
                     icon={MapPin}
-                    title={place.name}
-                    subtitle={place.detail}
+                    title={suggestion.primaryText}
+                    subtitle={suggestion.secondaryText}
                     isFirst={index === 0}
-                    onPress={() => trip.selectPlace(place)}
+                    onPress={() => void trip.selectSuggestion(suggestion)}
                   />
                 ))}
               </View>
