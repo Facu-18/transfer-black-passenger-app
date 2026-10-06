@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, ChevronRight, CircleHelp } from 'lucide-react-native';
+import { BriefcaseBusiness, ChevronRight, CircleHelp, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
@@ -42,6 +42,27 @@ function AccountAction({ title, description, icon: Icon, onPress }: AccountActio
         <Typography variant="caption" tone="secondary">{description}</Typography>
       </View>
       <ChevronRight size={21} color={colors.ash} />
+    </Pressable>
+  );
+}
+
+/** Misma fila, con los colores de peligro: para la unica accion destructiva de esta pantalla. */
+function DestructiveAccountAction({ title, description, icon: Icon, onPress }: AccountActionProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      className="flex-row items-center gap-4 rounded-3xl border border-danger/30 bg-surface/90 p-5 active:opacity-80"
+    >
+      <View className="h-12 w-12 items-center justify-center rounded-2xl bg-danger/10">
+        <Icon size={23} color={colors.danger} />
+      </View>
+      <View className="flex-1 gap-1">
+        <Typography variant="bodyLarge" weight="bold" tone="danger">{title}</Typography>
+        <Typography variant="caption" tone="secondary">{description}</Typography>
+      </View>
+      <ChevronRight size={21} color={colors.danger} />
     </Pressable>
   );
 }
@@ -143,6 +164,13 @@ export default function AccountRoute() {
           />
         ) : null}
       </View>
+
+      <DestructiveAccountAction
+        title="Eliminar mi cuenta"
+        description="Borra tus datos personales de forma permanente"
+        icon={Trash2}
+        onPress={() => router.push('/delete-account')}
+      />
 
       <VIPButton title="Cerrar sesión" loading={isLoggingOut} onPress={() => void logout()} />
       <View className="h-20" />

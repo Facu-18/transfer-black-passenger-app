@@ -36,3 +36,13 @@ export interface UpdateCurrentUserRequest {
   document_number?: string | null;
   address_text?: string | null;
 }
+
+/** Cuerpo de `DELETE /users/me`: pide la contraseña para confirmar. */
+export interface DeleteAccountRequest {
+  password: string;
+}
+
+/** `DELETE /users/me` anonimiza la cuenta (no la borra fisicamente): no hay nada mas que confirmar. */
+export interface DeleteAccountResponse {
+  deleted: true;
+}

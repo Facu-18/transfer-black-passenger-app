@@ -186,8 +186,9 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/verify-email` | `verify-email.tsx` | Validación del PIN; destino después del registro o de un login sin correo verificado |
 | `/home` | `(app)/(tabs)/home.tsx` | Mapa principal |
 | `/activity` | `(app)/(tabs)/activity.tsx` | "Viajes": historial paginado, con filtros |
-| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; con el perfil completo muestra un resumen de solo lectura con "Modificar datos", y permite cerrar sesión |
+| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; con el perfil completo muestra un resumen de solo lectura con "Modificar datos", notificaciones, legales, "Eliminar mi cuenta" y permite cerrar sesión |
 | `/complete-profile` | `(app)/complete-profile.tsx` | A donde manda el guard de perfil incompleto al pedir un viaje; mismo formulario que `/account`, con el aviso de por qué y vuelta al pedido en curso al guardar |
+| `/delete-account` | `(app)/delete-account.tsx` | "Eliminar mi cuenta": explica las consecuencias y pide la contraseña para confirmar |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/guest` | `(app)/guest.tsx` | "Pasajero invitado": carga los datos de un tercero para viajar en su nombre |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
@@ -376,6 +377,13 @@ La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHis
 - **Detalle** (`TripDetailScreen`): relee `GET /rides/{tripId}`, que además del detalle que ya usaba el recibo trae `service_type` (categoría elegida) y `fare_breakdown` (`base`, `distance`, `time`, `discount`, `fees`, `total`, todos como texto). Si el desglose no coincide con `final_fare` (puede pasar: el total cotizado no es necesariamente lo que se liquidó), se muestra aparte como "Total cobrado" con una aclaración. El descuento y los cargos solo se muestran si son mayores a cero. Un viaje cancelado muestra `cancelled_at`; el motivo (`cancellation_reason_code`) solo se traduce si hay una entrada en `CANCELLATION_REASON_LABELS` (`presentation/utils/cancellation-copy.ts`: `passenger_cancelled`, `no_driver_found`, `draft_expired`) — cualquier otro código se omite en vez de mostrar el código crudo.
 - **Reembolso en el detalle**: si `GET /rides/{tripId}` trae `refund` (reintegro de Mercado Pago en curso), se muestra el monto y el estado (`REFUND_STATUS_LABELS`, en `TripDetailScreen`). Con `refund.status === 'claim_required'` (fuera de la ventana de reembolso automático, o reservado prepago) aparece "Reclamar por WhatsApp" (`contactWhatsAppRefundClaim`, `presentation/utils/refund-claim-whatsapp.ts`): mismo patrón de elegir línea que `whatsapp-services.ts`, en un archivo aparte porque ese módulo no exporta sus líneas de atención. El mensaje lleva el código del viaje, fecha y hora de la cancelación, el monto y el nombre/email del pasajero (`useAuthStore`).
 - Los textos de medio y estado de pago (`PAYMENT_METHOD_LABELS`, `PAYMENT_STATUS_LABELS`) están en `presentation/utils/payment-labels.ts`, compartidos con `ReceiptScreen`.
+
+## Eliminar la cuenta
+
+"Mi cuenta" → "Eliminar mi cuenta" (`DeleteAccountScreen`, hook `useDeleteAccount`, ruta `/delete-account`) explica las consecuencias (se borran los datos personales; los viajes y comprobantes se conservan anonimizados por obligación contable; no se puede deshacer), pide la contraseña y confirma con una alerta destructiva antes de llamar a `DELETE /users/me` con `{ password }`.
+
+- **No es un borrado físico**: el backend anonimiza la cuenta. Errores propios: `INVALID_PASSWORD` (401/403), `ACCOUNT_HAS_ACTIVE_TRIP` y `ACCOUNT_HAS_UPCOMING_RESERVATION` (409, con un mensaje propio cada uno); cualquier otro cae al genérico de `getApiErrorMessage`.
+- **Éxito**: el backend ya revocó la sesión y el dispositivo push; la app solo limpia lo local (revoca el dispositivo push si falla no bloquea, `clearSession()`, `resetTrip()`, reset de notificaciones) y vuelve a `/login` con un aviso de confirmación.
 
 ## API y sesión
 
