@@ -72,5 +72,10 @@ export function usePlaceSearch(query: string, near: Coordinates | null) {
     // ya alcanza para que la proxima tecla (otro `trimmed`) lo reuse via closure.
   }, [trimmed, isActive]);
 
-  return { results, isLoading, error, isActive, sessionToken };
+  // Se llama tras resolver el detalle de una sugerencia elegida: esa llamada ya
+  // cerro la sesion del lado de Google, asi que la proxima tecla debe abrir una
+  // nueva (lazy, en el siguiente efecto) en vez de reusar el token cerrado.
+  const resetSession = () => setSessionToken(null);
+
+  return { results, isLoading, error, isActive, sessionToken, resetSession };
 }

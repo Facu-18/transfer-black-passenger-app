@@ -8,6 +8,7 @@ import { usePlaceSearch } from '@/presentation/hooks/usePlaceSearch';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
 import { useReservationStore } from '@/presentation/store/useReservationStore';
 import { useTripStore } from '@/presentation/store/useTripStore';
+import { getPlacesErrorMessage } from '@/presentation/utils/places-error-message';
 
 export type TripField = 'origin' | 'destination';
 
@@ -54,6 +55,10 @@ export function usePlanTrip() {
 
   const activeQuery = activeField === 'origin' ? originQuery : destinationQuery;
   const search = usePlaceSearch(activeQuery, currentLocation);
+
+  // Identifica la seleccion vigente: una respuesta de detalle que llega
+  // despues de una seleccion mas nueva (doble tap o red lenta) se descarta.
+  const selectionIdRef = useRef(0);
 
   // En la reserva se vuelve a esa pantalla (ya estaba en la pila); en el viaje
   // "Ahora" se sigue a la cotizacion.
@@ -102,17 +107,24 @@ export function usePlanTrip() {
    */
   const selectSuggestion = async (suggestion: PlaceSuggestion) => {
     if (!search.sessionToken) return;
+    // Ya hay un detalle en curso (doble tap u otra sugerencia tocada antes de
+    // que responda): se ignora para no abrir una segunda llamada a Google.
+    if (isResolvingSuggestion) return;
 
+    const selectionId = ++selectionIdRef.current;
     setIsResolvingSuggestion(true);
     setHint(null);
 
     try {
       const place = await resolvePlaceDetailsAction(suggestion, search.sessionToken);
+      if (selectionIdRef.current !== selectionId) return; // la tapo una seleccion mas nueva
+      search.resetSession();
       applyPlace(place);
-    } catch {
-      setHint('No pudimos obtener esa dirección. Probá de nuevo.');
+    } catch (reason) {
+      if (selectionIdRef.current !== selectionId) return;
+      setHint(getPlacesErrorMessage(reason) ?? 'No pudimos obtener esa dirección. Probá de nuevo.');
     } finally {
-      setIsResolvingSuggestion(false);
+      if (selectionIdRef.current === selectionId) setIsResolvingSuggestion(false);
     }
   };
 
