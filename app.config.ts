@@ -14,6 +14,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...(config as ExpoConfig),
   android: {
     ...config.android,
+    // `google-services.json` (Firebase/push) esta en .gitignore y EAS Build solo
+    // sube lo trackeado por git: en EAS llega como variable de tipo archivo
+    // (`GOOGLE_SERVICES_JSON`, cuyo valor es la ruta del archivo en el builder).
+    // En local se sigue usando el archivo de la raiz.
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? config.android?.googleServicesFile,
     config: {
       ...config.android?.config,
       googleMaps: {
