@@ -1,10 +1,11 @@
 import { CarFront } from 'lucide-react-native';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import type { FareOption } from '@/infrastructure/interfaces/trips';
 import { colors } from '@/presentation/theme/colors';
 
 import { Typography } from './Typography';
+import { MotionPressable } from './MotionPressable';
 
 interface ServiceOptionCardProps {
   option: FareOption;
@@ -25,7 +26,7 @@ export function ServiceOptionCard({
   onPress,
 }: ServiceOptionCardProps) {
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${option.name}, ${option.formattedTotal}`}
@@ -68,6 +69,6 @@ export function ServiceOptionCard({
           Fija
         </Typography>
       </View>
-    </Pressable>
+    </MotionPressable>
   );
 }

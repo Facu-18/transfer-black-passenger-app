@@ -16,6 +16,8 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Place } from '@/infrastructure/interfaces/places';
+import { GlassSurface } from '@/presentation/components/GlassSurface';
+import { MotionPressable } from '@/presentation/components/MotionPressable';
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
@@ -159,7 +161,7 @@ export function HomeScreen() {
         </MapView>
 
         <View className="absolute left-0 right-0 top-0 gap-3 px-4" style={{ paddingTop: insets.top + 8 }}>
-          <View className="flex-row items-center justify-between rounded-3xl border border-charcoal bg-obsidian/80 px-4 py-3">
+          <GlassSurface className="flex-row items-center justify-between rounded-3xl px-4 py-3">
             <View className="flex-1 flex-row items-center gap-3">
               <ShieldCheck size={22} color={colors.gold} />
               <View className="flex-1 gap-1">
@@ -180,7 +182,7 @@ export function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Notificaciones"
                 onPress={() => showComingSoon('Notificaciones')}
-                className="h-10 w-10 items-center justify-center rounded-full bg-field active:opacity-80"
+                className="h-10 w-10 items-center justify-center rounded-full border border-platinum/10 bg-field/80 active:opacity-80"
               >
                 <Bell size={18} color={colors.platinum} />
               </Pressable>
@@ -188,18 +190,18 @@ export function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Mi cuenta"
                 onPress={() => router.navigate('/account')}
-                className="h-10 w-10 items-center justify-center rounded-full bg-gold active:opacity-80"
+                className="h-10 w-10 items-center justify-center rounded-full border border-platinum/25 bg-gold active:opacity-80"
               >
                 <UserRound size={18} color={colors.obsidian} />
               </Pressable>
             </View>
-          </View>
+          </GlassSurface>
 
           <Pressable
             accessibilityRole={canRetryGps ? 'button' : 'text'}
             disabled={!canRetryGps}
             onPress={retryLocation}
-            className="flex-row items-center gap-2 self-start rounded-full border border-charcoal bg-obsidian/80 px-3 py-1.5"
+            className="flex-row items-center gap-2 self-start rounded-full border border-platinum/15 bg-obsidian/90 px-3 py-1.5"
           >
             <View className={`h-2 w-2 rounded-full ${gpsStatus === 'granted' ? 'bg-gold' : 'bg-ash'}`} />
             <Typography variant="caption" weight="medium" tone={canRetryGps ? 'accent' : 'primary'}>
@@ -210,19 +212,20 @@ export function HomeScreen() {
       </View>
 
       <ScrollView
-        className="-mt-6 flex-1 rounded-t-3xl bg-obsidian"
+        className="-mt-6 flex-1 rounded-t-3xl border-t border-platinum/10 bg-obsidian"
         contentContainerClassName="gap-5 px-5 pt-3"
         contentContainerStyle={{ paddingBottom: TAB_BAR_SPACE + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
-        <View className="h-1 w-10 self-center rounded-full bg-charcoal" />
+        <View className="h-1 w-10 self-center rounded-full bg-platinum/20" />
 
-        <Pressable
+        <MotionPressable
           accessibilityRole="search"
           accessibilityLabel="¿A dónde vamos? Buscar destino"
           onPress={startSearch}
-          className="flex-row items-center gap-3 rounded-2xl border border-charcoal bg-surface px-4 py-4 active:opacity-80"
+          className="relative overflow-hidden flex-row items-center gap-3 rounded-2xl border border-platinum/15 bg-surface/90 px-4 py-4 active:opacity-80"
         >
+          <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" className="absolute left-4 right-4 top-0 h-px bg-platinum/25" />
           <Search size={20} color={colors.gold} />
           <Typography variant="bodyLarge" weight="semibold" className="flex-1">
             ¿A dónde vamos?
@@ -232,7 +235,7 @@ export function HomeScreen() {
           <Typography variant="caption" tone="secondary">
             Ahora
           </Typography>
-        </Pressable>
+        </MotionPressable>
 
         {nextTrip ? (
           <UpcomingTripCard
@@ -242,30 +245,30 @@ export function HomeScreen() {
         ) : null}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-3">
-          <Pressable
+          <MotionPressable
             accessibilityRole="button"
             onPress={startCorporateTrip}
-            className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
+            className="flex-row items-center gap-2 rounded-full border border-platinum/15 bg-surface/85 px-4 py-2.5 active:opacity-80"
           >
             <BriefcaseBusiness size={16} color={colors.gold} />
             <Typography weight="medium">Viaje corporativo</Typography>
-          </Pressable>
-          <Pressable
+          </MotionPressable>
+          <MotionPressable
             accessibilityRole="button"
             onPress={() => router.push({ pathname: '/guest', params: { from: 'home' } })}
-            className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
+            className="flex-row items-center gap-2 rounded-full border border-platinum/15 bg-surface/85 px-4 py-2.5 active:opacity-80"
           >
             <UserPlus size={16} color={colors.gold} />
             <Typography weight="medium">Para un invitado</Typography>
-          </Pressable>
-          <Pressable
+          </MotionPressable>
+          <MotionPressable
             accessibilityRole="button"
             onPress={() => router.push('/reserve')}
-            className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2.5 active:opacity-80"
+            className="flex-row items-center gap-2 rounded-full border border-platinum/15 bg-surface/85 px-4 py-2.5 active:opacity-80"
           >
             <CalendarClock size={16} color={colors.gold} />
             <Typography weight="medium">Reservar viaje</Typography>
-          </Pressable>
+          </MotionPressable>
         </ScrollView>
 
         <View className="gap-3">
@@ -274,7 +277,7 @@ export function HomeScreen() {
           </Typography>
 
           {recentPlaces.length > 0 ? (
-            <View className="overflow-hidden rounded-2xl border border-charcoal bg-surface">
+            <GlassSurface className="rounded-2xl">
               {recentPlaces.map((place, index) => (
                 <PlaceRow
                   key={place.placeId}
@@ -285,14 +288,14 @@ export function HomeScreen() {
                   onPress={() => selectRecent(place)}
                 />
               ))}
-            </View>
+            </GlassSurface>
           ) : (
-            <View className="items-center gap-1 rounded-2xl border border-charcoal bg-surface px-4 py-6">
+            <GlassSurface className="items-center gap-1 rounded-2xl px-4 py-6">
               <Typography weight="medium">Todavía no tienes destinos recientes</Typography>
               <Typography variant="caption" tone="secondary" className="text-center">
                 Los lugares a los que viajes aparecerán acá para pedirlos más rápido.
               </Typography>
-            </View>
+            </GlassSurface>
           )}
         </View>
       </ScrollView>

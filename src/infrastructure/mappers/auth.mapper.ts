@@ -16,6 +16,8 @@ export const AuthMapper = {
       documentType: null,
       documentNumber: null,
       address: null,
+      ratingAverage: 0,
+      ratingCount: 0,
       // La respuesta de auth es resumida. GET /users/me define el valor real.
       profileComplete: false,
       roles: profile.roles,

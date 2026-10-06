@@ -25,7 +25,7 @@ interface ActiveTripMapProps {
    * encima no se desalinee. `tracking`: el pasajero puede moverlo libremente.
    */
   mode: 'searching' | 'tracking';
-  driver: { coordinate: Coordinates; rotation: number } | null;
+  driver: { coordinate: Coordinates } | null;
   /** Ruta del auto a `target`; cambia cada ~30 s y ahi se reencuadra. */
   routePoints: Coordinates[];
   /** Espacio que tapan los paneles: el centro del mapa es el del area visible. */
@@ -126,7 +126,7 @@ export function ActiveTripMap({
       ) : null}
 
       {mode === 'tracking' && driver ? (
-        <DriverCarMarker coordinate={driver.coordinate} rotation={driver.rotation} />
+        <DriverCarMarker coordinate={driver.coordinate} />
       ) : null}
     </MapView>
   );

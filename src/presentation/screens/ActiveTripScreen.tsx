@@ -17,7 +17,6 @@ import { ReconnectingBanner } from '@/presentation/components/ReconnectingBanner
 import { TripSearchingPanel } from '@/presentation/components/TripSearchingPanel';
 import { TripStatusPanel } from '@/presentation/components/TripStatusPanel';
 import { useActiveTrip } from '@/presentation/hooks/useActiveTrip';
-import { useAnimatedCoordinate } from '@/presentation/hooks/useAnimatedCoordinate';
 import { useCancelTrip } from '@/presentation/hooks/useCancelTrip';
 import { useChatUnreadCount } from '@/presentation/hooks/useChatUnreadCount';
 import { useDriverEta } from '@/presentation/hooks/useDriverEta';
@@ -92,7 +91,6 @@ export function ActiveTripScreen() {
   // Con el pasajero arriba, el auto va al destino.
   const target = onBoard ? dropoff : pickup;
 
-  const animatedDriver = useAnimatedCoordinate(tracking ? (driverLocation?.coordinates ?? null) : null);
   const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
@@ -155,8 +153,8 @@ export function ActiveTripScreen() {
         targetKind={onBoard ? 'dropoff' : 'pickup'}
         mode={tracking ? 'tracking' : 'searching'}
         driver={
-          tracking && animatedDriver.coordinate
-            ? { coordinate: animatedDriver.coordinate, rotation: animatedDriver.rotation }
+          tracking && driverLocation?.coordinates
+            ? { coordinate: driverLocation.coordinates }
             : null
         }
         routePoints={eta.route?.points ?? NO_ROUTE}
@@ -199,7 +197,7 @@ export function ActiveTripScreen() {
         <View className="mb-4 h-1 w-10 self-center rounded-full bg-charcoal" />
 
         {/* La clave por vista hace que cada cambio de panel entre deslizandose. */}
-        <Animated.View key={view} entering={FadeInDown.duration(350)}>
+        <Animated.View key={view} entering={FadeInDown.duration(220).withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })}>
           {view === 'searching' ? (
             <TripSearchingPanel
               origin={trip?.pickup?.address ?? plannedOrigin?.address ?? null}

@@ -61,6 +61,7 @@ export default function AppLayout() {
       <Stack.Screen name="(tabs)" />
       {/* Perfil incompleto al pedir un viaje: ver el guard arriba. */}
       <Stack.Screen name="complete-profile" />
+      <Stack.Screen name="transfer-black-empresas" />
       <Stack.Screen name="search" />
       <Stack.Screen name="guest" />
       <Stack.Screen name="pricing" />

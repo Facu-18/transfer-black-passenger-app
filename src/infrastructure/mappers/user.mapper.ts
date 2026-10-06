@@ -16,6 +16,8 @@ export const UserMapper = {
       documentType: user.document_type,
       documentNumber: user.document_number,
       address: user.address_text,
+      ratingAverage: user.rating_average,
+      ratingCount: user.rating_count,
       profileComplete: user.profile_complete,
       roles: user.roles,
     };

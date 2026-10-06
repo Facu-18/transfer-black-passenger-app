@@ -17,6 +17,8 @@ export interface AuthUser {
   documentType: DocumentType | null;
   documentNumber: string | null;
   address: string | null;
+  ratingAverage: number;
+  ratingCount: number;
   profileComplete: boolean;
   roles: UserRole[];
 }

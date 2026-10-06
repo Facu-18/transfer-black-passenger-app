@@ -18,6 +18,8 @@ export interface CurrentUserResponse {
   document_type: DocumentType | null;
   document_number: string | null;
   address_text: string | null;
+  rating_average: number;
+  rating_count: number;
   profile_complete: boolean;
   roles: UserRoleResponse[];
 }
