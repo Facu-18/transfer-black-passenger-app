@@ -63,8 +63,14 @@ Expo solo expone al código las variables con prefijo `EXPO_PUBLIC_`, y las **es
 |---|---|
 | `EXPO_PUBLIC_API_URL` | URL base del backend, con `/api/v1` |
 | `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Key del Maps SDK for Android (ver "Mapa y ubicación" más abajo); queda en el bundle, por eso se restringe por paquete + SHA-1 en Google Cloud Console, no por dominio. Sin ella el mapa de Android funciona pero sin tiles de Google. iOS no la necesita: usa Apple Maps |
+| `EXPO_PUBLIC_SENTRY_DSN` | DSN del proyecto de Sentry (ver "Monitoreo de errores" más abajo). Sin ella, Sentry queda desactivado |
+| `EXPO_PUBLIC_SENTRY_ENABLE_DEV` | `true` para activar Sentry en desarrollo (`__DEV__`) y poder probar el envío a mano; cualquier otro valor (o ausente) lo deja desactivado en desarrollo aunque haya DSN |
+| `EXPO_PUBLIC_TERMS_URL` | URL de los Términos de Servicio; sin ella se usa la del panel por defecto |
+| `EXPO_PUBLIC_PRIVACY_URL` | URL de la Política de Privacidad; sin ella se usa la del panel por defecto |
 
 En un teléfono físico `localhost` apunta al propio teléfono: usar la IP de la PC en la red local. Después de cambiar `.env`, reiniciar Metro.
+
+`SENTRY_ORG` y `SENTRY_PROJECT` (de build, no `EXPO_PUBLIC_*`: no hace falta que viajen en el bundle) y el secreto `SENTRY_AUTH_TOKEN` se configuran en EAS, no en `.env`; ver "Monitoreo de errores" más abajo.
 
 ## Arquitectura
 
@@ -458,6 +464,17 @@ Tres pantallas sin sesión, encadenadas con `router.push`/`router.replace` (`/fo
 
 Los mensajes de conexión, timeout y validación comunes a los formularios salen de `presentation/utils/api-error-message.ts`, y la validación de email compartida, de `presentation/utils/auth-form-fields.ts`.
 
+## Monitoreo de errores (Sentry)
+
+`@sentry/react-native` captura errores inesperados en producción (y en desarrollo si se activa a mano). Queda **desactivado sin `EXPO_PUBLIC_SENTRY_DSN`**, y también en desarrollo salvo que `EXPO_PUBLIC_SENTRY_ENABLE_DEV=true`: no hace falta un proyecto de Sentry para desarrollar o probar la app (`src/core/monitoring/sentry.ts`, `isSentryEnabled`).
+
+- **Inicialización**: `initSentry()` se llama una sola vez, en scope global de `src/app/_layout.tsx` (antes de montar la app), y el componente raíz se envuelve con `wrapWithSentry` (captura errores de render y agrega contexto de navegación).
+- **Usuario**: `useAuthStore` llama a `setSentryUser(user.id)` al iniciar sesión, restaurarla o marcarla autenticada, y a `setSentryUser(null)` al cerrarla. **Solo el id**, nunca el email ni otro dato personal.
+- **Qué se reporta**: el interceptor de `transfer-black-api.ts` manda a Sentry únicamente los `ApiRequestError` de servidor (`status >= 500`) o con forma inesperada (`UNKNOWN_ERROR`, una respuesta que no matchea ningún contrato conocido). Un error de negocio (4xx: contraseña incorrecta, tarifa vencida, validación...) es un flujo esperado y no se reporta (`captureUnexpectedApiError`).
+- **Metro**: `metro.config.js` envuelve la config con `withSentryConfig` (de `@sentry/react-native/metro`) para que el bundle y los source maps lleven Debug ID; sin esto Sentry no puede relacionar un stack trace con el código fuente.
+- **Plugin de Expo**: `app.config.ts` agrega `@sentry/react-native` a `plugins`, con `organization`/`project` desde las variables de entorno de build `SENTRY_ORG`/`SENTRY_PROJECT` (no `EXPO_PUBLIC_*`: no hace falta que viajen en el bundle). Sin ellas el plugin solo avisa y sigue con las variables de entorno del builder como respaldo.
+- **Subida de source maps (opcional)**: para que los stack traces de Sentry se vean legibles (no minificados) hace falta subir los source maps durante el build. Eso lo hace el plugin nativo con el secreto `SENTRY_AUTH_TOKEN` (`eas secret:create --name SENTRY_AUTH_TOKEN --value <token> --type string` o configurado en el proyecto de EAS); **sin ese secreto el build sigue funcionando igual**, solo no sube los source maps (los reportes llegan con el stack minificado).
+
 ## Archivos de configuración
 
 | Archivo | Para qué |
@@ -466,7 +483,7 @@ Los mensajes de conexión, timeout y validación comunes a los formularios salen
 | `src/presentation/theme/colors.js` | Paleta; la usan Tailwind y los componentes que reciben color por prop |
 | `global.css` | Directivas de Tailwind; se importa una vez en `src/app/_layout.tsx` |
 | `babel.config.js` | `jsxImportSource: 'nativewind'` para que `className` funcione |
-| `metro.config.js` | `withNativeWind`: compila `global.css` |
+| `metro.config.js` | `withNativeWind` (compila `global.css`) y `withSentryConfig` (Debug ID para los source maps) |
 | `nativewind-env.d.ts` | Tipos de `className` y declaración de imports `.css` (TypeScript 6 los verifica) |
 | `app.json` | Nombre, identificadores (`com.transferblack.passenger`), scheme, splash en obsidian, plugins |
 

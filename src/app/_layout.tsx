@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
+import { initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useSessionRestore } from '@/presentation/hooks/useSessionRestore';
@@ -21,6 +22,10 @@ import { colors } from '@/presentation/theme/colors';
 
 // En scope global: dentro del componente llegaria tarde y el splash ya se habria ocultado.
 void SplashScreen.preventAutoHideAsync();
+
+// Tambien en scope global, antes de cualquier render: sin DSN (o en
+// desarrollo sin pedirlo a mano) queda desactivado y estas llamadas no hacen nada.
+initSentry();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -31,7 +36,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export default function RootLayout() {
+function RootLayout() {
   // Las claves son los nombres de familia que usa `fontFamily` en tailwind.config.js.
   const [fontsLoaded, fontError] = useFonts({
     Montserrat_400Regular,
@@ -87,3 +92,7 @@ export default function RootLayout() {
     </>
   );
 }
+
+// Captura errores de render que se escapan del arbol de React y suma
+// contexto de navegacion a cada reporte.
+export default wrapWithSentry(RootLayout);

@@ -12,6 +12,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   // (`name`, `slug`), el tipo de `ConfigContext` solo los marca opcionales
   // porque tambien acepta un `app.config.ts` sin `app.json` de base.
   ...(config as ExpoConfig),
+  plugins: [
+    ...(config.plugins ?? []),
+    [
+      '@sentry/react-native',
+      {
+        // `SENTRY_ORG`/`SENTRY_PROJECT` son de build (EAS), no `EXPO_PUBLIC_*`:
+        // no hace falta que viajen en el bundle. Sin ellos el plugin solo
+        // avisa y sigue con las variables de entorno del builder como
+        // respaldo; sin `SENTRY_AUTH_TOKEN` tampoco falla, solo no sube los
+        // source maps.
+        organization: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+      },
+    ],
+  ],
   android: {
     ...config.android,
     // `google-services.json` (Firebase/push) esta en .gitignore y EAS Build solo

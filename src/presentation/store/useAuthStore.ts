@@ -4,6 +4,7 @@ import { refreshSessionAction } from '@/core/actions/refresh-session.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { setSessionRefresher } from '@/core/api/session-refresh';
 import { setAccessTokenGetter } from '@/core/api/transfer-black-api';
+import { setSentryUser } from '@/core/monitoring/sentry';
 import type { AuthSession, AuthUser } from '@/infrastructure/interfaces/auth';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
 import { invalidateCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
@@ -47,6 +48,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
       user,
       isAuthenticated: true,
     });
+    // Solo el id: nunca el email ni otro dato personal en los reportes de Sentry.
+    setSentryUser(user.id);
   },
 
   async updateTokens(session) {
@@ -56,6 +59,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   markAuthenticated(user) {
     set({ user, isAuthenticated: true });
+    setSentryUser(user.id);
   },
 
   markEmailVerified() {
@@ -80,6 +84,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       // El proximo usuario en este dispositivo no puede heredar el vinculo
       // corporativo del anterior desde el cache compartido.
       invalidateCorporateEligibility();
+      setSentryUser(null);
     }
   },
 }));

@@ -1,5 +1,6 @@
 import axios, { isAxiosError } from 'axios';
 
+import { captureUnexpectedApiError } from '@/core/monitoring/sentry';
 import type { ApiErrorResponse, ApiValidationIssue } from '@/infrastructure/interfaces/api-responses';
 import type { ChatErrorResponse } from '@/infrastructure/interfaces/chat-api';
 
@@ -78,9 +79,7 @@ transferBlackApi.interceptors.response.use(
         } catch (refreshError: unknown) {
           // La renovacion no respondio (sin red): se informa eso, no un 401,
           // para que la pantalla no cierre una sesion que sigue siendo valida.
-          return Promise.reject(
-            refreshError instanceof ApiRequestError ? refreshError : toApiRequestError(refreshError),
-          );
+          return rejectAsApiError(refreshError instanceof ApiRequestError ? refreshError : toApiRequestError(refreshError));
         }
 
         if (token) {
@@ -91,9 +90,15 @@ transferBlackApi.interceptors.response.use(
       }
     }
 
-    return Promise.reject(toApiRequestError(error));
+    return rejectAsApiError(toApiRequestError(error));
   },
 );
+
+/** Un error de servidor o con forma inesperada va a Sentry; uno de negocio (4xx) no. */
+function rejectAsApiError(error: ApiRequestError): Promise<never> {
+  captureUnexpectedApiError(error);
+  return Promise.reject(error);
+}
 
 function isApiErrorResponse(body: unknown): body is ApiErrorResponse {
   if (typeof body !== 'object' || body === null || !('error' in body)) {
