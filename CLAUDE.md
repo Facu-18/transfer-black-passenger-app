@@ -12,7 +12,7 @@ React Native 0.86, TypeScript 6, NativeWind 4 + Tailwind 3.4, Expo Router.
 Este repo tiene **solo la app**. El backend vive en `Facu-18/Transfer-Black` (carpeta `backend/`),
 que además contiene `ESPECIFICACION_PROYECTO.md`, la fuente de los requisitos. La app consume el
 backend **desplegado** (`EXPO_PUBLIC_API_URL`), cuyo contrato real se lee en
-https://transfer-black-api.onrender.com/docs — esa documentación manda por encima de cualquier
+https://transfer-black-api-ih1o.onrender.com/docs — esa documentación manda por encima de cualquier
 ticket: los nombres de eventos y de campos del ticket no siempre coinciden con lo implementado.
 
 El `README.md` documenta a fondo el entorno, los comandos, la arquitectura, los Design Tokens y

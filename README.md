@@ -2,7 +2,7 @@
 
 Aplicación móvil del pasajero. React Native + Expo + TypeScript, estilos con NativeWind (Tailwind CSS).
 
-El backend está en otro repositorio ([Facu-18/Transfer-Black](https://github.com/Facu-18/Transfer-Black), carpeta `backend/`), junto con la especificación del producto. La app consume el backend desplegado; su contrato se lee en [`/docs`](https://transfer-black-api.onrender.com/docs).
+El backend está en otro repositorio ([Facu-18/Transfer-Black](https://github.com/Facu-18/Transfer-Black), carpeta `backend/`), junto con la especificación del producto. La app consume el backend desplegado; su contrato se lee en [`/docs`](https://transfer-black-api-ih1o.onrender.com/docs).
 
 La app de conductores compartirá la misma arquitectura base y los mismos Design Tokens: cualquier diferencia de configuración entre los dos proyectos tiene que quedar documentada acá.
 
@@ -394,7 +394,7 @@ La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHis
 
 ## API y sesión
 
-- **Cliente**: `core/api/transfer-black-api.ts`, instancia de Axios con `baseURL = EXPO_PUBLIC_API_URL`. Documentación del backend: https://transfer-black-api.onrender.com/docs
+- **Cliente**: `core/api/transfer-black-api.ts`, instancia de Axios con `baseURL = EXPO_PUBLIC_API_URL`. Documentación del backend: https://transfer-black-api-ih1o.onrender.com/docs
 - **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`, `retryAfterSeconds`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend. `message` puede llegar como un array de `issues` de Zod en `VALIDATION_ERROR`; el interceptor lo junta en un solo texto. El interceptor también reconoce el formato viejo del chat (error en la raíz, `{ code, message }`, en vez de `{ error: { code, message } }` como el resto de la API) como respaldo, por si algún ambiente no se redesplegó con el arreglo del backend. `retryAfterSeconds` sale del header `Retry-After` (hoy solo lo manda el 429 del chat).
 - **Timeout de 60s**: el backend en Render se duerme tras unos minutos sin tráfico y la primera solicitud puede tardar cerca de un minuto en despertarlo.
 - **Tokens**: `useAuthStore` (Zustand) guarda el access token solo en memoria y el refresh token en `expo-secure-store` (Keychain / Keystore; AsyncStorage no cifra). El interceptor de solicitud agrega `Authorization: Bearer` con el access token vigente.
