@@ -25,6 +25,14 @@ declare module 'axios' {
 /** Ruta de renovacion: un 401 aca no dispara otra renovacion. */
 export const REFRESH_PATH = '/auth/refresh';
 
+/**
+ * 401 que ya significan que la cuenta no tiene (ni va a tener) una sesion
+ * valida: la cuenta fue revocada o eliminada. Ningun refresh la reactiva, asi
+ * que intentarlo solo gasta una llamada a `/auth/refresh` (que vuelve a
+ * fallar con el mismo motivo) antes de llegar al mismo resultado.
+ */
+const TERMINATED_SESSION_CODES = new Set(['SESSION_REVOKED', 'ACCOUNT_DELETED']);
+
 // El backend en Render se duerme sin trafico y la primera solicitud puede tardar
 // casi un minuto en despertarlo: un timeout corto lo haria fallar siempre.
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -69,8 +77,13 @@ transferBlackApi.interceptors.response.use(
     // sigue su camino y la pantalla cierra la sesion como siempre.
     if (isAxiosError(error) && error.response?.status === 401 && error.config) {
       const config = error.config;
+      const data = error.response.data;
+      const isTerminatedSession = isApiErrorResponse(data) && TERMINATED_SESSION_CODES.has(data.error.code);
       const canRetry =
-        !config.sessionRetried && config.url !== REFRESH_PATH && Boolean(config.headers.Authorization);
+        !config.sessionRetried &&
+        config.url !== REFRESH_PATH &&
+        Boolean(config.headers.Authorization) &&
+        !isTerminatedSession;
 
       if (canRetry) {
         let token: string | null;
