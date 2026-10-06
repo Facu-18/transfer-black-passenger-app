@@ -85,7 +85,8 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Tokens:** el access token dura 15 minutos y el refresh **rota** en cada uso. El interceptor
   renueva una sola vez a la vez (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh
   token cierra la sesión. El access token vive solo en memoria (`useAuthStore`) y el refresh en
-  `expo-secure-store`; por eso cerrar la app hoy pierde la sesión.
+  `expo-secure-store`; al abrir la app, `useSessionRestore` lo usa para renovar la sesión y cargar
+  el perfil antes de decidir rutas públicas o privadas (ver README, "API y sesión").
 - **Idempotencia:** las operaciones que mueven plata mandan `Idempotency-Key`
   (`core/api/idempotency.ts`), una por intento de confirmación y no por solicitud: si se regenera en
   cada reintento, se puede cobrar dos veces.
@@ -175,13 +176,13 @@ camino, viaje a bordo, recibo, calificación, viaje para un pasajero invitado, h
 (listado con filtros y detalle), chat con el chofer asignado, reserva de un viaje por WhatsApp (sin
 backend propio: la agencia arregla precio y lo crea a mano) y, del lado de ese mismo viaje reservado
 una vez creado por la agencia, su "Próximo viaje" en el home, su filtro y tarjeta en el historial, y
-su detalle (con cancelación bloqueada hacia la agencia).
+su detalle (con cancelación bloqueada hacia la agencia). Restaurar la sesión al abrir la app, con
+retomar un viaje activo si lo hay (`useSessionRestore`).
 
 Pendiente, no por olvido:
 
 - PIN de validación a bordo y llamada: el backend no tiene endpoint ni expone el teléfono.
 - Reembolso y penalidad al cancelar: falta definir la política (especificación §24, punto 12).
-- Restaurar la sesión al abrir la app, y por lo tanto retomar un viaje activo si la app se cerró.
 - `back_urls` / deep link de vuelta desde el checkout.
 - Cuenta (`/account`) es una pantalla provisoria.
 

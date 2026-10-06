@@ -12,7 +12,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { View } from 'react-native';
 
+import { Typography } from '@/presentation/components/Typography';
+import { VIPButton } from '@/presentation/components/VIPButton';
+import { useSessionRestore } from '@/presentation/hooks/useSessionRestore';
 import { colors } from '@/presentation/theme/colors';
 
 // En scope global: dentro del componente llegaria tarde y el splash ya se habria ocultado.
@@ -35,9 +39,11 @@ export default function RootLayout() {
     Montserrat_600SemiBold,
     Montserrat_700Bold,
   });
+  const { status: restoreStatus, retry: retryRestore } = useSessionRestore();
 
   // Si las fuentes fallan la app sigue con la tipografia del sistema en vez de quedar en el splash.
-  const ready = fontsLoaded || fontError !== null;
+  const fontsReady = fontsLoaded || fontError !== null;
+  const ready = fontsReady && restoreStatus !== 'restoring';
 
   useEffect(() => {
     if (ready) {
@@ -47,6 +53,25 @@ export default function RootLayout() {
 
   if (!ready) {
     return null;
+  }
+
+  // Hay una sesion para renovar pero no hubo red: no se cierra la sesion, se
+  // ofrece reintentar en vez de entrar sin saber si sigue siendo valida.
+  if (restoreStatus === 'retry') {
+    return (
+      <>
+        <View className="flex-1 items-center justify-center gap-4 bg-obsidian px-8">
+          <Typography variant="h3" className="text-center">
+            No pudimos restaurar tu sesión
+          </Typography>
+          <Typography tone="secondary" className="text-center">
+            Revisá tu conexión e intentá de nuevo.
+          </Typography>
+          <VIPButton title="Reintentar" onPress={() => void retryRestore()} />
+        </View>
+        <StatusBar style="light" />
+      </>
+    );
   }
 
   return (

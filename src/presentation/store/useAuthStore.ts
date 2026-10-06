@@ -17,6 +17,12 @@ interface AuthState {
   setSession: (session: AuthSession, user: AuthUser) => Promise<void>;
   /** Guarda los tokens renovados sin tocar al usuario. */
   updateTokens: (session: AuthSession) => Promise<void>;
+  /**
+   * Cierra la restauracion de la sesion al abrir la app: los tokens ya se
+   * guardaron con `updateTokens`, esto solo marca la sesion como vigente con
+   * el perfil recien cargado.
+   */
+  markAuthenticated: (user: AuthUser) => void;
   /** Refleja en memoria que el backend ya confirmo el correo. */
   markEmailVerified: () => void;
   /** Reemplaza los datos del usuario con los ultimos del backend (`GET /users/me`). */
@@ -46,6 +52,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
   async updateTokens(session) {
     await refreshTokenStorage.save(session.refreshToken);
     set({ accessToken: session.accessToken, accessTokenExpiresAt: session.accessTokenExpiresAt });
+  },
+
+  markAuthenticated(user) {
+    set({ user, isAuthenticated: true });
   },
 
   markEmailVerified() {

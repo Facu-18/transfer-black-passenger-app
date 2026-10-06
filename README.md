@@ -378,7 +378,19 @@ La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHis
 - **Timeout de 60s**: el backend en Render se duerme tras unos minutos sin tráfico y la primera solicitud puede tardar cerca de un minuto en despertarlo.
 - **Tokens**: `useAuthStore` (Zustand) guarda el access token solo en memoria y el refresh token en `expo-secure-store` (Keychain / Keystore; AsyncStorage no cifra). El interceptor de solicitud agrega `Authorization: Bearer` con el access token vigente.
 - **Renovación**: el access token dura 15 minutos. Ante un 401, el interceptor de respuesta pide `POST /auth/refresh`, guarda el refresh token nuevo (rota en cada uso) y repite la solicitud una vez. Las solicitudes que fallan a la vez esperan la misma renovación (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh token cerraría la sesión. Si el backend rechaza el refresh token, el 401 llega a la pantalla y `handleExpiredSession()` vuelve al login; si la renovación falla por red, la pantalla recibe un error de conexión y la sesión sigue.
-- **Pendiente**: restaurar la sesión al abrir la app. Hoy la sesión vive mientras la app está abierta.
+
+### Restaurar la sesión al abrir la app
+
+`useSessionRestore` (llamado una sola vez desde `src/app/_layout.tsx`) corre antes de decidir rutas públicas o privadas, con el splash (`expo-splash-screen`) visible mientras dura:
+
+1. Lee el refresh token de `expo-secure-store`. Sin token, termina: se entra sin sesión, como siempre.
+2. `POST /auth/refresh` (reusa `refreshSessionAction`) y guarda los tokens renovados (`useAuthStore.updateTokens`).
+3. `GET /users/me` con el access token recién obtenido, y marca la sesión vigente (`useAuthStore.markAuthenticated`).
+4. Busca un viaje para retomar: `GET /rides?status=active` (alias que trae todo lo que no sea `completed` ni `cancelled`, incluidos los borradores) y se queda con el primero en un estado de viaje inmediato en curso o un borrador esperando el pago (`searching`, `assigned`, `driver_arriving`, `driver_arrived`, `in_progress`, `draft`); un reservado sin activar (`scheduled`) no cuenta, de eso se encarga la tarjeta de "Próximo viaje" del Home. El resultado se guarda en `useSessionRestoreStore` hasta que se consume.
+
+Un rechazo del backend (4xx: el refresh token venció o se revocó) borra el token local y se entra sin sesión. Un corte de red o timeout no cierra la sesión: se muestra una pantalla de "Reintentar" en vez de la app, sin perder el token. `(public)/_layout.tsx` es quien lee el resultado: con sesión restaurada, redirige a `/home` o, si hay un viaje para retomar, directo a `/trip/[tripId]`, en vez de mostrar la selección de perfil.
+
+Con la app abierta, un access token vencido mientras está en segundo plano se renueva solo con el mismo interceptor de siempre: no hace falta nada adicional.
 
 ### Registro de pasajero
 
