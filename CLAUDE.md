@@ -56,9 +56,18 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Entorno:** `.env` (copia de `.env.example`). Las `EXPO_PUBLIC_*` quedan escritas en el bundle
   (nada secreto) y se leen con acceso literal a `process.env`; tras cambiarlas hay que reiniciar
   Metro. En un celular físico `localhost` es el celular: usar la IP de la PC.
-- **Proveedores de mapas:** Geoapify está detrás de `PlacesProvider` y `RoutesProvider`; se cambia
-  en un solo archivo (`core/api/places-provider.ts`, `core/api/routes-provider.ts`). Ojo: el
-  `placeId` viaja a `POST /rides/quote`, así que el backend tiene que usar el mismo proveedor.
+- **Proveedores de mapas:** Google, siempre detrás del backend (`PlacesProvider`,
+  `core/api/places-provider.ts` → `google-places-provider.ts`); se cambia en un solo archivo. La app
+  no tiene key de Places/Geocoding ni le habla a Google directo: pide `GET /places/autocomplete`,
+  `GET /places/details/:placeId` y `GET /places/reverse` al propio backend, que usa su key de
+  servidor. El autocompletado no trae coordenadas (`PlaceSuggestion`): hace falta `getPlaceDetails`
+  (con el mismo `session_token` de UUID que agrupó el autocompletado) para resolverlas y recién ahí
+  armar un `Place`. Ojo: el `placeId` viaja a `POST /rides/quote`, así que el backend tiene que usar
+  el mismo proveedor. La ruta del mapa de la cotización viene en `route.polyline` (ya no se pide
+  aparte); no hay proveedor de rutas para el chofer en movimiento (el backend no expone eso), así que
+  `useDriverEta` siempre estima en línea recta. En Android, el Maps SDK usa la key de
+  `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` vía `app.config.ts` (restringida por paquete + SHA-1); iOS
+  sigue con Apple Maps, sin key ni provider forzado.
 
 ## Cosas del backend que sorprenden
 
