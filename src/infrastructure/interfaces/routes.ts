@@ -1,5 +1,5 @@
-// Rutas en auto entre dos puntos, independientes del proveedor de mapas. Igual
-// que con los lugares: migrar a Google es escribir otro `RoutesProvider`.
+// Ruta estimada del chofer en movimiento (no hay proveedor de rutas para esto,
+// solo para la cotizacion ya hecha): ver `useDriverEta`.
 
 import type { Coordinates } from './places';
 
@@ -8,8 +8,4 @@ export interface DrivingRoute {
   points: Coordinates[];
   distanceMeters: number;
   durationSeconds: number;
-}
-
-export interface RoutesProvider {
-  route(from: Coordinates, to: Coordinates, options?: { signal?: AbortSignal }): Promise<DrivingRoute>;
 }

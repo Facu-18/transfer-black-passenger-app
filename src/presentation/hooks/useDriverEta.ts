@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { routesProvider } from '@/core/api/routes-provider';
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import type { DrivingRoute } from '@/infrastructure/interfaces/routes';
 import { distanceMeters } from '@/presentation/utils/geo';
 
 /**
- * Cada cuanto se recalcula la ruta. Las posiciones llegan cada 3 segundos:
- * pedir una ruta por cada una gastaria la cuota del proveedor sin cambiar lo
- * que ve el pasajero.
+ * Cada cuanto se recalcula la ruta mostrada. No hay proveedor de rutas para el
+ * chofer en movimiento (el backend solo calcula una ruta al cotizar el viaje,
+ * no para un origen/destino cualquiera): esto solo evita recalcular y
+ * reencuadrar el mapa con cada posicion (llegan cada 3 s), no gastar cuota.
  */
 const ROUTE_REFRESH_MS = 30_000;
 
-/** Si el proveedor falla: en la ciudad no se maneja en linea recta. */
+/** En la ciudad no se maneja en linea recta. */
 const DETOUR_FACTOR = 1.3;
 const FALLBACK_SPEED_METERS_PER_SECOND = 25_000 / 3_600;
 
+/** Estimacion local a partir de la distancia en linea recta. */
 function estimateRoute(from: Coordinates, to: Coordinates): DrivingRoute {
   const meters = distanceMeters(from, to) * DETOUR_FACTOR;
   return {
@@ -29,14 +30,15 @@ function estimateRoute(from: Coordinates, to: Coordinates): DrivingRoute {
  * Ruta, minutos y distancia del chofer hasta `target`: el punto de partida
  * mientras viene a buscar al pasajero, el destino final cuando ya lo lleva.
  *
- * Se calcula al llegar la primera posicion y despues cada 30 segundos, o antes
- * si cambia el destino.
+ * Es siempre una estimacion en linea recta (no existe un proveedor de rutas
+ * para el chofer en movimiento, solo para la cotizacion ya hecha): se calcula
+ * al llegar la primera posicion y despues cada 30 segundos, o antes si cambia
+ * el destino, para no reencuadrar el mapa con cada posicion.
  */
 export function useDriverEta(driver: Coordinates | null, target: Coordinates | null, enabled: boolean) {
   const [route, setRoute] = useState<DrivingRoute | null>(null);
   const lastRequestAt = useRef(0);
   const lastTarget = useRef<Coordinates | null>(null);
-  const mounted = useRef(true);
 
   useEffect(() => {
     if (!enabled || !driver || !target) return;
@@ -47,24 +49,9 @@ export function useDriverEta(driver: Coordinates | null, target: Coordinates | n
 
     lastRequestAt.current = Date.now();
     lastTarget.current = target;
-
-    // La respuesta se usa aunque ya haya llegado otra posicion: las posiciones
-    // llegan cada 3 segundos y la ruta puede tardar mas.
-    void routesProvider
-      .route(driver, target)
-      .catch(() => estimateRoute(driver, target))
-      .then((next) => {
-        if (mounted.current) setRoute(next);
-      });
+    setRoute(estimateRoute(driver, target));
     // Solo importa el valor de las coordenadas, no la identidad del objeto.
   }, [enabled, driver?.latitude, driver?.longitude, target?.latitude, target?.longitude]);
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!enabled) {
