@@ -1,22 +1,16 @@
 import { router } from 'expo-router';
 import { ArrowRight, Building2, UserRound } from 'lucide-react-native';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { BrandLogo } from '@/presentation/components/BrandLogo';
 import { ProfileOptionCard } from '@/presentation/components/ProfileOptionCard';
 import { Screen } from '@/presentation/components/Screen';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
+import { contactWhatsAppCompanyRegistration } from '@/presentation/utils/whatsapp-services';
 
 // El alta de empresas la hace un administrador (POST /corporate/companies, rol admin):
-// no hay endpoint publico de auto-registro, asi que la opcion solo informa.
-function showCorporateUnavailable() {
-  Alert.alert(
-    'Registro corporativo',
-    'Las cuentas de empresa se habilitan solo por invitación. Contacta al equipo de Transfer Black para dar de alta a tu organización.',
-    [{ text: 'Entendido' }],
-  );
-}
+// no hay endpoint publico de auto-registro, asi que la opcion abre el WhatsApp de la agencia.
 
 export function ProfileSelectionScreen() {
   const goToRegister = () => router.push('/register');
@@ -44,10 +38,9 @@ export function ProfileSelectionScreen() {
           />
           <ProfileOptionCard
             icon={Building2}
-            title="Soy Empresa"
-            description="Gestión corporativa y viajes de equipo"
-            badge="Solo por invitación"
-            onPress={showCorporateUnavailable}
+            title="¿Querés registrar tu empresa?"
+            description="Comunicate con nosotros por WhatsApp"
+            onPress={contactWhatsAppCompanyRegistration}
           />
         </View>
 
