@@ -14,18 +14,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...(config as ExpoConfig),
   plugins: [
     ...(config.plugins ?? []),
-    [
-      '@sentry/react-native',
-      {
-        // `SENTRY_ORG`/`SENTRY_PROJECT` son de build (EAS), no `EXPO_PUBLIC_*`:
-        // no hace falta que viajen en el bundle. Sin ellos el plugin solo
-        // avisa y sigue con las variables de entorno del builder como
-        // respaldo; sin `SENTRY_AUTH_TOKEN` tampoco falla, solo no sube los
-        // source maps.
-        organization: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
-      },
-    ],
+    // El plugin de Sentry agrega al build de Android la tarea que sube los
+    // source maps, y esa tarea corta el build si no hay organizacion/proyecto.
+    // Solo se suma cuando Sentry esta configurado (`SENTRY_ORG`/`SENTRY_PROJECT`
+    // son de build, en EAS, no `EXPO_PUBLIC_*`). El SDK nativo se enlaza igual
+    // por autolinking, asi que la app reporta errores aunque falte el plugin.
+    ...(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+      ? [
+          [
+            '@sentry/react-native',
+            { organization: process.env.SENTRY_ORG, project: process.env.SENTRY_PROJECT },
+          ] as [string, Record<string, string>],
+        ]
+      : []),
   ],
   android: {
     ...config.android,
