@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { captureRenderError, initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
 import { ensureDefaultNotificationChannel } from '@/core/notifications/notification-channel';
@@ -70,7 +71,7 @@ function RootLayout() {
   // ofrece reintentar en vez de entrar sin saber si sigue siendo valida.
   if (restoreStatus === 'retry') {
     return (
-      <>
+      <GestureHandlerRootView style={{ flex: 1 }}>
         <View className="flex-1 items-center justify-center gap-4 bg-obsidian px-8">
           <Typography variant="h3" className="text-center">
             No pudimos restaurar tu sesión
@@ -81,12 +82,12 @@ function RootLayout() {
           <VIPButton title="Reintentar" onPress={() => void retryRestore()} />
         </View>
         <StatusBar style="light" />
-      </>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -95,7 +96,7 @@ function RootLayout() {
         }}
       />
       <StatusBar style="light" />
-    </>
+    </GestureHandlerRootView>
   );
 }
 
