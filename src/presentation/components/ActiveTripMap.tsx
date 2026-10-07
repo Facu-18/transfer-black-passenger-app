@@ -12,6 +12,16 @@ import { DriverCarMarker } from './DriverCarMarker';
 /** Zoom del radar: unas pocas cuadras alrededor del punto de partida. */
 const SEARCH_ZOOM = 15.5;
 
+/**
+ * Centro de Cordoba: si al retomar un viaje activo (la app se cerro y se
+ * reabrio) todavia no llego el origen/destino ni la ubicacion del usuario,
+ * esto evita que `initialCamera` quede sin centro. Sin un centro valido,
+ * Google Maps en Android arranca en (0,0) (el Golfo de Guinea, frente a
+ * Africa) y, como `initialCamera` solo se lee una vez al montar el mapa,
+ * se queda ahi hasta el primer `animateCamera` de los efectos de abajo.
+ */
+const DEFAULT_CENTER: Coordinates = { latitude: -31.4201, longitude: -64.1888 };
+
 interface ActiveTripMapProps {
   /**
    * Hacia donde va el auto: el punto de partida mientras viene a buscar al
@@ -99,7 +109,7 @@ export function ActiveTripMap({
       userInterfaceStyle="dark"
       mapPadding={mapReady ? { top: topInset, right: 0, bottom: bottomInset, left: 0 } : undefined}
       onMapReady={() => setMapReady(true)}
-      initialCamera={target ? { center: target, zoom: SEARCH_ZOOM, heading: 0, pitch: 0 } : undefined}
+      initialCamera={{ center: target ?? DEFAULT_CENTER, zoom: SEARCH_ZOOM, heading: 0, pitch: 0 }}
       scrollEnabled={!locked}
       zoomEnabled={!locked}
       rotateEnabled={false}
