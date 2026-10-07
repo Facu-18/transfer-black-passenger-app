@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
+import { tripResumeAttemptStorage } from '@/infrastructure/storage/trip-resume-attempt-storage';
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
 import { BoardingPinCard } from '@/presentation/components/BoardingPinCard';
 import { CoordinatorBanner } from '@/presentation/components/CoordinatorBanner';
@@ -30,6 +31,8 @@ const TOP_BAR_HEIGHT = 64;
 const BOARDING_PIN_CARD_HEIGHT = 168;
 /** Misma referencia en cada render: un `[]` nuevo reencuadraria el mapa sin parar. */
 const NO_ROUTE: Coordinates[] = [];
+/** Tiempo sin cerrarse que cuenta a esta pantalla como "estable" (ver `tripResumeAttemptStorage`). */
+const RESUME_ATTEMPT_STABLE_MS = 8000;
 
 type TripView = 'searching' | 'enRoute' | 'arrived' | 'onBoard' | 'status';
 
@@ -112,14 +115,33 @@ export function ActiveTripScreen() {
   // Viaje terminado: al recibo con `replace`, asi "atras" no vuelve al seguimiento.
   useEffect(() => {
     if (tripId && trip?.status === 'completed') {
+      void tripResumeAttemptStorage.clear();
       router.replace({ pathname: '/receipt/[tripId]', params: { tripId } });
     }
   }, [tripId, trip?.status]);
 
   const goHome = useCallback(() => {
+    void tripResumeAttemptStorage.clear();
     resetTrip();
     router.dismissTo('/home');
   }, [resetTrip]);
+
+  // Marca "estoy mostrando este viaje" (al retomarlo al abrir la app o al
+  // entrar de forma normal): si la app se cierra antes de estabilizarse, el
+  // proximo arranque encuentra la marca y no vuelve a navegar sola aca. Se
+  // borra sola a los pocos segundos; si la pantalla se desmonta antes (el
+  // usuario sale por las vias de arriba, que ya la borran), el timeout
+  // simplemente se cancela sin volver a escribir nada.
+  useEffect(() => {
+    if (!tripId) return undefined;
+
+    void tripResumeAttemptStorage.set(tripId);
+    const stableTimer = setTimeout(() => {
+      void tripResumeAttemptStorage.clear();
+    }, RESUME_ATTEMPT_STABLE_MS);
+
+    return () => clearTimeout(stableTimer);
+  }, [tripId]);
 
   // Mismo origen/destino, sin tocar el store: una nueva cotizacion crea otro borrador.
   const retrySearch = useCallback(() => {

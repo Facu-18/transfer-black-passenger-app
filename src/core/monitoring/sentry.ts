@@ -47,3 +47,14 @@ export function captureUnexpectedApiError(error: unknown): void {
     Sentry.captureException(error);
   }
 }
+
+/**
+ * Error de render atrapado por un `ErrorBoundary` de ruta (ver
+ * `src/app/_layout.tsx` y `src/app/(app)/trip/[tripId].tsx`). A diferencia
+ * de `captureUnexpectedApiError`, esto no filtra por tipo: si React llego a
+ * tirar abajo una pantalla, siempre es un problema de la app.
+ */
+export function captureRenderError(error: unknown): void {
+  if (!isSentryEnabled) return;
+  Sentry.captureException(error);
+}

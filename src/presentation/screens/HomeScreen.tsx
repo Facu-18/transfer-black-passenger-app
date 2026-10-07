@@ -3,6 +3,7 @@ import {
   Bell,
   BriefcaseBusiness,
   CalendarClock,
+  CarFront,
   Clock,
   MapPin,
   Search,
@@ -27,6 +28,7 @@ import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligib
 import { useLocationPermissions, type LocationStatus } from '@/presentation/hooks/useLocationPermissions';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
 import { useUpcomingTrips } from '@/presentation/hooks/useUpcomingTrips';
+import { useSessionRestoreStore } from '@/presentation/store/useSessionRestoreStore';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
@@ -62,6 +64,8 @@ export function HomeScreen() {
   const setDestination = useTripStore((state) => state.setDestination);
   const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
   const { nextTrip } = useUpcomingTrips();
+  const crashedTripId = useSessionRestoreStore((state) => state.crashedTripId);
+  const setCrashedTripId = useSessionRestoreStore((state) => state.setCrashedTripId);
   const {
     membership: corporateMembership,
     isLoading: isLoadingCorporateMembership,
@@ -86,6 +90,15 @@ export function HomeScreen() {
     setPreferredPaymentMethod(null);
     // Sin origen (no hay ubicación) se completa en la búsqueda; con origen se pasa directo a cotizar.
     router.push(origin ? '/pricing' : '/search');
+  };
+
+  // Viaje que quedo marcado como "en pantalla" al cerrarse la app la vez
+  // anterior (ver `tripResumeAttemptStorage`): se abre solo cuando el pasajero lo pide.
+  const openCrashedTrip = () => {
+    if (!crashedTripId) return;
+    const tripId = crashedTripId;
+    setCrashedTripId(null);
+    router.push({ pathname: '/trip/[tripId]', params: { tripId } });
   };
 
   const startCorporateTrip = () => {
@@ -218,6 +231,28 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="h-1 w-10 self-center rounded-full bg-platinum/20" />
+
+        {crashedTripId ? (
+          <GlassSurface className="flex-row items-center gap-3 rounded-2xl px-4 py-3">
+            <CarFront size={20} color={colors.gold} />
+            <View className="flex-1 gap-0.5">
+              <Typography weight="semibold">Tenés un viaje en curso</Typography>
+              <Typography variant="caption" tone="secondary">
+                La app se cerró mientras lo mostraba. Tocá para retomarlo.
+              </Typography>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abrir viaje en curso"
+              onPress={openCrashedTrip}
+              className="rounded-full bg-gold px-4 py-2 active:opacity-80"
+            >
+              <Typography variant="caption" weight="bold" tone="inverse">
+                Abrir
+              </Typography>
+            </Pressable>
+          </GlassSurface>
+        ) : null}
 
         <MotionPressable
           accessibilityRole="search"

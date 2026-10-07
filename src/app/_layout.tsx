@@ -8,13 +8,14 @@ import { Montserrat_600SemiBold } from '@expo-google-fonts/montserrat/600SemiBol
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat/700Bold';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
-import { Stack } from 'expo-router';
+import { router, Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
-import { initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
+import { captureRenderError, initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
+import { RouteErrorFallback } from '@/presentation/components/RouteErrorFallback';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useSessionRestore } from '@/presentation/hooks/useSessionRestore';
@@ -96,3 +97,17 @@ function RootLayout() {
 // Captura errores de render que se escapan del arbol de React y suma
 // contexto de navegacion a cada reporte.
 export default wrapWithSentry(RootLayout);
+
+/**
+ * Red final: si una pantalla no tiene su propio `ErrorBoundary` (ver
+ * `src/app/(app)/trip/[tripId].tsx`), un error de render que llegue hasta
+ * acá sin esto tira abajo toda la app en un build de release.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    console.error('Error de render en la raiz de la app:', error);
+    captureRenderError(error);
+  }, [error]);
+
+  return <RouteErrorFallback onRetry={() => void retry()} onGoHome={() => router.replace('/home')} />;
+}

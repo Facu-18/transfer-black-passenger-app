@@ -5,10 +5,38 @@ import { getResumableTripAction } from '@/core/actions/get-resumable-trip.action
 import { refreshSessionAction } from '@/core/actions/refresh-session.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
+import { tripResumeAttemptStorage } from '@/infrastructure/storage/trip-resume-attempt-storage';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useSessionRestoreStore } from '@/presentation/store/useSessionRestoreStore';
 
 export type SessionRestoreStatus = 'restoring' | 'retry' | 'done';
+
+/**
+ * Decide si el viaje encontrado se retoma solo o se ofrece abrir a mano.
+ *
+ * Si la marca de `tripResumeAttemptStorage` (ver ese archivo) todavia
+ * apunta a este mismo viaje, la apertura anterior se cerro mientras lo
+ * mostraba: no se navega sola de nuevo (repetiria el cierre) y se deja a
+ * `crashedTripId` para que el Home lo ofrezca. Si no hay marca, o es de otro
+ * viaje, se guarda la marca de este intento y se navega como siempre.
+ */
+async function applyResumableTrip(tripId: string | null): Promise<void> {
+  if (!tripId) {
+    useSessionRestoreStore.getState().setResumeTripId(null);
+    return;
+  }
+
+  const previousAttempt = await tripResumeAttemptStorage.get();
+  if (previousAttempt?.tripId === tripId) {
+    await tripResumeAttemptStorage.clear();
+    useSessionRestoreStore.getState().setResumeTripId(null);
+    useSessionRestoreStore.getState().setCrashedTripId(tripId);
+    return;
+  }
+
+  await tripResumeAttemptStorage.set(tripId);
+  useSessionRestoreStore.getState().setResumeTripId(tripId);
+}
 
 /**
  * Al abrir la app: si hay un refresh token guardado, renueva la sesion y
@@ -54,7 +82,7 @@ export function useSessionRestore() {
         // Sin viaje para retomar no bloquea el ingreso: se entra igual al Home.
         try {
           const resumable = await getResumableTripAction();
-          useSessionRestoreStore.getState().setResumeTripId(resumable?.id ?? null);
+          await applyResumableTrip(resumable?.id ?? null);
         } catch {
           // No hay nada que retomar con certeza: se entra como si no hubiera viaje.
         }
