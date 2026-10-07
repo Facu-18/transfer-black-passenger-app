@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { registerPushDeviceAction } from '@/core/actions/register-push-device.action';
+import { ensureDefaultNotificationChannel } from '@/core/notifications/notification-channel';
 import { pushDeviceStorage } from '@/infrastructure/storage/push-device-storage';
 
 export type NotificationPermissionState =
@@ -40,14 +41,7 @@ export const usePushNotificationsStore = create<PushNotificationsState>()((set, 
     set({ registration: 'registering', errorMessage: null });
 
     try {
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'Notificaciones de viajes',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#C9A85C',
-        });
-      }
+      await ensureDefaultNotificationChannel();
 
       let permissions = await Notifications.getPermissionsAsync();
       if (requestPermission && !allowsNotifications(permissions)) {
