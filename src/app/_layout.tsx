@@ -15,6 +15,7 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { captureRenderError, initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
+import { ensureDefaultNotificationChannel } from '@/core/notifications/notification-channel';
 import { RouteErrorFallback } from '@/presentation/components/RouteErrorFallback';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
@@ -27,6 +28,10 @@ void SplashScreen.preventAutoHideAsync();
 // Tambien en scope global, antes de cualquier render: sin DSN (o en
 // desarrollo sin pedirlo a mano) queda desactivado y estas llamadas no hacen nada.
 initSentry();
+
+// Sin esperar sesion: un push puede llegar antes de iniciar sesion y Android
+// necesita el canal creado para mostrarlo (ver notification-channel.ts).
+void ensureDefaultNotificationChannel();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
