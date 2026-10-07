@@ -142,7 +142,17 @@ export function ActiveTripMap({
         </Marker>
       ) : null}
 
-      {mode === 'tracking' && driver ? (
+      {/*
+        Tambien detras de `mapReady`: en Android, un Marker con `image` y
+        `tracksViewChanges={false}` (ver DriverCarMarker) que se agrega a un
+        GoogleMap nativo todavia no adjunto a veces no llega a dibujarse, y
+        como no vuelve a repintarse solo, el auto queda invisible el resto
+        de la pantalla. Pasa justo al retomar un viaje ya asignado: la
+        primera posicion del chofer por socket puede llegar casi al mismo
+        tiempo que `onMapReady`, y sin esta condicion el Marker se montaba
+        sin esperarlo.
+      */}
+      {mapReady && mode === 'tracking' && driver ? (
         <DriverCarMarker coordinate={driver.coordinate} />
       ) : null}
     </MapView>
