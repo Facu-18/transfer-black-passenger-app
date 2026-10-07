@@ -1,12 +1,6 @@
 // Contratos de `/api/v1/rides` tal como los devuelve el backend (snake_case).
 // Los importes viajan como texto para no perder centavos en un `number`.
 
-export interface RouteGeometryResponse {
-  type: 'MultiLineString';
-  /** Cada punto es `[longitud, latitud]`, al reves que en React Native Maps. */
-  coordinates: number[][][];
-}
-
 export interface RideQuoteResponse {
   draft: {
     /** Es el `tripId` de `POST /rides/{tripId}/confirm`. */
@@ -21,7 +15,8 @@ export interface RideQuoteResponse {
     distance_km: number;
     duration_seconds: number;
     duration_minutes: number;
-    geometry: RouteGeometryResponse;
+    /** Recorrido codificado (algoritmo de polyline de Google): la app lo dibuja sin pedirlo aparte. */
+    polyline: string;
   };
   quotes: Array<{
     /** Es el `fare_quote_id` de la confirmacion. */

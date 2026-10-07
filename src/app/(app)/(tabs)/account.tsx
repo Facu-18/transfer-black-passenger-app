@@ -1,22 +1,73 @@
-import { useState } from 'react';
+import { BriefcaseBusiness, ChevronRight, CircleHelp, FileText, ShieldCheck, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { Linking, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Pressable, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 import { logoutAction } from '@/core/actions/logout.action';
 import { revokePushDeviceAction } from '@/core/actions/revoke-push-device.action';
 import { pushDeviceStorage } from '@/infrastructure/storage/push-device-storage';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
 import { BrandLogo } from '@/presentation/components/BrandLogo';
-import { CorporateMembershipSection } from '@/presentation/components/CorporateMembershipSection';
 import { ProfileSummaryCard } from '@/presentation/components/ProfileSummaryCard';
 import { Screen } from '@/presentation/components/Screen';
-import { VIPButton } from '@/presentation/components/VIPButton';
 import { Typography } from '@/presentation/components/Typography';
-import { useCorporateMembership } from '@/presentation/hooks/useCorporateMembership';
+import { VIPButton } from '@/presentation/components/VIPButton';
 import { CompleteProfileScreen } from '@/presentation/screens/CompleteProfileScreen';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { usePushNotificationsStore } from '@/presentation/store/usePushNotificationsStore';
 import { useTripStore } from '@/presentation/store/useTripStore';
+import { colors } from '@/presentation/theme/colors';
+import { PRIVACY_URL, TERMS_URL } from '@/presentation/utils/legal-links';
+import { contactWhatsAppHelp } from '@/presentation/utils/whatsapp-services';
+
+interface AccountActionProps {
+  title: string;
+  description: string;
+  icon: typeof CircleHelp;
+  onPress: () => void;
+}
+
+function AccountAction({ title, description, icon: Icon, onPress }: AccountActionProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      className="flex-row items-center gap-4 rounded-3xl border border-charcoal bg-surface/90 p-5 active:opacity-80"
+    >
+      <View className="h-12 w-12 items-center justify-center rounded-2xl bg-gold/10">
+        <Icon size={23} color={colors.gold} />
+      </View>
+      <View className="flex-1 gap-1">
+        <Typography variant="bodyLarge" weight="bold">{title}</Typography>
+        <Typography variant="caption" tone="secondary">{description}</Typography>
+      </View>
+      <ChevronRight size={21} color={colors.ash} />
+    </Pressable>
+  );
+}
+
+/** Misma fila, con los colores de peligro: para la unica accion destructiva de esta pantalla. */
+function DestructiveAccountAction({ title, description, icon: Icon, onPress }: AccountActionProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      className="flex-row items-center gap-4 rounded-3xl border border-danger/30 bg-surface/90 p-5 active:opacity-80"
+    >
+      <View className="h-12 w-12 items-center justify-center rounded-2xl bg-danger/10">
+        <Icon size={23} color={colors.danger} />
+      </View>
+      <View className="flex-1 gap-1">
+        <Typography variant="bodyLarge" weight="bold" tone="danger">{title}</Typography>
+        <Typography variant="caption" tone="secondary">{description}</Typography>
+      </View>
+      <ChevronRight size={21} color={colors.danger} />
+    </Pressable>
+  );
+}
 
 export default function AccountRoute() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -29,7 +80,6 @@ export default function AccountRoute() {
   const notificationError = usePushNotificationsStore((state) => state.errorMessage);
   const syncNotifications = usePushNotificationsStore((state) => state.sync);
   const resetNotifications = usePushNotificationsStore((state) => state.reset);
-  const corporateMembership = useCorporateMembership();
 
   const logout = async () => {
     if (isLoggingOut) return;
@@ -66,20 +116,36 @@ export default function AccountRoute() {
     }
   };
 
-  const accountFooter = (
-    <View className="gap-4">
-      <CorporateMembershipSection
-        membership={corporateMembership.membership}
-        joinCode={corporateMembership.joinCode}
-        validationError={corporateMembership.validationError}
-        loadError={corporateMembership.loadError}
-        joinError={corporateMembership.joinError}
-        isLoading={corporateMembership.isLoading}
-        isJoining={corporateMembership.isJoining}
-        onJoinCodeChange={corporateMembership.setJoinCode}
-        onJoin={() => void corporateMembership.join()}
-        onRetry={() => void corporateMembership.retry()}
-      />
+  if (isEditing || !user) {
+    return <CompleteProfileScreen onSaved={() => setIsEditing(false)} />;
+  }
+
+  return (
+    <Screen scrollable contentClassName="gap-6">
+      <View className="items-center gap-3">
+        <BrandLogo size="md" />
+        <Typography variant="h2" className="text-center">Mi cuenta</Typography>
+        <Typography tone="secondary" className="text-center">
+          Gestioná tu perfil y accedé a nuestros canales exclusivos.
+        </Typography>
+      </View>
+
+      <ProfileSummaryCard user={user} onEdit={() => setIsEditing(true)} />
+
+      <View className="gap-3">
+        <AccountAction
+          title="Ayuda"
+          description="Contactanos por WhatsApp"
+          icon={CircleHelp}
+          onPress={contactWhatsAppHelp}
+        />
+        <AccountAction
+          title="Activar Transfer Black Empresas"
+          description="Vinculá tu perfil con el beneficio de tu empresa"
+          icon={BriefcaseBusiness}
+          onPress={() => router.push('/transfer-black-empresas')}
+        />
+      </View>
 
       <View className="gap-3 rounded-3xl border border-charcoal bg-surface/90 p-5">
         <Typography variant="h3">Notificaciones</Typography>
@@ -101,34 +167,35 @@ export default function AccountRoute() {
         ) : null}
       </View>
 
+      <View className="gap-3">
+        <Typography variant="caption" weight="semibold" tone="secondary" className="uppercase tracking-widest">
+          Legales
+        </Typography>
+        <AccountAction
+          title="Términos de Servicio"
+          description="Las condiciones de uso de Transfer Black"
+          icon={FileText}
+          onPress={() => void WebBrowser.openBrowserAsync(TERMS_URL)}
+        />
+        <AccountAction
+          title="Política de Privacidad"
+          description="Cómo tratamos tus datos personales"
+          icon={ShieldCheck}
+          onPress={() => void WebBrowser.openBrowserAsync(PRIVACY_URL)}
+        />
+      </View>
+
+      <DestructiveAccountAction
+        title="Eliminar mi cuenta"
+        description="Borra tus datos personales de forma permanente"
+        icon={Trash2}
+        onPress={() => router.push('/delete-account')}
+      />
+
       <VIPButton title="Cerrar sesión" loading={isLoggingOut} onPress={() => void logout()} />
-    </View>
+      <View className="h-20" />
+    </Screen>
   );
-
-  // Con el perfil completo, por defecto se muestra el resumen y no el
-  // formulario: "Modificar datos" abre el mismo formulario precargado.
-  if (user?.profileComplete && !isEditing) {
-    return (
-      <Screen scrollable contentClassName="gap-7">
-        <View className="items-center gap-3">
-          <BrandLogo size="md" />
-          <Typography variant="h2" className="text-center">
-            Mi cuenta
-          </Typography>
-          <Typography tone="secondary" className="text-center">
-            Mantén tus datos personales actualizados.
-          </Typography>
-        </View>
-
-        <ProfileSummaryCard user={user} onEdit={() => setIsEditing(true)} />
-
-        {accountFooter}
-        <View className="h-20" />
-      </Screen>
-    );
-  }
-
-  return <CompleteProfileScreen onSaved={() => setIsEditing(false)} footer={accountFooter} />;
 }
 
 function notificationStatusMessage(

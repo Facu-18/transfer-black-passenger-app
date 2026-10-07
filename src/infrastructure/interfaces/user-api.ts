@@ -18,6 +18,8 @@ export interface CurrentUserResponse {
   document_type: DocumentType | null;
   document_number: string | null;
   address_text: string | null;
+  rating_average: number;
+  rating_count: number;
   profile_complete: boolean;
   roles: UserRoleResponse[];
 }
@@ -33,4 +35,14 @@ export interface UpdateCurrentUserRequest {
   document_type?: DocumentType | null;
   document_number?: string | null;
   address_text?: string | null;
+}
+
+/** Cuerpo de `DELETE /users/me`: pide la contraseña para confirmar. */
+export interface DeleteAccountRequest {
+  password: string;
+}
+
+/** `DELETE /users/me` anonimiza la cuenta (no la borra fisicamente): no hay nada mas que confirmar. */
+export interface DeleteAccountResponse {
+  deleted: true;
 }

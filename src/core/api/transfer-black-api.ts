@@ -1,5 +1,6 @@
 import axios, { isAxiosError } from 'axios';
 
+import { captureUnexpectedApiError } from '@/core/monitoring/sentry';
 import type { ApiErrorResponse, ApiValidationIssue } from '@/infrastructure/interfaces/api-responses';
 import type { ChatErrorResponse } from '@/infrastructure/interfaces/chat-api';
 
@@ -23,6 +24,14 @@ declare module 'axios' {
 
 /** Ruta de renovacion: un 401 aca no dispara otra renovacion. */
 export const REFRESH_PATH = '/auth/refresh';
+
+/**
+ * 401 que ya significan que la cuenta no tiene (ni va a tener) una sesion
+ * valida: la cuenta fue revocada o eliminada. Ningun refresh la reactiva, asi
+ * que intentarlo solo gasta una llamada a `/auth/refresh` (que vuelve a
+ * fallar con el mismo motivo) antes de llegar al mismo resultado.
+ */
+const TERMINATED_SESSION_CODES = new Set(['SESSION_REVOKED', 'ACCOUNT_DELETED']);
 
 // El backend en Render se duerme sin trafico y la primera solicitud puede tardar
 // casi un minuto en despertarlo: un timeout corto lo haria fallar siempre.
@@ -68,8 +77,13 @@ transferBlackApi.interceptors.response.use(
     // sigue su camino y la pantalla cierra la sesion como siempre.
     if (isAxiosError(error) && error.response?.status === 401 && error.config) {
       const config = error.config;
+      const data = error.response.data;
+      const isTerminatedSession = isApiErrorResponse(data) && TERMINATED_SESSION_CODES.has(data.error.code);
       const canRetry =
-        !config.sessionRetried && config.url !== REFRESH_PATH && Boolean(config.headers.Authorization);
+        !config.sessionRetried &&
+        config.url !== REFRESH_PATH &&
+        Boolean(config.headers.Authorization) &&
+        !isTerminatedSession;
 
       if (canRetry) {
         let token: string | null;
@@ -78,9 +92,7 @@ transferBlackApi.interceptors.response.use(
         } catch (refreshError: unknown) {
           // La renovacion no respondio (sin red): se informa eso, no un 401,
           // para que la pantalla no cierre una sesion que sigue siendo valida.
-          return Promise.reject(
-            refreshError instanceof ApiRequestError ? refreshError : toApiRequestError(refreshError),
-          );
+          return rejectAsApiError(refreshError instanceof ApiRequestError ? refreshError : toApiRequestError(refreshError));
         }
 
         if (token) {
@@ -91,9 +103,15 @@ transferBlackApi.interceptors.response.use(
       }
     }
 
-    return Promise.reject(toApiRequestError(error));
+    return rejectAsApiError(toApiRequestError(error));
   },
 );
+
+/** Un error de servidor o con forma inesperada va a Sentry; uno de negocio (4xx) no. */
+function rejectAsApiError(error: ApiRequestError): Promise<never> {
+  captureUnexpectedApiError(error);
+  return Promise.reject(error);
+}
 
 function isApiErrorResponse(body: unknown): body is ApiErrorResponse {
   if (typeof body !== 'object' || body === null || !('error' in body)) {

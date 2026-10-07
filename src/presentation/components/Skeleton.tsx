@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { colors } from '@/presentation/theme/colors';
+import { useMotionEnabled } from '@/presentation/hooks/useMotionEnabled';
 
 interface SkeletonProps {
   className?: string;
@@ -11,10 +12,14 @@ interface SkeletonProps {
 /** Bloque de carga con pulso suave. El tamaño y la forma van por `className`. */
 export function Skeleton({ className = '' }: SkeletonProps) {
   const opacity = useSharedValue(0.35);
+  const motionEnabled = useMotionEnabled();
 
   useEffect(() => {
-    opacity.value = withRepeat(withTiming(0.9, { duration: 700 }), -1, true);
-  }, [opacity]);
+    opacity.value = motionEnabled
+      ? withRepeat(withTiming(0.9, { duration: 700, reduceMotion: ReduceMotion.Never }), -1, true, undefined, ReduceMotion.Never)
+      : 0.55;
+    return () => cancelAnimation(opacity);
+  }, [opacity, motionEnabled]);
 
   const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
 

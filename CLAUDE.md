@@ -12,7 +12,7 @@ React Native 0.86, TypeScript 6, NativeWind 4 + Tailwind 3.4, Expo Router.
 Este repo tiene **solo la app**. El backend vive en `Facu-18/Transfer-Black` (carpeta `backend/`),
 que además contiene `ESPECIFICACION_PROYECTO.md`, la fuente de los requisitos. La app consume el
 backend **desplegado** (`EXPO_PUBLIC_API_URL`), cuyo contrato real se lee en
-https://transfer-black-api.onrender.com/docs — esa documentación manda por encima de cualquier
+https://transfer-black-api-ih1o.onrender.com/docs — esa documentación manda por encima de cualquier
 ticket: los nombres de eventos y de campos del ticket no siempre coinciden con lo implementado.
 
 El `README.md` documenta a fondo el entorno, los comandos, la arquitectura, los Design Tokens y
@@ -56,9 +56,18 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Entorno:** `.env` (copia de `.env.example`). Las `EXPO_PUBLIC_*` quedan escritas en el bundle
   (nada secreto) y se leen con acceso literal a `process.env`; tras cambiarlas hay que reiniciar
   Metro. En un celular físico `localhost` es el celular: usar la IP de la PC.
-- **Proveedores de mapas:** Geoapify está detrás de `PlacesProvider` y `RoutesProvider`; se cambia
-  en un solo archivo (`core/api/places-provider.ts`, `core/api/routes-provider.ts`). Ojo: el
-  `placeId` viaja a `POST /rides/quote`, así que el backend tiene que usar el mismo proveedor.
+- **Proveedores de mapas:** Google, siempre detrás del backend (`PlacesProvider`,
+  `core/api/places-provider.ts` → `google-places-provider.ts`); se cambia en un solo archivo. La app
+  no tiene key de Places/Geocoding ni le habla a Google directo: pide `GET /places/autocomplete`,
+  `GET /places/details/:placeId` y `GET /places/reverse` al propio backend, que usa su key de
+  servidor. El autocompletado no trae coordenadas (`PlaceSuggestion`): hace falta `getPlaceDetails`
+  (con el mismo `session_token` de UUID que agrupó el autocompletado) para resolverlas y recién ahí
+  armar un `Place`. Ojo: el `placeId` viaja a `POST /rides/quote`, así que el backend tiene que usar
+  el mismo proveedor. La ruta del mapa de la cotización viene en `route.polyline` (ya no se pide
+  aparte); no hay proveedor de rutas para el chofer en movimiento (el backend no expone eso), así que
+  `useDriverEta` siempre estima en línea recta. En Android, el Maps SDK usa la key de
+  `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` vía `app.config.ts` (restringida por paquete + SHA-1); iOS
+  sigue con Apple Maps, sin key ni provider forzado.
 
 ## Cosas del backend que sorprenden
 
@@ -69,14 +78,17 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
 - **Un aviso emitido antes de entrar a la sala se pierde.** Por eso la app re-consulta al confirmarse
   `ride:joined`, al reconectar y al volver del segundo plano, y consulta cada 15 s mientras el viaje
   está en `draft` o `searching`. Sin eso, un pago con tarjeta deja la pantalla trabada.
-- **Mercado Pago:** siempre se abre `init_point`. El viaje queda en `draft` hasta que el pago se
-  acredita por webhook, cosa que puede tardar unos segundos. El backend **no** configura `back_urls`:
-  el checkout no vuelve solo a la app.
+- **Mercado Pago:** siempre se abre `init_point`, con `WebBrowser.openAuthSessionAsync` (la app ya
+  escucha el deep link de vuelta, `transferblack-passenger://payment-return`). El viaje queda en
+  `draft` hasta que el pago se acredita por webhook, cosa que puede tardar unos segundos. El backend
+  **no** configura `back_urls` todavia: hasta que lo haga, el checkout no redirige solo y el
+  pasajero tiene que cerrarlo a mano.
 - **Despacho:** la app no lo pide. El servidor ofrece los viajes en `searching` cada 10 s y reintenta.
 - **Tokens:** el access token dura 15 minutos y el refresh **rota** en cada uso. El interceptor
   renueva una sola vez a la vez (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh
   token cierra la sesión. El access token vive solo en memoria (`useAuthStore`) y el refresh en
-  `expo-secure-store`; por eso cerrar la app hoy pierde la sesión.
+  `expo-secure-store`; al abrir la app, `useSessionRestore` lo usa para renovar la sesión y cargar
+  el perfil antes de decidir rutas públicas o privadas (ver README, "API y sesión").
 - **Idempotencia:** las operaciones que mueven plata mandan `Idempotency-Key`
   (`core/api/idempotency.ts`), una por intento de confirmación y no por solicitud: si se regenera en
   cada reintento, se puede cobrar dos veces.
@@ -166,14 +178,14 @@ camino, viaje a bordo, recibo, calificación, viaje para un pasajero invitado, h
 (listado con filtros y detalle), chat con el chofer asignado, reserva de un viaje por WhatsApp (sin
 backend propio: la agencia arregla precio y lo crea a mano) y, del lado de ese mismo viaje reservado
 una vez creado por la agencia, su "Próximo viaje" en el home, su filtro y tarjeta en el historial, y
-su detalle (con cancelación bloqueada hacia la agencia).
+su detalle (con cancelación bloqueada hacia la agencia). Restaurar la sesión al abrir la app, con
+retomar un viaje activo si lo hay (`useSessionRestore`).
 
 Pendiente, no por olvido:
 
 - PIN de validación a bordo y llamada: el backend no tiene endpoint ni expone el teléfono.
 - Reembolso y penalidad al cancelar: falta definir la política (especificación §24, punto 12).
-- Restaurar la sesión al abrir la app, y por lo tanto retomar un viaje activo si la app se cerró.
-- `back_urls` / deep link de vuelta desde el checkout.
+- `back_urls` del lado del backend (la app ya tiene el deep link de vuelta listo).
 - Cuenta (`/account`) es una pantalla provisoria.
 
 ## Probar un viaje de punta a punta

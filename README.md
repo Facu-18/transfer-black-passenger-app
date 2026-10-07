@@ -2,7 +2,7 @@
 
 Aplicación móvil del pasajero. React Native + Expo + TypeScript, estilos con NativeWind (Tailwind CSS).
 
-El backend está en otro repositorio ([Facu-18/Transfer-Black](https://github.com/Facu-18/Transfer-Black), carpeta `backend/`), junto con la especificación del producto. La app consume el backend desplegado; su contrato se lee en [`/docs`](https://transfer-black-api.onrender.com/docs).
+El backend está en otro repositorio ([Facu-18/Transfer-Black](https://github.com/Facu-18/Transfer-Black), carpeta `backend/`), junto con la especificación del producto. La app consume el backend desplegado; su contrato se lee en [`/docs`](https://transfer-black-api-ih1o.onrender.com/docs).
 
 La app de conductores compartirá la misma arquitectura base y los mismos Design Tokens: cualquier diferencia de configuración entre los dos proyectos tiene que quedar documentada acá.
 
@@ -59,7 +59,18 @@ Con Metro levantado: `a` abre en el emulador Android, `i` en el simulador iOS (s
 
 Expo solo expone al código las variables con prefijo `EXPO_PUBLIC_`, y las **escribe en el bundle**: cualquiera que tenga la app puede leerlas. Nunca poner tokens, credenciales ni secretos. Se leen con acceso literal (`process.env.EXPO_PUBLIC_API_URL`); ver `src/core/api/api-config.ts`.
 
+| Variable | Para qué |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | URL base del backend, con `/api/v1` |
+| `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` | Key del Maps SDK for Android (ver "Mapa y ubicación" más abajo); queda en el bundle, por eso se restringe por paquete + SHA-1 en Google Cloud Console, no por dominio. Sin ella el mapa de Android funciona pero sin tiles de Google. iOS no la necesita: usa Apple Maps |
+| `EXPO_PUBLIC_SENTRY_DSN` | DSN del proyecto de Sentry (ver "Monitoreo de errores" más abajo). Sin ella, Sentry queda desactivado |
+| `EXPO_PUBLIC_SENTRY_ENABLE_DEV` | `true` para activar Sentry en desarrollo (`__DEV__`) y poder probar el envío a mano; cualquier otro valor (o ausente) lo deja desactivado en desarrollo aunque haya DSN |
+| `EXPO_PUBLIC_TERMS_URL` | URL de los Términos de Servicio; sin ella se usa la del panel por defecto |
+| `EXPO_PUBLIC_PRIVACY_URL` | URL de la Política de Privacidad; sin ella se usa la del panel por defecto |
+
 En un teléfono físico `localhost` apunta al propio teléfono: usar la IP de la PC en la red local. Después de cambiar `.env`, reiniciar Metro.
+
+`SENTRY_ORG` y `SENTRY_PROJECT` (de build, no `EXPO_PUBLIC_*`: no hace falta que viajen en el bundle) y el secreto `SENTRY_AUTH_TOKEN` se configuran en EAS, no en `.env`; ver "Monitoreo de errores" más abajo.
 
 ## Arquitectura
 
@@ -175,8 +186,9 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/verify-email` | `verify-email.tsx` | Validación del PIN; destino después del registro o de un login sin correo verificado |
 | `/home` | `(app)/(tabs)/home.tsx` | Mapa principal |
 | `/activity` | `(app)/(tabs)/activity.tsx` | "Viajes": historial paginado, con filtros |
-| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; con el perfil completo muestra un resumen de solo lectura con "Modificar datos", y permite cerrar sesión |
+| `/account` | `(app)/(tabs)/account.tsx` | Provisoria; con el perfil completo muestra un resumen de solo lectura con "Modificar datos", notificaciones, legales, "Eliminar mi cuenta" y permite cerrar sesión |
 | `/complete-profile` | `(app)/complete-profile.tsx` | A donde manda el guard de perfil incompleto al pedir un viaje; mismo formulario que `/account`, con el aviso de por qué y vuelta al pedido en curso al guardar |
+| `/delete-account` | `(app)/delete-account.tsx` | "Eliminar mi cuenta": explica las consecuencias y pide la contraseña para confirmar |
 | `/search` | `(app)/search.tsx` | "Planifica tu viaje" |
 | `/guest` | `(app)/guest.tsx` | "Pasajero invitado": carga los datos de un tercero para viajar en su nombre |
 | `/pricing` | `(app)/pricing.tsx` | Cotización, categoría y confirmación |
@@ -185,6 +197,7 @@ Expo Router con rutas en `src/app/` (`package.json` → `"main": "expo-router/en
 | `/receipt/[tripId]` | `(app)/receipt/[tripId].tsx` | Recibo del viaje terminado y calificación del chofer |
 | `/trips/[tripId]` | `(app)/trips/[tripId].tsx` | Detalle de un viaje del historial (plural: distinta de `/trip/[tripId]`) |
 | `/chat/[tripId]` | `(app)/chat/[tripId].tsx` | Chat 1 a 1 con el chofer asignado |
+| `/payment-return` | `payment-return.tsx` | Deep link de vuelta desde el checkout de Mercado Pago (`transferblack-passenger://payment-return?trip_id=...`); redirige a `/trip/[tripId]` |
 
 `(public)` agrupa las rutas sin sesión y `(app)` la zona privada; el nombre del grupo no aparece en la URL. El layout de `(app)` es la compuerta: sin sesión redirige a `/login` y con el correo sin verificar, a `/verify-email`. `/verify-email` también redirige a `/login` si no hay sesión, porque el endpoint exige el access token.
 
@@ -194,17 +207,17 @@ Dentro de `(app)`, `(tabs)` tiene la barra inferior flotante (`FloatingTabBar`);
 
 ### Mapa y ubicación
 
-- `react-native-maps` con `PROVIDER_GOOGLE` en Android (estilo oscuro de `theme/map-style.ts`, sin puntos de interés) y Apple Maps en iOS (`userInterfaceStyle="dark"`). En Expo Go no requiere key; para builds de tienda hay que configurar `androidGoogleMapsApiKey` / `iosGoogleMapsApiKey` en el plugin de `react-native-maps`.
+- `react-native-maps` con `PROVIDER_GOOGLE` en Android (estilo oscuro de `theme/map-style.ts`, sin puntos de interés) y Apple Maps en iOS (`userInterfaceStyle="dark"`, sin provider forzado). La key del Maps SDK for Android se configura en `android.config.googleMaps.apiKey`, que `app.config.ts` llena desde `EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY` (en Google Cloud Console, restringida al paquete `com.transferblack.passenger` + el SHA-1 de cada build). En Expo Go no se usa (va con el build de Expo Go, no con el de esta app); hace falta para un build nativo propio (`expo run:android`, EAS Build) o prebuild.
 - `useLocationPermissions` pide el permiso en primer plano al montar el Home, toma la última posición conocida (centra rápido) y después la actual. Guarda `currentLocation` en `useTripStore` y la convierte en dirección (geocodificación inversa) para proponerla como origen. Sin permiso o sin señal, el chip del mapa permite reintentar o abrir Ajustes.
 - **Emulador de Android**: si Google Play Services está desactualizado, rechaza la firma de Expo Go (`GoogleCertificatesRslt: not allowed` en logcat) y el mapa queda sin tiles. En un teléfono con Play Services al día funciona.
 
-### Proveedor de lugares (Geoapify, migrable a Google)
+### Proveedor de lugares (Google, detrás del backend)
 
-Las pantallas no conocen al proveedor. El contrato está en `infrastructure/interfaces/places.ts` (`Place`, `PlacesProvider`: `autocomplete` y `reverseGeocode`) y la implementación activa se elige en **un solo archivo**, `core/api/places-provider.ts`.
+Las pantallas no conocen al proveedor. El contrato está en `infrastructure/interfaces/places.ts` (`Place`, `PlaceSuggestion`, `PlacesProvider`: `autocomplete`, `getPlaceDetails` y `reverseGeocode`) y la implementación activa se elige en **un solo archivo**, `core/api/places-provider.ts` (hoy `google-places-provider.ts`, contra `GET /places/autocomplete|details/:placeId|reverse` del propio backend).
 
-Para migrar a Google Maps: escribir `core/api/google-places-provider.ts` que cumpla `PlacesProvider` (con su mapper en `infrastructure/mappers/`) y asignarlo en `places-provider.ts`. El `placeId` viaja a `POST /rides/quote`, así que el backend tiene que migrar al mismo proveedor.
+La app **no habla con Google directamente** ni tiene una key de Places/Geocoding: todo pasa por el backend, que usa su propia key de servidor (optimiza costo: Google no cobra por tecla dentro de una sesión de Places). Por eso `autocomplete` no trae coordenadas, solo `placeId`, `primaryText`, `secondaryText` y `description` (`PlaceSuggestion`); hace falta `getPlaceDetails` para resolverlas, y ahí se cierra la sesión. `usePlaceSearch` genera el `sessionToken` (UUID de `expo-crypto`) al empezar a escribir, lo reusa en cada tecla de la misma búsqueda y lo descarta al vaciar el campo; `usePlanTrip.selectSuggestion` es quien pide el detalle al elegir una sugerencia (las de "Recientes" y "Ubicación actual" ya tienen coordenadas resueltas y no vuelven a pedir nada). El `placeId` viaja tal cual a `POST /rides/quote`: tiene que ser del mismo proveedor que usa el backend.
 
-Geoapify se consulta por REST con `EXPO_PUBLIC_GEOAPIFY_API_KEY`: resultados en español, solo Argentina, priorizando la cercanía a la ubicación actual. El orden final lo decide Geoapify, que pesa mucho la coincidencia de texto: "Colón 1200" puede traer primero otras ciudades. La key queda legible dentro de la app: usar una propia, distinta de la del backend.
+`getPlacesErrorMessage` (`presentation/utils/places-error-message.ts`) traduce `RATE_LIMIT_EXCEEDED` (429, con `Retry-After`) y `PLACES_PROVIDER_UNAVAILABLE` (503) a un mensaje para el usuario; cualquier otro error cae al genérico de `usePlaceSearch`. La geocodificación inversa ("Ubicación actual") puede traer `place_id: null` si Google no asocia un lugar estable a esas coordenadas: en ese caso se usa un id propio con las coordenadas redondeadas, que no se vuelve a resolver contra el proveedor pero alcanza para cotizar.
 
 ### Planifica tu viaje
 
@@ -279,7 +292,7 @@ retiro), `prepaid_at` (si ya se acreditó el cobro por adelantado) y, mientras s
 
 `POST /rides/quote` (201) crea el viaje en `draft` y devuelve `{ draft, route, quotes[] }`. Origen y destino viajan como `{ address_text, place_id, latitude, longitude }`, con el `placeId` del mismo proveedor de mapas que usa el backend.
 
-- **La ruta del mapa viene del backend**: `route.geometry` es un `MultiLineString` con los puntos `[longitud, latitud]` de la ruta que se cotizó. `trip-quote.mapper.ts` los da vuelta a `{ latitude, longitude }` para `Polyline`. Así la línea dibujada es la misma ruta que se cobró y la app no repite la llamada al proveedor.
+- **La ruta del mapa viene del backend**: `route.polyline` es el recorrido codificado (algoritmo de polyline de Google, el que devuelve Routes API) de la ruta que se cotizó. `decode-polyline.ts` lo decodifica a `{ latitude, longitude }[]` para `Polyline`. Así la línea dibujada es la misma ruta que se cobró y la app no vuelve a pedirla.
 - **Los importes son texto** (`"24500.00"`) y se conservan así en `totalAmount`; el `Number` solo se usa para mostrarlos formateados.
 - **La cotización vence** (10 minutos): `useRideQuote` vuelve a cotizar sola al llegar esa hora, porque confirmar con una tarifa vencida responde 409.
 - La categoría elegida se recuerda por `code` entre recotizaciones: los `id` cambian, la categoría no.
@@ -291,7 +304,7 @@ retiro), `prepaid_at` (si ya se acreditó el cobro por adelantado) y, mientras s
 | Medio de pago | `payment.type` | Qué pasa |
 |---|---|---|
 | Efectivo | `cash` | El viaje pasa a `searching` y la app va a `/trip/[tripId]`, que arranca con el radar |
-| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout, que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
+| Mercado Pago | `account_money` | La respuesta trae `payment.checkout_url`: se abre el checkout (`WebBrowser.openAuthSessionAsync`), que admite dinero en cuenta y tarjetas de crédito o débito. **El viaje queda en `draft`** hasta que el pago se acredite por webhook: la pantalla del viaje muestra "Confirmando tu pago" y pasa sola al radar cuando llega el aviso |
 | Cuenta corporativa | `corporate` | Igual que efectivo (sin checkout): el viaje pasa directo a `searching`. Se paga contra el **saldo prepago** de la empresa (la empresa carga saldo antes; el límite mensual es solo un control interno opcional) |
 
 Errores: 409 `FARE_QUOTE_EXPIRED` recotiza sola, 409 `INVALID_TRIP_TRANSITION` vuelve al Home, 400 al cotizar ofrece reintentar y 401 reusa `handleExpiredSession()`.
@@ -306,7 +319,13 @@ La empresa carga saldo antes de viajar (prepago): el límite mensual por emplead
 
 `POST /rides/{tripId}/confirm` con `corporate` no abre checkout (como efectivo): descuenta el saldo de la empresa, no genera deuda. El backend no expone selección de centro de costo al pasajero (solo un responsable podría elegirlo, y esta versión no lo ofrece), así que la app nunca manda `cost_center_id`. Errores propios de este medio (`presentation/utils/corporate-error-message.ts`): `CORPORATE_MEMBERSHIP_REQUIRED`, `COMPANY_SUSPENDED`, `CORPORATE_INSUFFICIENT_BALANCE` (409, con `details.available/required/currency`), `CORPORATE_LIMIT_REQUIRED`, `CORPORATE_LIMIT_EXCEEDED` (con `details.scope/limit/committed/remaining`), `COST_CENTER_NOT_ALLOWED`, `COST_CENTER_COMPANY_MISMATCH`, `COST_CENTER_NOT_ACTIVE`. Ante cualquiera de estos, la pantalla vuelve el medio de pago a Mercado Pago y muestra el motivo, sin salir de Cotización.
 
-Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así que el checkout no vuelve solo a la app (el pasajero cierra el navegador).
+### Volver de Mercado Pago
+
+`useConfirmRide` abre el checkout con `WebBrowser.openAuthSessionAsync(checkoutUrl, Linking.createURL('payment-return'))` (en vez de `openBrowserAsync`): el navegador se cierra solo apenas Mercado Pago redirige al deep link de vuelta de la app (`transferblack-passenger://payment-return`), en vez de quedar abierto hasta que el pasajero lo cierre a mano. Resuelva lo que resuelva esa promesa (éxito, cancelado, o el pasajero cerró el navegador), la app ya sigue a `/trip/[tripId]`, que consulta el estado real al montarse: no hace falta un refetch aparte.
+
+`src/app/payment-return.tsx` es el otro lado del mismo link, para cuando la app estaba cerrada o en segundo plano y es el sistema operativo quien lo abre (si la app seguía al frente, `openAuthSessionAsync` ya se encarga sin llegar hasta acá): lee `trip_id` de los parámetros y redirige a `/trip/[tripId]` (o a `/home` sin ese parámetro).
+
+Pendiente del lado del backend: configurar `back_urls` en la preferencia de Mercado Pago apuntando a ese esquema (hoy, sin `back_urls`, Mercado Pago no redirige solo y el pasajero tiene que cerrar el checkout a mano; la app ya está lista para cuando lo haga).
 
 ## Viaje activo y tiempo real
 
@@ -316,7 +335,7 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 |---|---|
 | `draft` | "Confirmando tu pago" |
 | `searching` | Radar (`RadarPulse`) sobre el origen, "Contactando choferes VIP…", resumen del recorrido y "Cancelar búsqueda" |
-| `assigned` / `driver_arriving` | "Conductor en camino": ETA, distancia, chofer (nombre, calificación), auto con patente, Llamar / Chat (próximamente) y Cancelar |
+| `assigned` / `driver_arriving` | "Conductor en camino": ETA, distancia, chofer (nombre, calificación), auto con patente, Chat y Cancelar |
 | `driver_arrived` | El mismo panel con "Tu chofer llegó" |
 | `in_progress` | **A bordo**: el auto va al destino, ETA ("12 min", "Llegada 10:18"), chofer y patente, barra con el destino |
 | `completed` | Pasa al recibo con `router.replace`: "atrás" no vuelve al mapa |
@@ -326,11 +345,11 @@ Pendiente del lado del backend: no configura `back_urls` en Mercado Pago, así q
 - **Socket.IO** (`socket.io-client`): una sola conexión para toda la app, abierta solo mientras hay un viaje que seguir. El token va en `auth` como función, así cada reconexión usa el vigente; un rechazo por token vencido lo renueva y reconecta. Hay que emitir `ride:join` para entrar a la sala del viaje, y el cliente lo repite en cada reconexión. Con `__DEV__` deja logs `[socket]` en la consola de Metro.
 - **Despacho**: no lo pide la app. El backend ofrece solo los viajes en `searching` a los choferes cercanos cada 10 s y reintenta mientras nadie acepte.
 - **El auto** (`DriverCarMarker`) recibe `driver:location` cada ~3 s: un sedán visto desde arriba, dibujado con `react-native-svg` (gradiente, sombra, parabrisas/luneta) en vez de una flecha. `useAnimatedCoordinate` interpola entre posiciones durante esos 3 s (sin `AnimatedRegion`, que depende de clases internas de React Native) y gira el auto según el rumbo; un salto de más de 1 km se mueve sin animar. La polilínea se recorta desde el punto de la ruta más cercano a la posición del chofer (`geo.trimRouteFromPosition`), así el tramo ya recorrido no queda dibujado detrás del auto.
-- **ETA y ruta al origen** (`useDriverEta`): Geoapify Routing detrás de `RoutesProvider` (`core/api/routes-provider.ts`, migrable a Google igual que los lugares). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición, para no gastar cuota. Si el proveedor falla, estima con la distancia en línea recta.
+- **ETA y ruta al origen** (`useDriverEta`): el backend no expone una ruta entre dos puntos cualquiera (solo calcula una al cotizar el viaje), así que acá no hay proveedor: la distancia y los minutos son siempre una estimación en línea recta (haversine × 1.3 de factor de rodeo). Se recalcula al llegar la primera posición y después cada 30 s, no con cada posición (llegan cada 3 s), para no reencuadrar el mapa todo el tiempo.
 - **Cancelar**: `useCancelTrip` primero consulta `GET /rides/{tripId}/cancellation-preview` (si falla, se sigue con el texto genérico de siempre: no bloquea la cancelación) y arma la alerta de confirmación con `buildCancelConfirmationMessage` (`presentation/utils/cancellation-copy.ts`): la penalidad, si `preview.penalty.amount > 0`, y qué pasa con el reembolso según `refund_mode` — `automatic` ("Te devolvemos $X automáticamente...", con la hora límite si `auto_refund_window_ends_at` vino), `claim` ("...se gestiona por reclamo con la agencia") o `none` (nada). Confirmado, `POST /rides/{tripId}/cancel` con `reason_code: passenger_cancelled`; con el resultado real (`cancellation.refund_mode`) se muestra el mismo tipo de aviso antes de volver al Home. Reembolso automático por Mercado Pago solo dentro de los primeros `CANCELLATION_AUTO_REFUND_WINDOW_SECONDS` (5 min) desde que se acreditó el pago; pasada la ventana, o si cancela el chofer/admin/sistema, o en un reservado prepago, el reembolso queda como reclamo o es automático según corresponda (la política completa vive en el backend, `cancellation-policy.ts`).
 - **Viaje para un invitado**: si el detalle trae `third_party`, la pantalla muestra "Sos el coordinador · viaja `<nombre>`" (`CoordinatorBanner`) y, cuando el backend también manda `tracking_url` (solo al titular que pidió el viaje), un botón "Enviar seguimiento por WhatsApp" que abre `wa.me` al número del invitado con el link ya escrito. Sin chat: no hay forma de escribirle al invitado desde la app.
 - **Sin chofer disponible**: si el backend cancela solo porque nadie buscó más de `TRIP_SEARCH_TIMEOUT_MINUTES` (`cancellation_reason_code: 'no_driver_found'`), `TripStatusPanel` muestra "No encontramos un chofer disponible" (más "Te devolvemos el pago automáticamente" si se había pagado con Mercado Pago) y un botón "Volver a intentar" (`onRetry`, en vez de "Volver al inicio") que hace `router.replace('/pricing')`: como no se llama a `resetTrip()`, el origen y destino de `useTripStore` siguen ahí y se cotiza un borrador nuevo. Sin alguno de los dos, `PricingScreen` ya redirige sola a `/search`.
-- **Fuera de alcance por ahora**: PIN de validación (el backend no tiene endpoint) y llamada (el backend no expone el teléfono del chofer), y retomar el viaje si la app se cierra del todo. El botón de seguridad, "Compartir ETA", "Confort" y "Concierge" de la barra y el panel "A bordo" se sacaron: no tenían funcionalidad propia (el seguimiento real del invitado sigue por `CoordinatorBanner`, más abajo). "Destino" queda y avisa "Próximamente". El chat con el chofer si esta implementado (ver mas abajo).
+- **Fuera de alcance por ahora**: PIN de validación a bordo (el backend no tiene endpoint) y llamada al chofer (el backend no expone su teléfono; el botón "Llamar" se sacó del panel "Conductor en camino" por eso). El botón de seguridad, "Compartir ETA", "Confort" y "Concierge" de la barra y el panel "A bordo" se sacaron: no tenían funcionalidad propia (el seguimiento real del invitado sigue por `CoordinatorBanner`, más abajo). "Destino" queda y avisa "Próximamente". El chat con el chofer sí está implementado (ver más abajo).
 
 ### Chat del viaje
 
@@ -366,14 +385,33 @@ La pestaña "Viajes" (`(app)/(tabs)/activity.tsx`, ruta `/activity`) es `TripHis
 - **Reembolso en el detalle**: si `GET /rides/{tripId}` trae `refund` (reintegro de Mercado Pago en curso), se muestra el monto y el estado (`REFUND_STATUS_LABELS`, en `TripDetailScreen`). Con `refund.status === 'claim_required'` (fuera de la ventana de reembolso automático, o reservado prepago) aparece "Reclamar por WhatsApp" (`contactWhatsAppRefundClaim`, `presentation/utils/refund-claim-whatsapp.ts`): mismo patrón de elegir línea que `whatsapp-services.ts`, en un archivo aparte porque ese módulo no exporta sus líneas de atención. El mensaje lleva el código del viaje, fecha y hora de la cancelación, el monto y el nombre/email del pasajero (`useAuthStore`).
 - Los textos de medio y estado de pago (`PAYMENT_METHOD_LABELS`, `PAYMENT_STATUS_LABELS`) están en `presentation/utils/payment-labels.ts`, compartidos con `ReceiptScreen`.
 
+## Eliminar la cuenta
+
+"Mi cuenta" → "Eliminar mi cuenta" (`DeleteAccountScreen`, hook `useDeleteAccount`, ruta `/delete-account`) explica las consecuencias (se borran los datos personales; los viajes y comprobantes se conservan anonimizados por obligación contable; no se puede deshacer), pide la contraseña y confirma con una alerta destructiva antes de llamar a `DELETE /users/me` con `{ password }`.
+
+- **No es un borrado físico**: el backend anonimiza la cuenta. Errores propios: `INVALID_PASSWORD` (401/403), `ACCOUNT_HAS_ACTIVE_TRIP` y `ACCOUNT_HAS_UPCOMING_RESERVATION` (409, con un mensaje propio cada uno); cualquier otro cae al genérico de `getApiErrorMessage`.
+- **Éxito**: el backend ya revocó la sesión y el dispositivo push; la app solo limpia lo local (revoca el dispositivo push si falla no bloquea, `clearSession()`, `resetTrip()`, reset de notificaciones) y vuelve a `/login` con un aviso de confirmación.
+
 ## API y sesión
 
-- **Cliente**: `core/api/transfer-black-api.ts`, instancia de Axios con `baseURL = EXPO_PUBLIC_API_URL`. Documentación del backend: https://transfer-black-api.onrender.com/docs
+- **Cliente**: `core/api/transfer-black-api.ts`, instancia de Axios con `baseURL = EXPO_PUBLIC_API_URL`. Documentación del backend: https://transfer-black-api-ih1o.onrender.com/docs
 - **Errores**: el interceptor de respuesta convierte todo fallo en `ApiRequestError` (`status`, `code`, `message`, `details`, `retryAfterSeconds`). `code` es el código estable del backend (`EMAIL_ALREADY_EXISTS`, `VALIDATION_ERROR`...) o `NETWORK_ERROR` / `TIMEOUT` si no hubo respuesta. Las pantallas deciden el mensaje mirando `status` y `code`, nunca el texto del backend. `message` puede llegar como un array de `issues` de Zod en `VALIDATION_ERROR`; el interceptor lo junta en un solo texto. El interceptor también reconoce el formato viejo del chat (error en la raíz, `{ code, message }`, en vez de `{ error: { code, message } }` como el resto de la API) como respaldo, por si algún ambiente no se redesplegó con el arreglo del backend. `retryAfterSeconds` sale del header `Retry-After` (hoy solo lo manda el 429 del chat).
 - **Timeout de 60s**: el backend en Render se duerme tras unos minutos sin tráfico y la primera solicitud puede tardar cerca de un minuto en despertarlo.
 - **Tokens**: `useAuthStore` (Zustand) guarda el access token solo en memoria y el refresh token en `expo-secure-store` (Keychain / Keystore; AsyncStorage no cifra). El interceptor de solicitud agrega `Authorization: Bearer` con el access token vigente.
 - **Renovación**: el access token dura 15 minutos. Ante un 401, el interceptor de respuesta pide `POST /auth/refresh`, guarda el refresh token nuevo (rota en cada uso) y repite la solicitud una vez. Las solicitudes que fallan a la vez esperan la misma renovación (`core/api/session-refresh.ts`): mandar dos veces el mismo refresh token cerraría la sesión. Si el backend rechaza el refresh token, el 401 llega a la pantalla y `handleExpiredSession()` vuelve al login; si la renovación falla por red, la pantalla recibe un error de conexión y la sesión sigue.
-- **Pendiente**: restaurar la sesión al abrir la app. Hoy la sesión vive mientras la app está abierta.
+
+### Restaurar la sesión al abrir la app
+
+`useSessionRestore` (llamado una sola vez desde `src/app/_layout.tsx`) corre antes de decidir rutas públicas o privadas, con el splash (`expo-splash-screen`) visible mientras dura:
+
+1. Lee el refresh token de `expo-secure-store`. Sin token, termina: se entra sin sesión, como siempre.
+2. `POST /auth/refresh` (reusa `refreshSessionAction`) y guarda los tokens renovados (`useAuthStore.updateTokens`).
+3. `GET /users/me` con el access token recién obtenido, y marca la sesión vigente (`useAuthStore.markAuthenticated`).
+4. Busca un viaje para retomar: `GET /rides?status=active` (alias que trae todo lo que no sea `completed` ni `cancelled`, incluidos los borradores) y se queda con el primero en un estado de viaje inmediato en curso o un borrador esperando el pago (`searching`, `assigned`, `driver_arriving`, `driver_arrived`, `in_progress`, `draft`); un reservado sin activar (`scheduled`) no cuenta, de eso se encarga la tarjeta de "Próximo viaje" del Home. El resultado se guarda en `useSessionRestoreStore` hasta que se consume.
+
+Un rechazo del backend (4xx: el refresh token venció o se revocó) borra el token local y se entra sin sesión. Un corte de red o timeout no cierra la sesión: se muestra una pantalla de "Reintentar" en vez de la app, sin perder el token. `(public)/_layout.tsx` es quien lee el resultado: con sesión restaurada, redirige a `/home` o, si hay un viaje para retomar, directo a `/trip/[tripId]`, en vez de mostrar la selección de perfil.
+
+Con la app abierta, un access token vencido mientras está en segundo plano se renueva solo con el mismo interceptor de siempre: no hace falta nada adicional.
 
 ### Registro de pasajero
 
@@ -385,6 +423,8 @@ La ruta real es `POST /auth/register` (no `/auth/register/passenger`), y solo ac
 Si falla solo el paso 2, la cuenta ya existe y la sesión es válida: se sigue igual y la acción devuelve `profileSaved: false`. "Nombre y apellido" se divide en el primer espacio: la primera palabra es el nombre y el resto, el apellido.
 
 Las reglas de contraseña del formulario replican las del backend: 8 a 128 caracteres, con minúscula, mayúscula y número.
+
+"Términos de Servicio" y "Política de Privacidad" (acá y en "Mi cuenta" → "Legales") abren esas páginas del panel con `expo-web-browser` (`WebBrowser.openBrowserAsync`); las URLs están en `presentation/utils/legal-links.ts` (`TERMS_URL`, `PRIVACY_URL`), overrideables por `EXPO_PUBLIC_TERMS_URL` / `EXPO_PUBLIC_PRIVACY_URL`.
 
 ### Inicio de sesión
 
@@ -441,6 +481,17 @@ Tres pantallas sin sesión, encadenadas con `router.push`/`router.replace` (`/fo
 
 Los mensajes de conexión, timeout y validación comunes a los formularios salen de `presentation/utils/api-error-message.ts`, y la validación de email compartida, de `presentation/utils/auth-form-fields.ts`.
 
+## Monitoreo de errores (Sentry)
+
+`@sentry/react-native` captura errores inesperados en producción (y en desarrollo si se activa a mano). Queda **desactivado sin `EXPO_PUBLIC_SENTRY_DSN`**, y también en desarrollo salvo que `EXPO_PUBLIC_SENTRY_ENABLE_DEV=true`: no hace falta un proyecto de Sentry para desarrollar o probar la app (`src/core/monitoring/sentry.ts`, `isSentryEnabled`).
+
+- **Inicialización**: `initSentry()` se llama una sola vez, en scope global de `src/app/_layout.tsx` (antes de montar la app), y el componente raíz se envuelve con `wrapWithSentry` (captura errores de render y agrega contexto de navegación).
+- **Usuario**: `useAuthStore` llama a `setSentryUser(user.id)` al iniciar sesión, restaurarla o marcarla autenticada, y a `setSentryUser(null)` al cerrarla. **Solo el id**, nunca el email ni otro dato personal.
+- **Qué se reporta**: el interceptor de `transfer-black-api.ts` manda a Sentry únicamente los `ApiRequestError` de servidor (`status >= 500`) o con forma inesperada (`UNKNOWN_ERROR`, una respuesta que no matchea ningún contrato conocido). Un error de negocio (4xx: contraseña incorrecta, tarifa vencida, validación...) es un flujo esperado y no se reporta (`captureUnexpectedApiError`).
+- **Metro**: `metro.config.js` **no** envuelve la config con `withSentryConfig` (de `@sentry/react-native/metro`): con esta combinación de versiones de Metro/Hermes rompe `npx expo export` (`determineDebugIdFromBundleSource` recibe el bundle sin `code`). Sin eso, los reportes llegan sin Debug ID automático para relacionar un stack trace con el código fuente exacto; si una versión más nueva del paquete lo arregla, se puede volver a agregar.
+- **Plugin de Expo**: `app.config.ts` agrega `@sentry/react-native` a `plugins`, con `organization`/`project` desde las variables de entorno de build `SENTRY_ORG`/`SENTRY_PROJECT` (no `EXPO_PUBLIC_*`: no hace falta que viajen en el bundle). Sin ellas el plugin solo avisa y sigue con las variables de entorno del builder como respaldo.
+- **Subida de source maps (opcional)**: para que los stack traces de Sentry se vean legibles (no minificados) hace falta subir los source maps durante el build. Eso lo hace el plugin nativo con el secreto `SENTRY_AUTH_TOKEN` (`eas secret:create --name SENTRY_AUTH_TOKEN --value <token> --type string` o configurado en el proyecto de EAS); **sin ese secreto el build sigue funcionando igual**, solo no sube los source maps (los reportes llegan con el stack minificado).
+
 ## Archivos de configuración
 
 | Archivo | Para qué |
@@ -449,7 +500,7 @@ Los mensajes de conexión, timeout y validación comunes a los formularios salen
 | `src/presentation/theme/colors.js` | Paleta; la usan Tailwind y los componentes que reciben color por prop |
 | `global.css` | Directivas de Tailwind; se importa una vez en `src/app/_layout.tsx` |
 | `babel.config.js` | `jsxImportSource: 'nativewind'` para que `className` funcione |
-| `metro.config.js` | `withNativeWind`: compila `global.css` |
+| `metro.config.js` | `withNativeWind`: compila `global.css` (ver "Monitoreo de errores" sobre por qué no usa `withSentryConfig`) |
 | `nativewind-env.d.ts` | Tipos de `className` y declaración de imports `.css` (TypeScript 6 los verifica) |
 | `app.json` | Nombre, identificadores (`com.transferblack.passenger`), scheme, splash en obsidian, plugins |
 

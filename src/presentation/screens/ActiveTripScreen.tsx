@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
+import { tripResumeAttemptStorage } from '@/infrastructure/storage/trip-resume-attempt-storage';
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
 import { BoardingPinCard } from '@/presentation/components/BoardingPinCard';
 import { CoordinatorBanner } from '@/presentation/components/CoordinatorBanner';
@@ -17,7 +18,6 @@ import { ReconnectingBanner } from '@/presentation/components/ReconnectingBanner
 import { TripSearchingPanel } from '@/presentation/components/TripSearchingPanel';
 import { TripStatusPanel } from '@/presentation/components/TripStatusPanel';
 import { useActiveTrip } from '@/presentation/hooks/useActiveTrip';
-import { useAnimatedCoordinate } from '@/presentation/hooks/useAnimatedCoordinate';
 import { useCancelTrip } from '@/presentation/hooks/useCancelTrip';
 import { useChatUnreadCount } from '@/presentation/hooks/useChatUnreadCount';
 import { useDriverEta } from '@/presentation/hooks/useDriverEta';
@@ -31,6 +31,8 @@ const TOP_BAR_HEIGHT = 64;
 const BOARDING_PIN_CARD_HEIGHT = 168;
 /** Misma referencia en cada render: un `[]` nuevo reencuadraria el mapa sin parar. */
 const NO_ROUTE: Coordinates[] = [];
+/** Tiempo sin cerrarse que cuenta a esta pantalla como "estable" (ver `tripResumeAttemptStorage`). */
+const RESUME_ATTEMPT_STABLE_MS = 8000;
 
 type TripView = 'searching' | 'enRoute' | 'arrived' | 'onBoard' | 'status';
 
@@ -92,7 +94,6 @@ export function ActiveTripScreen() {
   // Con el pasajero arriba, el auto va al destino.
   const target = onBoard ? dropoff : pickup;
 
-  const animatedDriver = useAnimatedCoordinate(tracking ? (driverLocation?.coordinates ?? null) : null);
   const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
@@ -114,14 +115,33 @@ export function ActiveTripScreen() {
   // Viaje terminado: al recibo con `replace`, asi "atras" no vuelve al seguimiento.
   useEffect(() => {
     if (tripId && trip?.status === 'completed') {
+      void tripResumeAttemptStorage.clear();
       router.replace({ pathname: '/receipt/[tripId]', params: { tripId } });
     }
   }, [tripId, trip?.status]);
 
   const goHome = useCallback(() => {
+    void tripResumeAttemptStorage.clear();
     resetTrip();
     router.dismissTo('/home');
   }, [resetTrip]);
+
+  // Marca "estoy mostrando este viaje" (al retomarlo al abrir la app o al
+  // entrar de forma normal): si la app se cierra antes de estabilizarse, el
+  // proximo arranque encuentra la marca y no vuelve a navegar sola aca. Se
+  // borra sola a los pocos segundos; si la pantalla se desmonta antes (el
+  // usuario sale por las vias de arriba, que ya la borran), el timeout
+  // simplemente se cancela sin volver a escribir nada.
+  useEffect(() => {
+    if (!tripId) return undefined;
+
+    void tripResumeAttemptStorage.set(tripId);
+    const stableTimer = setTimeout(() => {
+      void tripResumeAttemptStorage.clear();
+    }, RESUME_ATTEMPT_STABLE_MS);
+
+    return () => clearTimeout(stableTimer);
+  }, [tripId]);
 
   // Mismo origen/destino, sin tocar el store: una nueva cotizacion crea otro borrador.
   const retrySearch = useCallback(() => {
@@ -155,8 +175,8 @@ export function ActiveTripScreen() {
         targetKind={onBoard ? 'dropoff' : 'pickup'}
         mode={tracking ? 'tracking' : 'searching'}
         driver={
-          tracking && animatedDriver.coordinate
-            ? { coordinate: animatedDriver.coordinate, rotation: animatedDriver.rotation }
+          tracking && driverLocation?.coordinates
+            ? { coordinate: driverLocation.coordinates }
             : null
         }
         routePoints={eta.route?.points ?? NO_ROUTE}
@@ -199,7 +219,7 @@ export function ActiveTripScreen() {
         <View className="mb-4 h-1 w-10 self-center rounded-full bg-charcoal" />
 
         {/* La clave por vista hace que cada cambio de panel entre deslizandose. */}
-        <Animated.View key={view} entering={FadeInDown.duration(350)}>
+        <Animated.View key={view} entering={FadeInDown.duration(220).withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })}>
           {view === 'searching' ? (
             <TripSearchingPanel
               origin={trip?.pickup?.address ?? plannedOrigin?.address ?? null}

@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import Animated, {
   Easing,
+  cancelAnimation,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -11,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { colors } from '@/presentation/theme/colors';
+import { useMotionEnabled } from '@/presentation/hooks/useMotionEnabled';
 
 const RING_COUNT = 3;
 const CYCLE_MS = 2_400;
@@ -49,15 +52,27 @@ export function RadarPulse() {
   const first = useSharedValue(0);
   const second = useSharedValue(0);
   const third = useSharedValue(0);
+  const motionEnabled = useMotionEnabled();
 
   useEffect(() => {
     [first, second, third].forEach((progress, index) => {
+      progress.value = 1;
+      if (!motionEnabled) return;
+      progress.value = 0;
       progress.value = withDelay(
         (CYCLE_MS / RING_COUNT) * index,
-        withRepeat(withTiming(1, { duration: CYCLE_MS, easing: Easing.out(Easing.quad) }), -1, false),
+        withRepeat(
+          withTiming(1, { duration: CYCLE_MS, easing: Easing.out(Easing.quad), reduceMotion: ReduceMotion.Never }),
+          -1,
+          false,
+          undefined,
+          ReduceMotion.Never,
+        ),
+        ReduceMotion.Never,
       );
     });
-  }, [first, second, third]);
+    return () => [first, second, third].forEach(cancelAnimation);
+  }, [first, second, third, motionEnabled]);
 
   return (
     <View

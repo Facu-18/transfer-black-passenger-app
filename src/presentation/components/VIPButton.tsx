@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, View, type PressableProps } from 'react-native';
+import { ActivityIndicator, View, type PressableProps } from 'react-native';
 
 import { colors } from '@/presentation/theme/colors';
 
 import { Typography } from './Typography';
+import { MotionPressable } from './MotionPressable';
 
 interface VIPButtonProps extends Omit<PressableProps, 'children'> {
   title: string;
@@ -27,7 +28,7 @@ export function VIPButton({
   const isDisabled = disabled === true || loading;
 
   return (
-    <Pressable
+    <MotionPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
@@ -52,6 +53,6 @@ export function VIPButton({
           {TrailingIcon ? <TrailingIcon size={18} color={colors.obsidian} strokeWidth={2.5} /> : null}
         </View>
       )}
-    </Pressable>
+    </MotionPressable>
   );
 }

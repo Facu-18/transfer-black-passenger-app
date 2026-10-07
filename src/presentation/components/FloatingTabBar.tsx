@@ -1,10 +1,12 @@
 import type { Tabs } from 'expo-router';
 import { CarFront, History, UserRound, type LucideIcon } from 'lucide-react-native';
-import type { ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { cancelAnimation, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { colors } from '@/presentation/theme/colors';
+import { useMotionEnabled } from '@/presentation/hooks/useMotionEnabled';
 
 import { Typography } from './Typography';
 
@@ -19,6 +21,20 @@ const TAB_ICONS: Record<string, LucideIcon> = {
 /** Barra inferior flotante (píldora) del diseño, en lugar de la barra estándar de React Navigation. */
 export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const motionEnabled = useMotionEnabled();
+  const [barWidth, setBarWidth] = useState(0);
+  const selectedIndex = useSharedValue(state.index);
+  const tabWidth = Math.max(0, barWidth - 18) / state.routes.length;
+  const capsuleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: selectedIndex.value * tabWidth }],
+  }));
+
+  useEffect(() => {
+    selectedIndex.value = motionEnabled
+      ? withTiming(state.index, { duration: 200, reduceMotion: ReduceMotion.Never })
+      : state.index;
+    return () => cancelAnimation(selectedIndex);
+  }, [state.index, selectedIndex, motionEnabled]);
 
   return (
     <View
@@ -27,10 +43,32 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
       pointerEvents="box-none"
     >
       <View
+        onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
         className="flex-row items-center justify-around overflow-hidden rounded-full border border-platinum/15 bg-surface/90 px-2 py-2"
         style={{ elevation: 5, shadowColor: colors.charcoal, shadowOpacity: 0.26, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } }}
       >
         <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" className="absolute left-6 right-6 top-0 h-px bg-platinum/25" />
+        {barWidth > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[
+              {
+                position: 'absolute',
+                left: 8,
+                top: 8,
+                bottom: 8,
+                width: tabWidth,
+                borderRadius: 999,
+                borderWidth: 1,
+                borderColor: `${colors.gold}40`,
+                backgroundColor: `${colors.gold}1A`,
+              },
+              capsuleStyle,
+            ]}
+          />
+        ) : null}
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const descriptor = descriptors[route.key];
@@ -51,7 +89,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
               accessibilityState={{ selected: focused }}
               accessibilityLabel={label}
               onPress={onPress}
-              className="flex-1 items-center gap-1 rounded-full py-2 active:opacity-70"
+              className="flex-1 items-center gap-1 rounded-full border border-transparent py-2 active:opacity-70"
             >
               <Icon size={20} color={focused ? colors.gold : colors.ash} />
               <Typography variant="caption" weight={focused ? 'semibold' : 'medium'} tone={focused ? 'accent' : 'secondary'}>

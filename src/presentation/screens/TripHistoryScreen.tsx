@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { CarFront } from 'lucide-react-native';
+import { Ban, CalendarClock, CarFront, CheckCircle2, ListFilter, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { TripHistoryFilter, TripHistoryItem } from '@/infrastructure/interfaces/trips';
@@ -16,11 +16,11 @@ import { colors } from '@/presentation/theme/colors';
 /** Espacio que ocupa la barra de navegación flotante sobre el contenido, igual que en el Home. */
 const TAB_BAR_SPACE = 112;
 
-const FILTERS: { value: TripHistoryFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'scheduled', label: 'Reservados' },
-  { value: 'completed', label: 'Completados' },
-  { value: 'cancelled', label: 'Cancelados' },
+const FILTERS: { value: TripHistoryFilter; label: string; icon: LucideIcon }[] = [
+  { value: 'all', label: 'Todos', icon: ListFilter },
+  { value: 'scheduled', label: 'Reservados', icon: CalendarClock },
+  { value: 'completed', label: 'Completados', icon: CheckCircle2 },
+  { value: 'cancelled', label: 'Cancelados', icon: Ban },
 ];
 
 const EMPTY_COPY: Record<TripHistoryFilter, string> = {
@@ -32,25 +32,29 @@ const EMPTY_COPY: Record<TripHistoryFilter, string> = {
 
 function FilterChips({ value, onChange }: { value: TripHistoryFilter; onChange: (filter: TripHistoryFilter) => void }) {
   return (
-    <View className="flex-row gap-2">
-      {FILTERS.map((option) => {
-        const selected = option.value === value;
-        return (
-          <Pressable
-            key={option.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            onPress={() => onChange(option.value)}
-            className={`flex-1 items-center rounded-full border px-3 py-2 active:opacity-80 ${
-              selected ? 'border-gold/60 bg-gold/15' : 'border-charcoal bg-surface'
-            }`}
-          >
-            <Typography variant="caption" weight="semibold" tone={selected ? 'accent' : 'secondary'}>
-              {option.label}
-            </Typography>
-          </Pressable>
-        );
-      })}
+    <View className="rounded-2xl border border-charcoal bg-surface/90 p-1.5">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-1.5">
+        {FILTERS.map((option) => {
+          const selected = option.value === value;
+          const Icon = option.icon;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              onPress={() => onChange(option.value)}
+              className={`h-11 flex-row items-center justify-center gap-2 rounded-xl px-4 active:opacity-80 ${
+                selected ? 'bg-gold' : 'bg-transparent'
+              }`}
+            >
+              <Icon size={16} color={selected ? colors.obsidian : colors.ash} strokeWidth={2.2} />
+              <Typography variant="caption" weight="semibold" tone={selected ? 'inverse' : 'secondary'}>
+                {option.label}
+              </Typography>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }

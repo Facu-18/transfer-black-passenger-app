@@ -2,11 +2,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import type { TextInput } from 'react-native';
 
-import type { Place } from '@/infrastructure/interfaces/places';
+import { resolvePlaceDetailsAction } from '@/core/actions/resolve-place-details.action';
+import type { Place, PlaceSuggestion } from '@/infrastructure/interfaces/places';
 import { usePlaceSearch } from '@/presentation/hooks/usePlaceSearch';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
 import { useReservationStore } from '@/presentation/store/useReservationStore';
 import { useTripStore } from '@/presentation/store/useTripStore';
+import { getPlacesErrorMessage } from '@/presentation/utils/places-error-message';
 
 export type TripField = 'origin' | 'destination';
 
@@ -48,9 +50,15 @@ export function usePlanTrip() {
   const [originQuery, setOriginQuery] = useState('');
   const [destinationQuery, setDestinationQuery] = useState('');
   const [hint, setHint] = useState<string | null>(null);
+  // Mientras se resuelve el detalle de una sugerencia elegida (pide las coordenadas).
+  const [isResolvingSuggestion, setIsResolvingSuggestion] = useState(false);
 
   const activeQuery = activeField === 'origin' ? originQuery : destinationQuery;
   const search = usePlaceSearch(activeQuery, currentLocation);
+
+  // Identifica la seleccion vigente: una respuesta de detalle que llega
+  // despues de una seleccion mas nueva (doble tap o red lenta) se descarta.
+  const selectionIdRef = useRef(0);
 
   // En la reserva se vuelve a esa pantalla (ya estaba en la pila); en el viaje
   // "Ahora" se sigue a la cotizacion.
@@ -68,7 +76,8 @@ export function usePlanTrip() {
     destinationInputRef.current?.focus();
   };
 
-  const selectPlace = (place: Place) => {
+  /** Ya resuelto (recientes, ubicacion actual): tiene coordenadas, se usa directo. */
+  const applyPlace = (place: Place) => {
     if (activeField === 'origin') {
       selectOrigin(place);
       return;
@@ -87,6 +96,36 @@ export function usePlanTrip() {
     // Sin ubicacion actual no hay origen propuesto: se pide antes de cotizar.
     setHint('Elige el punto de partida para continuar.');
     originInputRef.current?.focus();
+  };
+
+  const selectPlace = (place: Place) => applyPlace(place);
+
+  /**
+   * Sugerencia del autocompletado: todavia no tiene coordenadas. Hay que
+   * pedir el detalle (cierra la sesion de autocompletado) antes de poder
+   * usarla como origen o destino.
+   */
+  const selectSuggestion = async (suggestion: PlaceSuggestion) => {
+    if (!search.sessionToken) return;
+    // Ya hay un detalle en curso (doble tap u otra sugerencia tocada antes de
+    // que responda): se ignora para no abrir una segunda llamada a Google.
+    if (isResolvingSuggestion) return;
+
+    const selectionId = ++selectionIdRef.current;
+    setIsResolvingSuggestion(true);
+    setHint(null);
+
+    try {
+      const place = await resolvePlaceDetailsAction(suggestion, search.sessionToken);
+      if (selectionIdRef.current !== selectionId) return; // la tapo una seleccion mas nueva
+      search.resetSession();
+      applyPlace(place);
+    } catch (reason) {
+      if (selectionIdRef.current !== selectionId) return;
+      setHint(getPlacesErrorMessage(reason) ?? 'No pudimos obtener esa dirección. Probá de nuevo.');
+    } finally {
+      if (selectionIdRef.current === selectionId) setIsResolvingSuggestion(false);
+    }
   };
 
   const selectCurrentPlaceAsOrigin = () => {
@@ -108,7 +147,9 @@ export function usePlanTrip() {
     destinationInputRef,
     search,
     hint,
+    isResolvingSuggestion,
     selectPlace,
+    selectSuggestion,
     selectCurrentPlaceAsOrigin,
   };
 }

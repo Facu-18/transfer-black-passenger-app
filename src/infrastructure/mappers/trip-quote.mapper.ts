@@ -1,4 +1,4 @@
-import type { Coordinates } from '../interfaces/places';
+import { decodePolyline } from './decode-polyline';
 import type {
   ConfirmedTrip,
   FareBreakdown,
@@ -16,7 +16,6 @@ import type {
 import type {
   ConfirmTripResponse,
   RideQuoteResponse,
-  RouteGeometryResponse,
   TripDetailResponse,
   TripFareBreakdownResponse,
   TripStopPointResponse,
@@ -44,14 +43,6 @@ export function formatAmount(amount: string, currency: string): string {
   }
 
   return formatter.format(Number(amount));
-}
-
-/** Geoapify entrega `[longitud, latitud]` en tramos; el mapa espera `{ latitude, longitude }`. */
-function toPolylinePoints(geometry: RouteGeometryResponse): Coordinates[] {
-  return geometry.coordinates.flat().map(([longitude, latitude]) => ({
-    latitude: latitude ?? 0,
-    longitude: longitude ?? 0,
-  }));
 }
 
 function toTripPoint(point: TripStopPointResponse | null | undefined): TripPoint | null {
@@ -193,7 +184,7 @@ export const TripQuoteMapper = {
       route: {
         distanceKm: response.route.distance_km,
         durationMinutes: response.route.duration_minutes,
-        points: toPolylinePoints(response.route.geometry),
+        points: decodePolyline(response.route.polyline),
       },
       options,
     };

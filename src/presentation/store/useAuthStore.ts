@@ -4,6 +4,7 @@ import { refreshSessionAction } from '@/core/actions/refresh-session.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { setSessionRefresher } from '@/core/api/session-refresh';
 import { setAccessTokenGetter } from '@/core/api/transfer-black-api';
+import { setSentryUser } from '@/core/monitoring/sentry';
 import type { AuthSession, AuthUser } from '@/infrastructure/interfaces/auth';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
 import { invalidateCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
@@ -17,6 +18,12 @@ interface AuthState {
   setSession: (session: AuthSession, user: AuthUser) => Promise<void>;
   /** Guarda los tokens renovados sin tocar al usuario. */
   updateTokens: (session: AuthSession) => Promise<void>;
+  /**
+   * Cierra la restauracion de la sesion al abrir la app: los tokens ya se
+   * guardaron con `updateTokens`, esto solo marca la sesion como vigente con
+   * el perfil recien cargado.
+   */
+  markAuthenticated: (user: AuthUser) => void;
   /** Refleja en memoria que el backend ya confirmo el correo. */
   markEmailVerified: () => void;
   /** Reemplaza los datos del usuario con los ultimos del backend (`GET /users/me`). */
@@ -41,11 +48,18 @@ export const useAuthStore = create<AuthState>()((set) => ({
       user,
       isAuthenticated: true,
     });
+    // Solo el id: nunca el email ni otro dato personal en los reportes de Sentry.
+    setSentryUser(user.id);
   },
 
   async updateTokens(session) {
     await refreshTokenStorage.save(session.refreshToken);
     set({ accessToken: session.accessToken, accessTokenExpiresAt: session.accessTokenExpiresAt });
+  },
+
+  markAuthenticated(user) {
+    set({ user, isAuthenticated: true });
+    setSentryUser(user.id);
   },
 
   markEmailVerified() {
@@ -70,6 +84,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
       // El proximo usuario en este dispositivo no puede heredar el vinculo
       // corporativo del anterior desde el cache compartido.
       invalidateCorporateEligibility();
+      setSentryUser(null);
     }
   },
 }));

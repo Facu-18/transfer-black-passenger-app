@@ -65,6 +65,32 @@ export function contactWhatsAppService(service: WhatsAppService, trip: WhatsAppT
   ]);
 }
 
+function contactWhatsApp(title: string, prompt: string, message: string): void {
+  Alert.alert(title, prompt, [
+    ...WHATSAPP_LINES.map((line) => ({
+      text: line.label,
+      onPress: () => void openWhatsApp(line.number, message),
+    })),
+    { text: 'Cancelar', style: 'cancel' as const },
+  ]);
+}
+
+export function contactWhatsAppHelp(): void {
+  contactWhatsApp(
+    'Ayuda',
+    '¿Con qué línea querés hablar?',
+    'Hola, necesito ayuda con la app de pasajeros de Transfer Black.',
+  );
+}
+
+export function contactWhatsAppCompanyRegistration(): void {
+  contactWhatsApp(
+    'Registrar mi empresa',
+    '¿Con qué línea querés hablar?',
+    'Hola, quiero registrar mi empresa en Transfer Black Empresas.',
+  );
+}
+
 /** Datos del viaje reservado que van en el mensaje a la agencia. */
 export interface ReservationWhatsAppDetails {
   origin: string;

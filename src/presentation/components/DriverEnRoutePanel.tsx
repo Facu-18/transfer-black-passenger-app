@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { MessageCircle, Phone, Star, X, type LucideIcon } from 'lucide-react-native';
+import { MessageCircle, Star, X, type LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, Image, Pressable, View } from 'react-native';
 
 import type { Trip } from '@/infrastructure/interfaces/trips';
 import { colors } from '@/presentation/theme/colors';
-import { showComingSoon } from '@/presentation/utils/coming-soon';
 
 import { PlatePill } from './PlatePill';
 import { TripRouteCard } from './TripRouteCard';
@@ -159,7 +158,6 @@ export function DriverEnRoutePanel({
       <TripRouteCard origin={trip.pickup?.address ?? null} destination={trip.dropoff?.address ?? null} fare={trip.formattedFare} />
 
       <View className="flex-row">
-        <ActionButton icon={Phone} label="Llamar" onPress={() => showComingSoon('La llamada con tu chofer')} />
         <ActionButton
           icon={MessageCircle}
           label="Chat"

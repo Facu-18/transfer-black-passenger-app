@@ -15,7 +15,7 @@ const MAX_ANIMATED_METERS = 1_000;
  *
  * Tambien devuelve el rumbo, para girar el icono hacia donde va.
  */
-export function useAnimatedCoordinate(target: Coordinates | null, durationMs = 3_000) {
+export function useAnimatedCoordinate(target: Coordinates | null, durationMs = 3_000, enabled = true) {
   const [coordinate, setCoordinate] = useState<Coordinates | null>(target);
   const [rotation, setRotation] = useState(0);
   const current = useRef<Coordinates | null>(target);
@@ -30,7 +30,11 @@ export function useAnimatedCoordinate(target: Coordinates | null, durationMs = 3
     const from = current.current;
     const jump = from ? distanceMeters(from, target) : Infinity;
 
-    if (!from || jump > MAX_ANIMATED_METERS) {
+    if (from && jump >= 2 && jump <= MAX_ANIMATED_METERS) {
+      setRotation(bearingDegrees(from, target));
+    }
+
+    if (!enabled || !from || jump > MAX_ANIMATED_METERS) {
       current.current = target;
       setCoordinate(target);
       return;
@@ -38,8 +42,6 @@ export function useAnimatedCoordinate(target: Coordinates | null, durationMs = 3
 
     // Detenido: el GPS oscila unos metros y giraria el auto sin motivo.
     if (jump < 2) return;
-
-    setRotation(bearingDegrees(from, target));
 
     const startedAt = Date.now();
     let lastPaint = 0;
@@ -65,7 +67,7 @@ export function useAnimatedCoordinate(target: Coordinates | null, durationMs = 3
       if (frame !== null) cancelAnimationFrame(frame);
     };
     // Solo importa el valor de las coordenadas, no la identidad del objeto.
-  }, [target?.latitude, target?.longitude, durationMs]);
+  }, [target?.latitude, target?.longitude, durationMs, enabled]);
 
   return { coordinate, rotation };
 }

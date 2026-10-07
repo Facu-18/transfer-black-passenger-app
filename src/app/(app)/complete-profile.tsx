@@ -1,5 +1,4 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import Animated, { SlideInRight } from 'react-native-reanimated';
 
 import { CompleteProfileScreen } from '@/presentation/screens/CompleteProfileScreen';
 
@@ -25,17 +24,15 @@ export default function CompleteProfileRoute() {
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
 
   return (
-    <Animated.View entering={SlideInRight.duration(350)} className="flex-1">
-      <CompleteProfileScreen
-        reason="Completá tus datos para pedir tu primer viaje."
-        onSaved={() => {
-          if (isReturnKey(returnTo)) {
-            router.replace(RETURN_ROUTES[returnTo]);
-          } else {
-            router.back();
-          }
-        }}
-      />
-    </Animated.View>
+    <CompleteProfileScreen
+      reason="Completá tus datos para pedir tu primer viaje."
+      onSaved={() => {
+        if (isReturnKey(returnTo)) {
+          router.replace(RETURN_ROUTES[returnTo]);
+        } else {
+          router.back();
+        }
+      }}
+    />
   );
 }
