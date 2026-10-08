@@ -1,14 +1,15 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, View, type LayoutChangeEvent } from 'react-native';
+import { BackHandler, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
-import { FINISHED_TRIP_STATUSES, type TripStatus } from '@/infrastructure/interfaces/trips';
+import { FINISHED_TRIP_STATUSES, type Trip, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { tripResumeAttemptStorage } from '@/infrastructure/storage/trip-resume-attempt-storage';
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
 import { BoardingPinCard } from '@/presentation/components/BoardingPinCard';
+import { CollapsibleTripPanel } from '@/presentation/components/CollapsibleTripPanel';
 import { CoordinatorBanner } from '@/presentation/components/CoordinatorBanner';
 import { DriverEnRoutePanel } from '@/presentation/components/DriverEnRoutePanel';
 import { OnBoardPanel } from '@/presentation/components/OnBoardPanel';
@@ -49,6 +50,30 @@ function toView(status: TripStatus | null): TripView {
       return 'onBoard';
     default:
       return 'status';
+  }
+}
+
+const peekTimeFormatter = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+/** Resumen de una linea para el panel minimizado: el mismo estado que ya muestra el panel completo, mas corto. */
+function describePeekSummary(view: TripView, trip: Trip | null, etaMinutes: number | null): string {
+  switch (view) {
+    case 'searching':
+      return 'Buscando chofer…';
+    case 'enRoute':
+      return etaMinutes !== null
+        ? `Tu chofer llega en ${etaMinutes} ${etaMinutes === 1 ? 'minuto' : 'minutos'}`
+        : 'Tu chofer viene en camino';
+    case 'arrived':
+      return 'Tu chofer llegó';
+    case 'onBoard':
+      return etaMinutes !== null
+        ? `En viaje · llegás a las ${peekTimeFormatter.format(new Date(Date.now() + etaMinutes * 60_000))}`
+        : 'En viaje…';
+    default:
+      if (trip?.status === 'completed') return 'Viaje finalizado';
+      if (trip?.status === 'cancelled') return 'Viaje cancelado';
+      return 'Cargando tu viaje…';
   }
 }
 
@@ -97,7 +122,6 @@ export function ActiveTripScreen() {
   const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
-  const onPanelLayout = (event: LayoutChangeEvent) => setPanelHeight(event.nativeEvent.layout.height);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
   // El sistema cancelo porque nadie busco mas de `TRIP_SEARCH_TIMEOUT_MINUTES`: se ofrece reintentar.
@@ -211,13 +235,12 @@ export function ActiveTripScreen() {
         <ReconnectingBanner visible={connection === 'reconnecting' && !isFinished} />
       </View>
 
-      <View
-        onLayout={onPanelLayout}
-        className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-charcoal bg-obsidian px-5 pt-3"
-        style={{ paddingBottom: insets.bottom + 16 }}
+      <CollapsibleTripPanel
+        summary={describePeekSummary(view, trip, eta.minutes)}
+        stateKey={view}
+        onHeightChange={setPanelHeight}
+        bottomInset={insets.bottom}
       >
-        <View className="mb-4 h-1 w-10 self-center rounded-full bg-charcoal" />
-
         {/* La clave por vista hace que cada cambio de panel entre deslizandose. */}
         <Animated.View key={view} entering={FadeInDown.duration(220).withInitialValues({ opacity: 0, transform: [{ translateY: 12 }] })}>
           {view === 'searching' ? (
@@ -253,7 +276,7 @@ export function ActiveTripScreen() {
             />
           )}
         </Animated.View>
-      </View>
+      </CollapsibleTripPanel>
     </View>
   );
 }
