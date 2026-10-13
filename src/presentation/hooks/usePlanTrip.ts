@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import type { TextInput } from 'react-native';
 
 import { resolvePlaceDetailsAction } from '@/core/actions/resolve-place-details.action';
@@ -100,6 +100,17 @@ export function usePlanTrip() {
 
   const selectPlace = (place: Place) => applyPlace(place);
 
+  // Al volver de "Elegir en el mapa" con el destino ya fijado pero sin origen,
+  // pasa lo mismo que al elegir un resultado sin origen: se pide la partida.
+  useFocusEffect(
+    useCallback(() => {
+      if (isReserveMode || !tripDestination || tripOrigin) return;
+      setActiveField('origin');
+      setHint('Elige el punto de partida para continuar.');
+      originInputRef.current?.focus();
+    }, [isReserveMode, tripDestination, tripOrigin]),
+  );
+
   /**
    * Sugerencia del autocompletado: todavia no tiene coordenadas. Hay que
    * pedir el detalle (cierra la sesion de autocompletado) antes de poder
@@ -133,6 +144,7 @@ export function usePlanTrip() {
   };
 
   return {
+    isReserveMode,
     origin,
     destination,
     currentPlace,

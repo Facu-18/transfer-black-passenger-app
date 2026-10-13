@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronDown, ChevronLeft, Clock, LocateFixed, MapPin } from 'lucide-react-native';
+import { ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin } from 'lucide-react-native';
 import type { RefObject } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,6 +61,8 @@ export function PlanTripScreen() {
   const originIsCurrentPlace = trip.origin !== null && trip.origin.placeId === trip.currentPlace?.placeId;
   const showCurrentPlaceOption =
     activeField === 'origin' && trip.currentPlace !== null && !originIsCurrentPlace && !search.isActive;
+
+  const showMapPickerOption = activeField === 'destination' && !trip.isReserveMode;
 
   return (
     <View className="flex-1 bg-obsidian" style={{ paddingTop: insets.top + 12 }}>
@@ -194,6 +196,19 @@ export function PlanTripScreen() {
                   subtitle={trip.currentPlace.name}
                   isFirst
                   onPress={trip.selectCurrentPlaceAsOrigin}
+                />
+              </View>
+            ) : null}
+
+            {/* Solo al pedir un viaje: la reserva guarda en otro store y no usa este selector. */}
+            {showMapPickerOption ? (
+              <View className="overflow-hidden rounded-2xl border border-charcoal bg-surface">
+                <PlaceRow
+                  icon={MapIcon}
+                  title="Elegir en el mapa"
+                  subtitle="Mové el mapa y marcá el destino"
+                  isFirst
+                  onPress={() => router.push('/search-map')}
                 />
               </View>
             ) : null}
