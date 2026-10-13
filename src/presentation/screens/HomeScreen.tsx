@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import {
-  Bell,
   BriefcaseBusiness,
   CalendarClock,
   CarFront,
@@ -46,10 +45,6 @@ const GPS_LABELS: Record<LocationStatus, string> = {
   denied: 'Activar ubicación',
   unavailable: 'GPS sin señal · Reintentar',
 };
-
-function showComingSoon(feature: string) {
-  Alert.alert(feature, 'Esta opción estará disponible pronto.', [{ text: 'Entendido' }]);
-}
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -191,14 +186,6 @@ export function HomeScreen() {
               </View>
             </View>
             <View className="flex-row items-center gap-2">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Notificaciones"
-                onPress={() => showComingSoon('Notificaciones')}
-                className="h-10 w-10 items-center justify-center rounded-full border border-platinum/10 bg-field/80 active:opacity-80"
-              >
-                <Bell size={18} color={colors.platinum} />
-              </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Mi cuenta"
