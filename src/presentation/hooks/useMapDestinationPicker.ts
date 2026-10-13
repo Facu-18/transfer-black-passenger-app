@@ -40,6 +40,7 @@ export function useMapDestinationPicker() {
   const origin = useTripStore((state) => state.origin);
   const currentLocation = useTripStore((state) => state.currentLocation);
   const setDestination = useTripStore((state) => state.setDestination);
+  const setPendingOriginPrompt = useTripStore((state) => state.setPendingOriginPrompt);
   const { addRecentPlace } = useRecentPlaces();
 
   // Se lee una sola vez: el mapa arranca ahi y despues lo mueve el pasajero.
@@ -155,8 +156,9 @@ export function useMapDestinationPicker() {
       return;
     }
     // Sin origen no se puede cotizar: vuelve a la busqueda, que pide el punto de partida.
+    setPendingOriginPrompt(true);
     router.back();
-  }, [status, place, origin, setDestination, addRecentPlace]);
+  }, [status, place, origin, setDestination, setPendingOriginPrompt, addRecentPlace]);
 
   return {
     initialCenter,
