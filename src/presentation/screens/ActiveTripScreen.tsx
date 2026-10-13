@@ -122,6 +122,9 @@ export function ActiveTripScreen() {
   const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
+  // Cada toque en "Destino" suma uno: el mapa anima la camara al destino.
+  const [focusRequest, setFocusRequest] = useState(0);
+  const focusDestination = useCallback(() => setFocusRequest((count) => count + 1), []);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
   // El sistema cancelo porque nadie busco mas de `TRIP_SEARCH_TIMEOUT_MINUTES`: se ofrece reintentar.
@@ -206,6 +209,8 @@ export function ActiveTripScreen() {
         routePoints={eta.route?.points ?? NO_ROUTE}
         topInset={topInset}
         bottomInset={panelHeight}
+        focusRequest={focusRequest}
+        focusPoint={dropoff}
       />
 
       {view === 'searching' && pickup ? (
@@ -262,7 +267,12 @@ export function ActiveTripScreen() {
               unreadChatCount={unreadChatCount}
             />
           ) : onBoard && trip ? (
-            <OnBoardPanel trip={trip} etaMinutes={eta.minutes} unreadChatCount={unreadChatCount} />
+            <OnBoardPanel
+              trip={trip}
+              etaMinutes={eta.minutes}
+              unreadChatCount={unreadChatCount}
+              onFocusDestination={focusDestination}
+            />
           ) : (
             <TripStatusPanel
               status={trip?.status ?? null}
