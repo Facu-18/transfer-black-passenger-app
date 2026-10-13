@@ -104,7 +104,7 @@ export function MapDestinationScreen() {
         <VIPButton
           title="Confirmar destino"
           accessibilityLabel="Confirmar destino"
-          disabled={picker.status !== 'ready'}
+          disabled={picker.status !== 'ready' || picker.isConfirming}
           onPress={picker.confirm}
         />
       </View>

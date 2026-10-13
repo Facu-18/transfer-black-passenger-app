@@ -51,7 +51,10 @@ export function useMapDestinationPicker() {
   const [place, setPlace] = useState<Place | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSlow, setIsSlow] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
+  // Guarda sincronica: dos toques rapidos llegan antes de que el estado se refleje.
+  const confirmedRef = useRef(false);
   const centerRef = useRef<Coordinates>(initialCenter);
   const requestIdRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -139,7 +142,9 @@ export function useMapDestinationPicker() {
   );
 
   const confirm = useCallback(() => {
-    if (status !== 'ready' || !place) return;
+    if (status !== 'ready' || !place || confirmedRef.current) return;
+    confirmedRef.current = true;
+    setIsConfirming(true);
 
     setDestination(place);
     void addRecentPlace(place);
@@ -159,6 +164,7 @@ export function useMapDestinationPicker() {
     place,
     errorMessage,
     isSlow,
+    isConfirming,
     onCenterChange,
     resolveInitialCenter,
     retry,
