@@ -14,6 +14,12 @@ interface TripState {
   guestPassenger: GuestPassenger | null;
   /** Medio de pago con el que arranca Cotizacion, por ejemplo desde "Viaje corporativo" del Home. */
   preferredPaymentMethod: PaymentMethod | null;
+  /**
+   * Aviso de un solo uso: el mapa fijo el destino sin origen y volvio a la busqueda,
+   * que al enfocarse debe pedir el punto de partida y consumir el aviso.
+   */
+  pendingOriginPrompt: boolean;
+  setPendingOriginPrompt: (pending: boolean) => void;
   setCurrentLocation: (coordinates: Coordinates) => void;
   setCurrentPlace: (place: Place) => void;
   setOrigin: (place: Place | null) => void;
@@ -32,7 +38,9 @@ export const useTripStore = create<TripState>()((set) => ({
   destinationLocation: null,
   guestPassenger: null,
   preferredPaymentMethod: null,
+  pendingOriginPrompt: false,
 
+  setPendingOriginPrompt: (pendingOriginPrompt) => set({ pendingOriginPrompt }),
   setCurrentLocation: (currentLocation) => set({ currentLocation }),
 
   // Mientras el usuario no haya elegido otro origen, la ubicacion actual lo es.
@@ -51,5 +59,6 @@ export const useTripStore = create<TripState>()((set) => ({
       destinationLocation: null,
       guestPassenger: null,
       preferredPaymentMethod: null,
+      pendingOriginPrompt: false,
     })),
 }));

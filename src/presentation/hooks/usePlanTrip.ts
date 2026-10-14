@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import type { TextInput } from 'react-native';
 
 import { resolvePlaceDetailsAction } from '@/core/actions/resolve-place-details.action';
@@ -30,6 +30,7 @@ export function usePlanTrip() {
   const tripDestination = useTripStore((state) => state.destinationLocation);
   const setTripOrigin = useTripStore((state) => state.setOrigin);
   const setTripDestination = useTripStore((state) => state.setDestination);
+  const setPendingOriginPrompt = useTripStore((state) => state.setPendingOriginPrompt);
 
   const reservationOrigin = useReservationStore((state) => state.origin);
   const reservationDestination = useReservationStore((state) => state.destination);
@@ -100,6 +101,21 @@ export function usePlanTrip() {
 
   const selectPlace = (place: Place) => applyPlace(place);
 
+  // Al volver de "Elegir en el mapa" con el destino ya fijado pero sin origen,
+  // pasa lo mismo que al elegir un resultado sin origen: se pide la partida.
+  // El mapa deja un aviso de un solo uso que se consume aca, para no pisar el
+  // campo que elija el pasajero en enfoques posteriores.
+  useFocusEffect(
+    useCallback(() => {
+      if (!useTripStore.getState().pendingOriginPrompt) return;
+      setPendingOriginPrompt(false);
+      if (isReserveMode || !tripDestination || tripOrigin) return;
+      setActiveField('origin');
+      setHint('Elige el punto de partida para continuar.');
+      originInputRef.current?.focus();
+    }, [isReserveMode, tripDestination, tripOrigin, setPendingOriginPrompt]),
+  );
+
   /**
    * Sugerencia del autocompletado: todavia no tiene coordenadas. Hay que
    * pedir el detalle (cierra la sesion de autocompletado) antes de poder
@@ -133,6 +149,7 @@ export function usePlanTrip() {
   };
 
   return {
+    isReserveMode,
     origin,
     destination,
     currentPlace,

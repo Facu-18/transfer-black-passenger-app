@@ -4,7 +4,6 @@ import { Image, Pressable, View } from 'react-native';
 
 import type { Trip } from '@/infrastructure/interfaces/trips';
 import { colors } from '@/presentation/theme/colors';
-import { showComingSoon } from '@/presentation/utils/coming-soon';
 
 import { PlatePill } from './PlatePill';
 import { Typography } from './Typography';
@@ -15,6 +14,8 @@ interface OnBoardPanelProps {
   etaMinutes: number | null;
   /** Mensajes del chofer sin leer, para el badge del chat. */
   unreadChatCount?: number;
+  /** Centra el mapa en el destino del viaje. */
+  onFocusDestination: () => void;
 }
 
 const timeFormatter = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -53,7 +54,7 @@ function QuickAction({
 }
 
 /** Panel "a bordo": cuanto falta para llegar, a donde, y con quien. */
-export function OnBoardPanel({ trip, etaMinutes, unreadChatCount = 0 }: OnBoardPanelProps) {
+export function OnBoardPanel({ trip, etaMinutes, unreadChatCount = 0, onFocusDestination }: OnBoardPanelProps) {
   const { driver, vehicle } = trip;
   const arrivalTime = etaMinutes !== null ? timeFormatter.format(new Date(Date.now() + etaMinutes * 60_000)) : null;
 
@@ -126,7 +127,7 @@ export function OnBoardPanel({ trip, etaMinutes, unreadChatCount = 0 }: OnBoardP
           badgeCount={unreadChatCount}
           onPress={() => router.push({ pathname: '/chat/[tripId]', params: { tripId: trip.id } })}
         />
-        <QuickAction icon={Navigation} label="Destino" onPress={() => showComingSoon('Destino')} />
+        <QuickAction icon={Navigation} label="Destino" onPress={onFocusDestination} />
       </View>
     </View>
   );

@@ -65,6 +65,8 @@ export default function AppLayout() {
       <Stack.Screen name="delete-account" />
       <Stack.Screen name="transfer-black-empresas" />
       <Stack.Screen name="search" />
+      {/* "Elegir en el mapa" desde la busqueda: el destino se fija moviendo el mapa. */}
+      <Stack.Screen name="search-map" />
       <Stack.Screen name="guest" />
       <Stack.Screen name="pricing" />
       {/* Reservar un viaje para mas adelante: la agencia lo confirma por WhatsApp. */}

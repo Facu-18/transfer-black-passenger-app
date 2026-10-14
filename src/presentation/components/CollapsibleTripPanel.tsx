@@ -102,7 +102,16 @@ export function CollapsibleTripPanel({
         </Animated.View>
       </GestureDetector>
 
-      {expanded ? <View style={{ paddingBottom: bottomInset + 16 }}>{children}</View> : <View style={{ height: bottomInset }} />}
+      {/* Minimizado, el contenido sigue montado (conserva su estado y no repite la animacion de entrada): solo se oculta. */}
+      <View
+        style={expanded ? { paddingBottom: bottomInset + 16 } : { height: 0, overflow: 'hidden', opacity: 0 }}
+        pointerEvents={expanded ? 'auto' : 'none'}
+        importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!expanded}
+      >
+        {children}
+      </View>
+      {!expanded ? <View style={{ height: bottomInset }} /> : null}
     </Animated.View>
   );
 }

@@ -12,6 +12,9 @@ import { DriverCarMarker } from './DriverCarMarker';
 /** Zoom del radar: unas pocas cuadras alrededor del punto de partida. */
 const SEARCH_ZOOM = 15.5;
 
+/** Zoom al centrar el mapa en el destino a pedido del pasajero. */
+const FOCUS_ZOOM = 16;
+
 /**
  * Centro de Cordoba: si al retomar un viaje activo (la app se cerro y se
  * reabrio) todavia no llego el origen/destino ni la ubicacion del usuario,
@@ -41,6 +44,13 @@ interface ActiveTripMapProps {
   /** Espacio que tapan los paneles: el centro del mapa es el del area visible. */
   topInset: number;
   bottomInset: number;
+  /**
+   * Pedido de centrar el mapa en `focusPoint`: cada vez que sube el contador se
+   * anima la camara (0 = ninguno). Un contador y no un booleano, asi se puede
+   * pedir de nuevo despues de mover el mapa a mano.
+   */
+  focusRequest?: number;
+  focusPoint?: Coordinates | null;
 }
 
 export function ActiveTripMap({
@@ -51,6 +61,8 @@ export function ActiveTripMap({
   routePoints,
   topInset,
   bottomInset,
+  focusRequest = 0,
+  focusPoint = null,
 }: ActiveTripMapProps) {
   const mapRef = useRef<MapView>(null);
   const hasDriver = driver !== null;
@@ -86,6 +98,20 @@ export function ActiveTripMap({
     });
     // `driver` cambia cada 3 s: solo interesa si hay auto, no donde esta.
   }, [mapReady, mode, target, routePoints, hasDriver, bottomInset]);
+
+  // Centrar en un punto a pedido (boton "Destino"). Solo reacciona al contador:
+  // si `focusPoint` cambia solo, el mapa no se mueve. Mismo guard `mapReady`
+  // que el resto de la camara (ver arriba).
+  const focusPointRef = useRef(focusPoint);
+  focusPointRef.current = focusPoint;
+  const handledFocusRequest = useRef(0);
+  useEffect(() => {
+    if (!mapReady || focusRequest === handledFocusRequest.current) return;
+    handledFocusRequest.current = focusRequest;
+    const point = focusPointRef.current;
+    if (!point) return;
+    mapRef.current?.animateCamera({ center: point, zoom: FOCUS_ZOOM }, { duration: 600 });
+  }, [mapReady, focusRequest]);
 
   const locked = mode === 'searching';
 
