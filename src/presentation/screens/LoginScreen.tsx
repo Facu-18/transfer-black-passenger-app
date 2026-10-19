@@ -13,7 +13,7 @@ import { colors } from '@/presentation/theme/colors';
 import { emailField } from '@/presentation/utils/auth-form-fields';
 
 export function LoginScreen() {
-  const { form, submit } = useLoginForm();
+  const { form, submit, rateLimit } = useLoginForm();
   const {
     control,
     clearErrors,
@@ -115,13 +115,19 @@ export function LoginScreen() {
           </Typography>
         </Pressable>
 
-        {errors.root?.server?.message ? (
+        {rateLimit.message ?? errors.root?.server?.message ? (
           <Typography variant="body" tone="danger" accessibilityLiveRegion="polite" className="text-center">
-            {errors.root.server.message}
+            {rateLimit.message ?? errors.root?.server?.message}
           </Typography>
         ) : null}
 
-        <VIPButton title="Ingresar" loading={isSubmitting} onPress={() => void submit()} className="mt-2" />
+        <VIPButton
+          title="Ingresar"
+          loading={isSubmitting}
+          disabled={rateLimit.isCoolingDown}
+          onPress={() => void submit()}
+          className="mt-2"
+        />
       </View>
 
       <View className="gap-6">

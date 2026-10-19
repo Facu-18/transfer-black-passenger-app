@@ -7,6 +7,7 @@ import { resendVerificationAction } from '@/core/actions/resend-verification.act
 import { verifyEmailAction } from '@/core/actions/verify-email.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { useCountdown } from '@/presentation/hooks/useCountdown';
+import { DEFAULT_RATE_LIMIT_SECONDS, useRateLimitCooldown } from '@/presentation/hooks/useRateLimitCooldown';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession as showExpiredSession } from '@/presentation/utils/expired-session';
@@ -29,6 +30,7 @@ export function useVerifyEmail() {
   const [isResending, setIsResending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const countdown = useCountdown(RESEND_COOLDOWN_SECONDS);
+  const rateLimit = useRateLimitCooldown();
 
   const goHome = () => {
     markEmailVerified();
@@ -84,6 +86,7 @@ export function useVerifyEmail() {
     }
 
     setIsResending(true);
+    setFeedback(null);
 
     try {
       await resendVerificationAction();
@@ -99,6 +102,11 @@ export function useVerifyEmail() {
       if (error instanceof ApiRequestError) {
         if (error.status === 401) {
           handleExpiredSession();
+          return;
+        }
+        if (rateLimit.start(error)) {
+          // El reenvio queda bloqueado por el mismo tiempo que la espera del 429.
+          countdown.restart(Math.ceil(error.retryAfterSeconds ?? DEFAULT_RATE_LIMIT_SECONDS));
           return;
         }
         if (error.code === 'EMAIL_ALREADY_VERIFIED') {
@@ -129,6 +137,6 @@ export function useVerifyEmail() {
     isResending,
     resendSecondsLeft: countdown.secondsLeft,
     canResend: !countdown.isRunning && !isResending,
-    feedback,
+    feedback: rateLimit.message ? ({ tone: 'danger', message: rateLimit.message } satisfies Feedback) : feedback,
   };
 }

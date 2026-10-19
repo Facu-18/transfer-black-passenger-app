@@ -6,6 +6,7 @@ import type { OtpInputRef } from 'react-native-otp-entry';
 import { forgotPasswordAction } from '@/core/actions/forgot-password.action';
 import { verifyResetPasswordAction } from '@/core/actions/verify-reset-password.action';
 import { useCountdown } from '@/presentation/hooks/useCountdown';
+import { DEFAULT_RATE_LIMIT_SECONDS, isRateLimitError, useRateLimitCooldown } from '@/presentation/hooks/useRateLimitCooldown';
 import { usePasswordResetStore } from '@/presentation/store/usePasswordResetStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { describeVerificationCodeError } from '@/presentation/utils/verification-code-error';
@@ -27,6 +28,7 @@ export function useResetPasswordVerify(email: string) {
   const [isResending, setIsResending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const countdown = useCountdown(RESEND_COOLDOWN_SECONDS);
+  const rateLimit = useRateLimitCooldown();
 
   const onCodeChange = (text: string) => {
     setCode(text);
@@ -69,6 +71,7 @@ export function useResetPasswordVerify(email: string) {
     }
 
     setIsResending(true);
+    setFeedback(null);
 
     try {
       // Siempre 202: si estaba en cooldown en el backend, no manda nada nuevo
@@ -80,6 +83,13 @@ export function useResetPasswordVerify(email: string) {
       otpRef.current?.focus();
       setFeedback({ tone: 'accent', message: `Te enviamos un código nuevo a ${email}.` });
     } catch (error) {
+      if (isRateLimitError(error)) {
+        rateLimit.start(error);
+        // El reenvio queda bloqueado por el mismo tiempo que la espera del 429.
+        countdown.restart(Math.ceil(error.retryAfterSeconds ?? DEFAULT_RATE_LIMIT_SECONDS));
+        return;
+      }
+
       setFeedback({
         tone: 'danger',
         message: getApiErrorMessage(error, 'No pudimos reenviar el código. Intentá de nuevo.'),
@@ -99,6 +109,6 @@ export function useResetPasswordVerify(email: string) {
     isResending,
     resendSecondsLeft: countdown.secondsLeft,
     canResend: !countdown.isRunning && !isResending,
-    feedback,
+    feedback: rateLimit.message ? ({ tone: 'danger', message: rateLimit.message } satisfies Feedback) : feedback,
   };
 }

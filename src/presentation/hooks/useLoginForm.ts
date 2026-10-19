@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { loginAction } from '@/core/actions/login.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
+import { useRateLimitCooldown } from '@/presentation/hooks/useRateLimitCooldown';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { emailField } from '@/presentation/utils/auth-form-fields';
@@ -25,6 +26,7 @@ const DEFAULT_VALUES: LoginFormValues = {
 
 export function useLoginForm() {
   const setSession = useAuthStore((state) => state.setSession);
+  const rateLimit = useRateLimitCooldown();
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -33,6 +35,9 @@ export function useLoginForm() {
   });
 
   const submit = form.handleSubmit(async ({ email, password }) => {
+    // El teclado tambien envia (onSubmitEditing): se respeta la espera aunque el boton este deshabilitado.
+    if (rateLimit.isCoolingDown) return;
+
     try {
       const { user, session } = await loginAction({ email, password });
 
@@ -47,6 +52,12 @@ export function useLoginForm() {
       await setSession(session, user);
       router.replace(user.emailVerified ? '/home' : '/verify-email');
     } catch (error) {
+      // 429: el aviso vive en `rateLimit.message` (se actualiza solo), no en un error fijo.
+      if (rateLimit.start(error)) {
+        form.clearErrors('root');
+        return;
+      }
+
       if (error instanceof ApiRequestError && error.status === 401) {
         form.resetField('password');
         form.setError('root.server', { message: 'Correo o contraseña incorrectos.' });
@@ -59,5 +70,5 @@ export function useLoginForm() {
     }
   });
 
-  return { form, submit };
+  return { form, submit, rateLimit };
 }

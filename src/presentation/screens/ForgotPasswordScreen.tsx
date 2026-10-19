@@ -12,7 +12,7 @@ import { colors } from '@/presentation/theme/colors';
 
 export function ForgotPasswordScreen() {
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
-  const { form, submit } = useForgotPasswordForm({ defaultEmail: emailParam ?? '' });
+  const { form, submit, rateLimit } = useForgotPasswordForm({ defaultEmail: emailParam ?? '' });
   const {
     control,
     formState: { errors, isSubmitting },
@@ -73,13 +73,19 @@ export function ForgotPasswordScreen() {
           )}
         />
 
-        {errors.root?.server?.message ? (
+        {rateLimit.message ?? errors.root?.server?.message ? (
           <Typography variant="body" tone="danger" accessibilityLiveRegion="polite" className="text-center">
-            {errors.root.server.message}
+            {rateLimit.message ?? errors.root?.server?.message}
           </Typography>
         ) : null}
 
-        <VIPButton title="Enviar código" loading={isSubmitting} onPress={() => void submit()} className="mt-2" />
+        <VIPButton
+          title="Enviar código"
+          loading={isSubmitting}
+          disabled={rateLimit.isCoolingDown}
+          onPress={() => void submit()}
+          className="mt-2"
+        />
       </View>
     </Screen>
   );

@@ -14,6 +14,8 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
       return 'No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.';
     case CONNECTION_ERROR_CODES.TIMEOUT:
       return 'El servidor está tardando en responder. Intenta de nuevo en unos segundos.';
+    case 'RATE_LIMIT_EXCEEDED':
+      return 'Demasiados intentos. Esperá unos segundos para reintentar.';
     case 'VALIDATION_ERROR':
       return 'Revisa los datos ingresados.';
     default:

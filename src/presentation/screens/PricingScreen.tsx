@@ -10,6 +10,7 @@ import { PaymentMethodPills, type CorporatePaymentOption } from '@/presentation/
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
 import { Skeleton } from '@/presentation/components/Skeleton';
+import { Toast } from '@/presentation/components/Toast';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { WhatsAppServicesRow } from '@/presentation/components/WhatsAppServicesRow';
@@ -37,10 +38,11 @@ export function PricingScreen() {
   const guestPassenger = useTripStore((state) => state.guestPassenger);
   const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
-  const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip } = useRideQuote();
+  const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip, isRateLimited, isStale, toast } = useRideQuote();
   const { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming } = useConfirmRide({
-    quote,
-    selectedFare,
+    // Una cotizacion vieja no se confirma: su borrador es del viaje anterior.
+    quote: isStale ? null : quote,
+    selectedFare: isStale ? null : selectedFare,
     onQuoteExpired: retry,
   });
   const { membership: corporateMembership } = useCorporateEligibility();
@@ -127,12 +129,18 @@ export function PricingScreen() {
             <Typography tone="danger" className="text-center">
               {error}
             </Typography>
-            <VIPButton title="Reintentar" onPress={() => void retry()} />
+            <VIPButton title="Reintentar" disabled={isRateLimited} onPress={() => void retry()} />
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} />
           </View>
         ) : quote ? (
           <>
-            <View className="gap-3">
+            {isStale ? (
+              <Typography tone="accent" weight="semibold" accessibilityLiveRegion="polite" className="text-center">
+                Recalculando la ruta…
+              </Typography>
+            ) : null}
+
+            <View className={`gap-3 ${isStale ? 'opacity-50' : ''}`} pointerEvents={isStale ? 'none' : 'auto'}>
               {quote.options.map((option, index) => (
                 <ServiceOptionCard
                   key={option.id}
@@ -165,7 +173,7 @@ export function PricingScreen() {
 
             <GuestPassengerChip
               guest={guestPassenger}
-              disabled={isConfirming}
+              disabled={isConfirming || isStale}
               onEdit={() => router.push('/guest')}
               onRemove={clearGuestPassenger}
               onAddGuest={() => router.push('/guest')}
@@ -173,24 +181,26 @@ export function PricingScreen() {
 
             <PaymentMethodPills
               value={paymentMethod}
-              disabled={isConfirming}
+              disabled={isConfirming || isStale}
               corporateOption={corporateOption}
               onChange={setPaymentMethod}
             />
 
-            <BoardingPinToggle value={requirePin} disabled={isConfirming} onChange={setRequirePin} />
+            <BoardingPinToggle value={requirePin} disabled={isConfirming || isStale} onChange={setRequirePin} />
 
             <VIPButton
               title={confirmLabel}
               uppercase
               trailingIcon={ArrowRight}
               loading={isConfirming}
-              disabled={selectedFare === null}
+              disabled={selectedFare === null || isStale}
               onPress={() => void confirm()}
             />
           </>
         ) : null}
       </ScrollView>
+
+      <Toast toast={toast} bottomOffset={panelHeight} />
     </View>
   );
 }

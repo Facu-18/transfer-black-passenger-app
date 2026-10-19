@@ -138,11 +138,18 @@ function isChatErrorResponse(body: unknown): body is ChatErrorResponse {
   return 'code' in body && 'message' in body && typeof (body as { code: unknown }).code === 'string';
 }
 
-/** El backend del chat manda el numero de segundos en `Retry-After` (429). */
+/** Todo 429 (chat, login, cotizacion...) trae el numero de segundos en `Retry-After`. */
 function getRetryAfterSeconds(headers: Record<string, unknown> | undefined): number | null {
   const raw = headers?.['retry-after'];
-  const seconds = typeof raw === 'string' ? Number(raw) : null;
-  return seconds !== null && Number.isFinite(seconds) ? seconds : null;
+  const seconds = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : null;
+  return seconds !== null && Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+/** Respaldo si el header no llega: el backend repite la espera en `details.retry_after_seconds`. */
+function getRetryAfterFromDetails(details: unknown): number | null {
+  if (typeof details !== 'object' || details === null) return null;
+  const value = (details as Record<string, unknown>).retry_after_seconds;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
 }
 
 /**
@@ -180,7 +187,7 @@ function toApiRequestError(error: unknown): ApiRequestError {
       data.error.code,
       joinValidationMessage(data.error.message),
       data.error.details ?? null,
-      retryAfterSeconds,
+      retryAfterSeconds ?? getRetryAfterFromDetails(data.error.details),
     );
   }
 
