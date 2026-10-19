@@ -10,6 +10,7 @@ import { PaymentMethodPills, type CorporatePaymentOption } from '@/presentation/
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
 import { Skeleton } from '@/presentation/components/Skeleton';
+import { Toast } from '@/presentation/components/Toast';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { WhatsAppServicesRow } from '@/presentation/components/WhatsAppServicesRow';
@@ -37,7 +38,7 @@ export function PricingScreen() {
   const guestPassenger = useTripStore((state) => state.guestPassenger);
   const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
-  const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip } = useRideQuote();
+  const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip, isRateLimited, toast } = useRideQuote();
   const { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming } = useConfirmRide({
     quote,
     selectedFare,
@@ -127,7 +128,7 @@ export function PricingScreen() {
             <Typography tone="danger" className="text-center">
               {error}
             </Typography>
-            <VIPButton title="Reintentar" onPress={() => void retry()} />
+            <VIPButton title="Reintentar" disabled={isRateLimited} onPress={() => void retry()} />
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} />
           </View>
         ) : quote ? (
@@ -191,6 +192,8 @@ export function PricingScreen() {
           </>
         ) : null}
       </ScrollView>
+
+      <Toast toast={toast} bottomOffset={panelHeight} />
     </View>
   );
 }
