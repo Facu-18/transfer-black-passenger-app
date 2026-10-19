@@ -38,10 +38,11 @@ export function PricingScreen() {
   const guestPassenger = useTripStore((state) => state.guestPassenger);
   const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
-  const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip, isRateLimited, toast } = useRideQuote();
+  const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip, isRateLimited, isStale, toast } = useRideQuote();
   const { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming } = useConfirmRide({
-    quote,
-    selectedFare,
+    // Una cotizacion vieja no se confirma: su borrador es del viaje anterior.
+    quote: isStale ? null : quote,
+    selectedFare: isStale ? null : selectedFare,
     onQuoteExpired: retry,
   });
   const { membership: corporateMembership } = useCorporateEligibility();
@@ -133,7 +134,13 @@ export function PricingScreen() {
           </View>
         ) : quote ? (
           <>
-            <View className="gap-3">
+            {isStale ? (
+              <Typography tone="accent" weight="semibold" accessibilityLiveRegion="polite" className="text-center">
+                Recalculando la ruta…
+              </Typography>
+            ) : null}
+
+            <View className={`gap-3 ${isStale ? 'opacity-50' : ''}`} pointerEvents={isStale ? 'none' : 'auto'}>
               {quote.options.map((option, index) => (
                 <ServiceOptionCard
                   key={option.id}
@@ -166,7 +173,7 @@ export function PricingScreen() {
 
             <GuestPassengerChip
               guest={guestPassenger}
-              disabled={isConfirming}
+              disabled={isConfirming || isStale}
               onEdit={() => router.push('/guest')}
               onRemove={clearGuestPassenger}
               onAddGuest={() => router.push('/guest')}
@@ -174,19 +181,19 @@ export function PricingScreen() {
 
             <PaymentMethodPills
               value={paymentMethod}
-              disabled={isConfirming}
+              disabled={isConfirming || isStale}
               corporateOption={corporateOption}
               onChange={setPaymentMethod}
             />
 
-            <BoardingPinToggle value={requirePin} disabled={isConfirming} onChange={setRequirePin} />
+            <BoardingPinToggle value={requirePin} disabled={isConfirming || isStale} onChange={setRequirePin} />
 
             <VIPButton
               title={confirmLabel}
               uppercase
               trailingIcon={ArrowRight}
               loading={isConfirming}
-              disabled={selectedFare === null}
+              disabled={selectedFare === null || isStale}
               onPress={() => void confirm()}
             />
           </>

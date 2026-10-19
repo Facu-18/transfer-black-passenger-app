@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { quoteRideAction } from '@/core/actions/quote-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
+import type { Place } from '@/infrastructure/interfaces/places';
 import type { FareOption, RideQuote } from '@/infrastructure/interfaces/trips';
 import { DEFAULT_RATE_LIMIT_SECONDS, isRateLimitError, useRateLimitCooldown } from '@/presentation/hooks/useRateLimitCooldown';
 import { useToast } from '@/presentation/hooks/useToast';
@@ -18,6 +19,12 @@ import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile
 const REQUOTE_DEBOUNCE_MS = 600;
 
 export const RATE_LIMITED_QUOTE_MESSAGE = 'Esperá unos segundos antes de recalcular la ruta.';
+
+/** Identifica el par origen/destino de una cotizacion: dos pares con la misma clave son el mismo viaje. */
+function getRouteKey(origin: Place, destination: Place): string {
+  const point = (place: Place) => `${place.placeId}|${place.coordinates.latitude},${place.coordinates.longitude}`;
+  return `${point(origin)}>${point(destination)}`;
+}
 
 function describeQuoteError(error: unknown): string {
   if (error instanceof ApiRequestError && error.status === 400) {
@@ -43,6 +50,8 @@ export function useRideQuote() {
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
   const quoteRef = useRef<RideQuote | null>(null);
+  // Puntos con los que se pidio la cotizacion visible: si ya no son los actuales, esta vieja.
+  const [quoteRouteKey, setQuoteRouteKey] = useState<string | null>(null);
   const loadRef = useRef<() => Promise<void>>(async () => {});
   // Hasta cuando el backend pidio esperar (429) y el temporizador que recotiza al cumplirse.
   const blockedUntil = useRef(0);
@@ -68,6 +77,7 @@ export function useRideQuote() {
     }
 
     // Una respuesta lenta de una cotizacion anterior no debe pisar a la nueva.
+    const requestRouteKey = getRouteKey(origin, destination);
     const currentRequest = ++requestId.current;
     setIsLoading(true);
     setError(null);
@@ -78,6 +88,7 @@ export function useRideQuote() {
 
       quoteRef.current = result;
       setQuote(result);
+      setQuoteRouteKey(requestRouteKey);
       // La categoria elegida se conserva entre recotizaciones; si no, la primera.
       setSelectedFareId((previous) => {
         const stillThere = result.options.some((option) => option.code === previous);
@@ -124,10 +135,10 @@ export function useRideQuote() {
   loadRef.current = load;
 
   // La clave evita recotizar si cambia la identidad de los objetos pero no los puntos.
-  const routeKey =
-    origin && destination
-      ? `${origin.placeId}|${origin.coordinates.latitude},${origin.coordinates.longitude}>${destination.placeId}|${destination.coordinates.latitude},${destination.coordinates.longitude}`
-      : null;
+  const routeKey = origin && destination ? getRouteKey(origin, destination) : null;
+
+  // Cotizacion de otro viaje (un 429 o el debounce dejaron a la vista la anterior): confirmarla crearia un viaje al destino equivocado.
+  const isStale = quote !== null && quoteRouteKey !== routeKey;
 
   useEffect(() => {
     if (!routeKey) return;
@@ -176,6 +187,7 @@ export function useRideQuote() {
     retry: load,
     // Mientras corre la espera del 429, reintentar a mano solo la prolongaria.
     isRateLimited: rateLimit.isCoolingDown,
+    isStale,
     toast,
     hasTrip: origin !== null && destination !== null,
   };
