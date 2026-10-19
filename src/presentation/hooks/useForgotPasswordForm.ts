@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { forgotPasswordAction } from '@/core/actions/forgot-password.action';
+import { useRateLimitCooldown } from '@/presentation/hooks/useRateLimitCooldown';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { emailField } from '@/presentation/utils/auth-form-fields';
 
@@ -17,6 +18,7 @@ interface UseForgotPasswordFormOptions {
 }
 
 export function useForgotPasswordForm({ defaultEmail = '' }: UseForgotPasswordFormOptions = {}) {
+  const rateLimit = useRateLimitCooldown();
   const form = useForm({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: defaultEmail },
@@ -24,16 +26,24 @@ export function useForgotPasswordForm({ defaultEmail = '' }: UseForgotPasswordFo
   });
 
   const submit = form.handleSubmit(async ({ email }) => {
+    // El teclado tambien envia (onSubmitEditing): se respeta la espera aunque el boton este deshabilitado.
+    if (rateLimit.isCoolingDown) return;
+
     try {
       await forgotPasswordAction(email);
       // El backend no dice si la cuenta existe: siempre se sigue al paso del PIN.
       router.push({ pathname: '/reset-password-verify', params: { email: email.trim().toLowerCase() } });
     } catch (error) {
+      if (rateLimit.start(error)) {
+        form.clearErrors('root');
+        return;
+      }
+
       form.setError('root.server', {
         message: getApiErrorMessage(error, 'No pudimos enviar el código. Intentá de nuevo.'),
       });
     }
   });
 
-  return { form, submit };
+  return { form, submit, rateLimit };
 }

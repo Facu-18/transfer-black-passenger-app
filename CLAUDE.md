@@ -140,6 +140,13 @@ en un dispositivo. Las dependencias nativas se agregan **siempre** con `npx expo
   `{ reset_token, new_password }`, que revoca **todas** las refresh sessions del usuario (tiene que
   volver a iniciar sesión en todos sus dispositivos) y falla con `RESET_TOKEN_INVALID` si el token
   es desconocido, ya se usó o venció.
+- **Límites de solicitudes (429 `RATE_LIMIT_EXCEEDED`)**: `POST /auth/login` (5/min), `send-otp`,
+  `forgot-password` y `resend-verification` (5/min, compartido `authSendOtpRateLimiter`) y
+  `POST /rides/quote` (20/min por usuario). Traen `Retry-After` (segundos) y `details.retry_after_seconds`;
+  el interceptor los vuelca en `ApiRequestError.retryAfterSeconds` (header primero, `details` de respaldo).
+  `verify-email`, `reset-password/verify` y `reset-password` no tienen límite propio. La cuenta
+  regresiva vive en `useRateLimitCooldown` (60 s si no se sabe cuánto): deshabilita el botón y muestra
+  "Demasiados intentos. Esperá {s}s para reintentar." en vivo; el chat tiene la suya aparte.
 - **Servicios por WhatsApp** (Grúa, Colectivo, Flete, Otros) no existen en el backend: viven solo en
   `presentation/utils/whatsapp-services.ts`, no se cotizan ni crean viaje, y abren `wa.me` con origen
   y destino ya escritos. Se muestran aunque la cotización falle.
