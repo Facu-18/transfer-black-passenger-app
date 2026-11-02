@@ -154,7 +154,7 @@ export function buildReceiptHtml(trip: Trip): string {
       </head>
       <body>
         <h1>TRANSFER BLACK</h1>
-        <div class="subtitle">Comprobante oficial · Servicio privado</div>
+        <div class="subtitle">Comprobante de pago · No válido como factura</div>
 
         <div class="total">
           <div class="label">Monto total</div>

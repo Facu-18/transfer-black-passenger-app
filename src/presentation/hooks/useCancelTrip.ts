@@ -7,7 +7,12 @@ import { getCancellationPreviewAction } from '@/core/actions/get-cancellation-pr
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
-import { buildCancelConfirmationMessage, buildCancelledRefundMessage } from '@/presentation/utils/cancellation-copy';
+import {
+  buildCancelConfirmationMessage,
+  buildCancelledRefundMessage,
+  CANCEL_CONFIRMATION_TITLE,
+  type CancelStage,
+} from '@/presentation/utils/cancellation-copy';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 
 interface UseCancelTripOptions {
@@ -66,7 +71,7 @@ export function useCancelTrip(tripId: string | null, { onRefresh }: UseCancelTri
    * penalidad y el reembolso reales; si la consulta falla, se sigue con el
    * texto de siempre (no se bloquea la cancelacion por eso).
    */
-  const requestCancel = async (hasDriver: boolean) => {
+  const requestCancel = async (stage: CancelStage) => {
     if (!tripId || isCancelling) return;
 
     setIsCancelling(true);
@@ -84,8 +89,8 @@ export function useCancelTrip(tripId: string | null, { onRefresh }: UseCancelTri
     setIsCancelling(false);
 
     Alert.alert(
-      hasDriver ? '¿Cancelar el viaje?' : '¿Cancelar la búsqueda?',
-      buildCancelConfirmationMessage(hasDriver, preview),
+      CANCEL_CONFIRMATION_TITLE[stage],
+      buildCancelConfirmationMessage(stage, preview),
       [
         { text: 'Seguir esperando', style: 'cancel' },
         { text: 'Cancelar', style: 'destructive', onPress: () => void cancel() },

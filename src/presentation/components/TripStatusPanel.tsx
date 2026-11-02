@@ -37,7 +37,7 @@ function describe(status: TripStatus | null, reasonCode: string | null, paidByMp
       return {
         icon: Clock,
         title: 'Confirmando tu pago',
-        description: 'Cuando Mercado Pago acredite el pago empezamos a buscar tu chofer.',
+        description: 'Cuando Mercado Pago acredite el pago empezamos a buscar tu chofer. Si no llegaste a pagar, podés cancelar el pedido.',
         waiting: true,
       };
     case 'scheduled':
@@ -92,6 +92,11 @@ interface TripStatusPanelProps {
   onGoHome?: () => void;
   /** Sin chofer disponible: vuelve a cotizar el mismo origen/destino. Reemplaza a "Volver al inicio" como accion principal. */
   onRetry?: () => void;
+  /** Pago pendiente: reabre el checkout; no se ofrece si ya no tenemos la URL. */
+  onResumePayment?: () => void;
+  /** Pago pendiente: sin esto, el pasajero que cerro el checkout queda sin salida. */
+  onCancelPending?: () => void;
+  isCancelling?: boolean;
 }
 
 /** Estados sin mapa de seguimiento: pago pendiente, en curso, finalizado o cancelado. */
@@ -104,6 +109,9 @@ export function TripStatusPanel({
   paymentStatus = null,
   onGoHome,
   onRetry,
+  onResumePayment,
+  onCancelPending,
+  isCancelling = false,
 }: TripStatusPanelProps) {
   const paidByMp = paymentMethod === 'account_money' && paymentStatus === 'paid';
   const { icon: Icon, title, description, waiting } = describe(status, reasonCode, paidByMp);
@@ -137,6 +145,26 @@ export function TripStatusPanel({
           </Typography>
         ) : null}
       </View>
+
+      {onResumePayment || onCancelPending ? (
+        <View className="gap-3">
+          {onResumePayment ? <VIPButton title="Volver a Mercado Pago" onPress={onResumePayment} /> : null}
+          {onCancelPending ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isCancelling }}
+              disabled={isCancelling}
+              hitSlop={8}
+              onPress={onCancelPending}
+              className="items-center"
+            >
+              <Typography tone="secondary" weight="medium">
+                {isCancelling ? 'Cancelando…' : 'Cancelar pedido'}
+              </Typography>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {onRetry ? (
         <View className="gap-3">

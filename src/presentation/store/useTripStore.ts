@@ -19,6 +19,12 @@ interface TripState {
    * que al enfocarse debe pedir el punto de partida y consumir el aviso.
    */
   pendingOriginPrompt: boolean;
+  /**
+   * Checkout de Mercado Pago del ultimo viaje confirmado: `GET /rides/{tripId}` no trae
+   * la URL, asi que se guarda para poder reabrirlo si el pasajero cerro la pestaña.
+   */
+  pendingCheckout: { tripId: string; url: string } | null;
+  setPendingCheckout: (checkout: { tripId: string; url: string } | null) => void;
   setPendingOriginPrompt: (pending: boolean) => void;
   setCurrentLocation: (coordinates: Coordinates) => void;
   setCurrentPlace: (place: Place) => void;
@@ -39,7 +45,9 @@ export const useTripStore = create<TripState>()((set) => ({
   guestPassenger: null,
   preferredPaymentMethod: null,
   pendingOriginPrompt: false,
+  pendingCheckout: null,
 
+  setPendingCheckout: (pendingCheckout) => set({ pendingCheckout }),
   setPendingOriginPrompt: (pendingOriginPrompt) => set({ pendingOriginPrompt }),
   setCurrentLocation: (currentLocation) => set({ currentLocation }),
 
@@ -60,5 +68,6 @@ export const useTripStore = create<TripState>()((set) => ({
       guestPassenger: null,
       preferredPaymentMethod: null,
       pendingOriginPrompt: false,
+      pendingCheckout: null,
     })),
 }));

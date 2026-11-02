@@ -28,16 +28,30 @@ function refundLine(refundMode: RefundMode, formattedRefund: string, autoRefundW
   return null;
 }
 
+/** En que punto del viaje se cancela: cambia lo que se le avisa al pasajero. */
+export type CancelStage = 'payment' | 'searching' | 'driver';
+
+export const CANCEL_CONFIRMATION_TITLE: Record<CancelStage, string> = {
+  payment: '¿Cancelar el pedido?',
+  searching: '¿Cancelar la búsqueda?',
+  driver: '¿Cancelar el viaje?',
+};
+
+const CANCEL_CONFIRMATION_BASE: Record<CancelStage, string> = {
+  // El backend reintegra un pago que se acredita despues de cancelar el borrador.
+  payment: 'Si no llegaste a pagar, no se te cobra nada. Si ya pagaste, te devolvemos el pago.',
+  searching: 'Dejamos de buscar un chofer para este viaje.',
+  driver: 'Tu chofer ya está en camino. Si cancelás, queda libre para otro viaje.',
+};
+
 /**
- * Mensaje de la confirmacion antes de cancelar: el texto de siempre segun si
- * ya hay chofer asignado, mas la penalidad (si aplica) y que pasa con el
- * reembolso. Sin vista previa (no se pudo consultar) se queda con el texto de
- * siempre: no se bloquea la cancelacion por eso.
+ * Mensaje de la confirmacion antes de cancelar: el texto de siempre segun la
+ * etapa del viaje, mas la penalidad (si aplica) y que pasa con el reembolso.
+ * Sin vista previa (no se pudo consultar) se queda con el texto de siempre: no
+ * se bloquea la cancelacion por eso.
  */
-export function buildCancelConfirmationMessage(hasDriver: boolean, preview: CancellationPreview | null): string {
-  const base = hasDriver
-    ? 'Tu chofer ya está en camino. Si cancelás, queda libre para otro viaje.'
-    : 'Dejamos de buscar un chofer para este viaje.';
+export function buildCancelConfirmationMessage(stage: CancelStage, preview: CancellationPreview | null): string {
+  const base = CANCEL_CONFIRMATION_BASE[stage];
 
   if (!preview) {
     return base;
