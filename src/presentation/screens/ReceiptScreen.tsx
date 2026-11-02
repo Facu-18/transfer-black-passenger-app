@@ -53,9 +53,14 @@ function ReceiptCard({ trip }: { trip: Trip }) {
   return (
     <View className="gap-4 rounded-2xl border border-charcoal bg-surface p-5">
       <View className="gap-2">
-        <Typography variant="caption" tone="secondary" className="uppercase tracking-widest">
-          Comprobante oficial
-        </Typography>
+        <View className="gap-1">
+          <Typography variant="caption" tone="secondary" className="uppercase tracking-widest">
+            Comprobante de pago
+          </Typography>
+          <Typography variant="caption" tone="secondary">
+            No válido como factura
+          </Typography>
+        </View>
         {/* Fila propia: un medio de pago largo ("Cuenta corporativa · Pagado") no
             entra al lado del titulo sin desbordar la card. */}
         <View className={`self-start rounded-md border px-2 py-1 ${paid ? 'border-gold/40 bg-gold/10' : 'border-charcoal'}`}>
