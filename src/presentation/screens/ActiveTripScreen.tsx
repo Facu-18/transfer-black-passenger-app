@@ -22,6 +22,7 @@ import { useActiveTrip } from '@/presentation/hooks/useActiveTrip';
 import { useCancelTrip } from '@/presentation/hooks/useCancelTrip';
 import { useChatUnreadCount } from '@/presentation/hooks/useChatUnreadCount';
 import { useDriverEta } from '@/presentation/hooks/useDriverEta';
+import { useResumeCheckout } from '@/presentation/hooks/useResumeCheckout';
 import { useTripStore } from '@/presentation/store/useTripStore';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
@@ -104,6 +105,7 @@ export function ActiveTripScreen() {
 
   const { trip, driverLocation, connection, error, refresh } = useActiveTrip(tripId);
   const { requestCancel, isCancelling } = useCancelTrip(tripId, { onRefresh: () => void refresh() });
+  const { checkoutUrl, resumeCheckout } = useResumeCheckout(tripId, { onReturn: () => void refresh() });
 
   // Mientras llega el detalle del viaje se usa lo que se eligio al pedirlo.
   const plannedOrigin = useTripStore((state) => state.origin);
@@ -127,6 +129,7 @@ export function ActiveTripScreen() {
   const focusDestination = useCallback(() => setFocusRequest((count) => count + 1), []);
 
   const isFinished = trip ? FINISHED_TRIP_STATUSES.includes(trip.status) : false;
+  const paymentPending = trip?.status === 'draft';
   // El sistema cancelo porque nadie busco mas de `TRIP_SEARCH_TIMEOUT_MINUTES`: se ofrece reintentar.
   const noDriverFound = trip?.status === 'cancelled' && trip.cancellationReasonCode === 'no_driver_found';
 
@@ -254,7 +257,7 @@ export function ActiveTripScreen() {
               destination={trip?.dropoff?.address ?? plannedDestination?.address ?? null}
               fare={trip?.formattedFare ?? null}
               isCancelling={isCancelling}
-              onCancel={() => void requestCancel(false)}
+              onCancel={() => void requestCancel('searching')}
             />
           ) : (view === 'enRoute' || view === 'arrived') && trip ? (
             <DriverEnRoutePanel
@@ -263,7 +266,7 @@ export function ActiveTripScreen() {
               etaMinutes={eta.minutes}
               distanceKm={eta.distanceKm}
               isCancelling={isCancelling}
-              onCancel={() => void requestCancel(true)}
+              onCancel={() => void requestCancel('driver')}
               unreadChatCount={unreadChatCount}
             />
           ) : onBoard && trip ? (
@@ -283,6 +286,8 @@ export function ActiveTripScreen() {
               paymentStatus={trip?.paymentStatus ?? null}
               {...(isFinished ? { onGoHome: goHome } : {})}
               {...(noDriverFound ? { onRetry: retrySearch } : {})}
+              {...(paymentPending ? { onCancelPending: () => void requestCancel('payment'), isCancelling } : {})}
+              {...(paymentPending && checkoutUrl ? { onResumePayment: () => void resumeCheckout() } : {})}
             />
           )}
         </Animated.View>

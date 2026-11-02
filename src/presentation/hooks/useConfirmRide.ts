@@ -1,8 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 
 import { confirmRideAction } from '@/core/actions/confirm-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
@@ -15,6 +13,7 @@ import { getCorporateErrorMessage } from '@/presentation/utils/corporate-error-m
 import { exceedsCompanyBalance } from '@/presentation/utils/corporate-eligibility-copy';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
+import { openCheckout } from '@/presentation/utils/open-checkout';
 
 interface UseConfirmRideOptions {
   quote: RideQuote | null;
@@ -31,6 +30,7 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
   const [requirePin, setRequirePin] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
+  const setPendingCheckout = useTripStore((state) => state.setPendingCheckout);
 
   // Misma consulta que la pastilla de pago (comparten cache): si ya sabemos
   // que no se puede viajar a cuenta corporativa, no se puede dejar ese medio
@@ -128,12 +128,10 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
       // Con efectivo el viaje ya esta en `searching` y la pantalla del viaje
       // arranca con el radar. Con Mercado Pago queda en `draft` hasta que se
       // acredite el pago; ese aviso llega por webhook al backend y de ahi, por
-      // socket, a la pantalla del viaje. `openAuthSessionAsync` (en vez de
-      // `openBrowserAsync`) cierra el navegador solo cuando el checkout
-      // redirige al deep link de vuelta (`transferblack-passenger://payment-return`,
-      // ver `src/app/payment-return.tsx`), en vez de dejarlo abierto.
+      // socket, a la pantalla del viaje, que puede reabrir este mismo checkout.
       if (trip.checkoutUrl) {
-        await WebBrowser.openAuthSessionAsync(trip.checkoutUrl, Linking.createURL('payment-return'));
+        setPendingCheckout({ tripId: trip.tripId, url: trip.checkoutUrl });
+        await openCheckout(trip.checkoutUrl);
       }
 
       // Entra de una al seguimiento, que ya consulta el estado real al montarse:
