@@ -68,7 +68,12 @@ function EmptyState({ filter }: { filter: TripHistoryFilter }) {
       <Typography className="text-center" tone="secondary">
         {EMPTY_COPY[filter]}
       </Typography>
-      {filter === 'all' ? <VIPButton title="Pedir un viaje" onPress={() => router.push('/home')} /> : null}
+      {/* `self-stretch`: con el `items-center` del contenedor, el boton se encogia y cortaba el texto en Android. */}
+      {filter === 'all' ? (
+        <View className="self-stretch">
+          <VIPButton title="Pedir un viaje" onPress={() => router.push('/home')} />
+        </View>
+      ) : null}
     </View>
   );
 }
