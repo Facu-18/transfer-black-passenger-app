@@ -8,7 +8,7 @@ import { ApiRequestError } from '@/core/api/api-request-error';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
-import { phoneE164Field } from '@/presentation/utils/phone';
+import { argentineMobileField, toLocalArgentineNumber } from '@/presentation/utils/phone';
 
 const nameField = z.string().trim().min(1, 'Este campo es obligatorio').max(100, 'Máximo 100 caracteres');
 
@@ -16,7 +16,7 @@ const completeProfileSchema = z
   .object({
     firstName: nameField,
     lastName: nameField,
-    phone: phoneE164Field,
+    phone: argentineMobileField,
     birthDate: z
       .iso.date('Usa el formato AAAA-MM-DD')
       .refine((value) => value <= new Date().toISOString().slice(0, 10), 'La fecha no puede ser futura'),
@@ -51,7 +51,7 @@ export function useCompleteProfileForm({ onSaved }: UseCompleteProfileFormOption
     defaultValues: {
       firstName: user?.firstName ?? '',
       lastName: user?.lastName ?? '',
-      phone: user?.phone ?? '',
+      phone: user?.phone ? toLocalArgentineNumber(user.phone) : '',
       birthDate: user?.birthDate ?? '',
       gender: user?.gender ?? 'MASCULINO',
       documentType: user?.documentType ?? 'DNI',

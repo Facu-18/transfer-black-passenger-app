@@ -12,6 +12,7 @@ import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useRegisterPassengerForm } from '@/presentation/hooks/useRegisterPassengerForm';
 import { PRIVACY_URL, TERMS_URL } from '@/presentation/utils/legal-links';
 import { colors } from '@/presentation/theme/colors';
+import { ARGENTINE_MOBILE_PREFIX } from '@/presentation/utils/phone';
 
 export function RegisterPassengerScreen() {
   const { form, submit } = useRegisterPassengerForm();
@@ -96,7 +97,8 @@ export function RegisterPassengerScreen() {
             <VIPTextInput
               label="Teléfono móvil"
               icon={Phone}
-              placeholder="+54 9 351 555 0199"
+              prefix={ARGENTINE_MOBILE_PREFIX}
+              placeholder="351 555 0199"
               keyboardType="phone-pad"
               autoComplete="tel"
               textContentType="telephoneNumber"

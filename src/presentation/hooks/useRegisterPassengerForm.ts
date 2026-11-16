@@ -8,7 +8,7 @@ import { ApiRequestError } from '@/core/api/api-request-error';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { emailField, passwordField } from '@/presentation/utils/auth-form-fields';
-import { phoneE164Field } from '@/presentation/utils/phone';
+import { argentineMobileField } from '@/presentation/utils/phone';
 
 // La contraseña replica las reglas del backend (register-passenger.dto):
 // asi un dato invalido se corrige en pantalla sin gastar una solicitud.
@@ -19,7 +19,7 @@ const registerPassengerSchema = z.object({
     .regex(/^\S+\s+\S+/, 'Ingresa tu nombre y apellido')
     .max(201, 'El nombre es demasiado largo'),
   email: emailField,
-  phone: phoneE164Field,
+  phone: argentineMobileField,
   password: passwordField,
   acceptedTerms: z.boolean().refine((accepted) => accepted, 'Debes aceptar los términos para continuar'),
 });

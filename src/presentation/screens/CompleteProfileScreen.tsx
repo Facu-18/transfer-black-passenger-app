@@ -13,6 +13,7 @@ import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useCompleteProfileForm } from '@/presentation/hooks/useCompleteProfileForm';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { colors } from '@/presentation/theme/colors';
+import { ARGENTINE_MOBILE_PREFIX } from '@/presentation/utils/phone';
 
 interface Choice<T extends string> {
   label: string;
@@ -122,7 +123,7 @@ export function CompleteProfileScreen({ footer, reason, onSaved }: CompleteProfi
         )} />
 
         <Controller control={control} name="phone" render={({ field: { onChange, onBlur, value } }) => (
-          <VIPTextInput label="Teléfono" icon={Phone} placeholder="+54 9 351 555 0199" value={value}
+          <VIPTextInput label="Teléfono" icon={Phone} prefix={ARGENTINE_MOBILE_PREFIX} placeholder="351 555 0199" value={value}
             onChangeText={onChange} onBlur={onBlur} keyboardType="phone-pad" autoComplete="tel"
             error={errors.phone?.message} editable={!isSubmitting} />
         )} />

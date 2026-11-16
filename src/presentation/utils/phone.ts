@@ -28,6 +28,16 @@ export const phoneE164Field = z
 export function normalizeArgentineMobile(rawLocalNumber: string): string | null {
   let digits = rawLocalNumber.replace(/[\s()-]/g, '');
 
+  // El "+54 9" ya esta fijo en el campo, pero un numero pegado desde la agenda
+  // lo puede traer igual: se saca. Ningun codigo de area argentino empieza con
+  // "54", asi que no se confunde con un numero local.
+  digits = digits.replace(/^\+/, '');
+  if (digits.startsWith('549')) {
+    digits = digits.slice(3);
+  } else if (digits.startsWith('54')) {
+    digits = digits.slice(2);
+  }
+
   if (digits.startsWith('0')) {
     digits = digits.slice(1);
   }
@@ -38,7 +48,15 @@ export function normalizeArgentineMobile(rawLocalNumber: string): string | null 
   return /^\d{10}$/.test(digits) ? `+549${digits}` : null;
 }
 
-/** Campo del numero local del invitado: valida y ya deja el valor en E.164. */
+/** Prefijo fijo que muestran los campos de celular: el usuario escribe solo el numero local. */
+export const ARGENTINE_MOBILE_PREFIX = '+54 9';
+
+/** "+549XXXXXXXXXX" -> "XXXXXXXXXX", para prellenar un campo con el prefijo fijo. */
+export function toLocalArgentineNumber(phoneE164: string): string {
+  return phoneE164.startsWith('+549') ? phoneE164.slice(4) : phoneE164;
+}
+
+/** Campo de celular con el "+54 9" fijo: valida el numero local y ya deja el valor en E.164. */
 export const argentineMobileField = z
   .string()
   .transform((value) => normalizeArgentineMobile(value))
