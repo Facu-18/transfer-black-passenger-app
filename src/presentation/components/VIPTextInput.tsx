@@ -10,6 +10,8 @@ interface VIPTextInputProps extends TextInputProps {
   label: string;
   icon: LucideIcon;
   error?: string | undefined;
+  /** Texto fijo antes del valor, por ejemplo "+54 9" en un celular: no se escribe ni se borra. */
+  prefix?: string;
 }
 
 /**
@@ -20,6 +22,7 @@ export function VIPTextInput({
   label,
   icon: Icon,
   error,
+  prefix,
   secureTextEntry = false,
   onFocus,
   onBlur,
@@ -39,6 +42,13 @@ export function VIPTextInput({
 
       <View className={`h-14 flex-row items-center gap-3 rounded-2xl border bg-field px-4 ${borderClass}`}>
         <Icon size={18} color={iconColor} />
+        {prefix ? (
+          <View className="flex-row items-center border-r border-charcoal pr-3">
+            <Typography variant="bodyLarge" weight="semibold" tone="secondary">
+              {prefix}
+            </Typography>
+          </View>
+        ) : null}
         <TextInput
           className="flex-1 font-regular text-sm text-platinum"
           placeholderTextColor={colors.ash}

@@ -1,8 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Mail, Phone, UserRound } from 'lucide-react-native';
-import { useState } from 'react';
 import { Controller } from 'react-hook-form';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Screen } from '@/presentation/components/Screen';
 import { Typography } from '@/presentation/components/Typography';
@@ -10,6 +9,7 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useGuestPassengerForm } from '@/presentation/hooks/useGuestPassengerForm';
 import { colors } from '@/presentation/theme/colors';
+import { ARGENTINE_MOBILE_PREFIX } from '@/presentation/utils/phone';
 
 export function GuestPassengerScreen() {
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -18,11 +18,6 @@ export function GuestPassengerScreen() {
     control,
     formState: { errors, isSubmitting },
   } = form;
-
-  const [phoneFocused, setPhoneFocused] = useState(false);
-  const phoneError = errors.phone?.message;
-  const phoneBorderClass = phoneError ? 'border-danger' : phoneFocused ? 'border-gold/60' : 'border-charcoal';
-  const phoneIconColor = phoneError ? colors.danger : phoneFocused ? colors.gold : colors.ash;
 
   return (
     <Screen scrollable contentClassName="gap-6">
@@ -81,48 +76,22 @@ export function GuestPassengerScreen() {
           control={control}
           name="phone"
           render={({ field: { onChange, onBlur, value } }) => (
-            <View className="gap-2">
-              <Typography variant="caption" weight="medium" tone="secondary" className="uppercase tracking-widest">
-                Teléfono móvil (WhatsApp)
-              </Typography>
-
-              <View
-                className={`h-14 flex-row items-center gap-3 rounded-2xl border bg-field px-4 ${phoneBorderClass}`}
-              >
-                <Phone size={18} color={phoneIconColor} />
-                <View className="flex-row items-center border-r border-charcoal pr-3">
-                  <Typography variant="bodyLarge" weight="semibold" tone="secondary">
-                    +54 9
-                  </Typography>
-                </View>
-                <TextInput
-                  className="flex-1 font-regular text-sm text-platinum"
-                  placeholder="351 555 0199"
-                  placeholderTextColor={colors.ash}
-                  selectionColor={colors.gold}
-                  cursorColor={colors.gold}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  textContentType="telephoneNumber"
-                  returnKeyType="next"
-                  accessibilityLabel="Teléfono móvil del invitado"
-                  editable={!isSubmitting}
-                  value={value}
-                  onChangeText={onChange}
-                  onFocus={() => setPhoneFocused(true)}
-                  onBlur={() => {
-                    setPhoneFocused(false);
-                    onBlur();
-                  }}
-                />
-              </View>
-
-              {phoneError ? (
-                <Typography variant="caption" tone="danger">
-                  {phoneError}
-                </Typography>
-              ) : null}
-            </View>
+            <VIPTextInput
+              label="Teléfono móvil (WhatsApp)"
+              icon={Phone}
+              prefix={ARGENTINE_MOBILE_PREFIX}
+              placeholder="351 555 0199"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              returnKeyType="next"
+              accessibilityLabel="Teléfono móvil del invitado"
+              editable={!isSubmitting}
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.phone?.message}
+            />
           )}
         />
 
