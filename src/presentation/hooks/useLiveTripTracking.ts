@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import { registerLiveActivityAction } from '@/core/actions/register-live-activity.action';
 import { unregisterLiveActivityAction } from '@/core/actions/unregister-live-activity.action';
+import { getExpoPushToken } from '@/core/notifications/expo-push-token';
 import type { Trip } from '@/infrastructure/interfaces/trips';
 import { liveTrackingStorage, type StoredLiveTracking } from '@/infrastructure/storage/live-tracking-storage';
 import {
@@ -26,11 +27,11 @@ import {
  * - Se inicia con la app abierta, apenas el viaje tiene chofer: si el pasajero
  *   cierra la app antes, no hay nada que el backend pueda actualizar.
  * - Mientras la app esta abierta lo actualiza ella misma con cada cambio.
- * - En iOS registra el token de la actividad (`PUT /rides/{id}/live-activity`)
- *   para que el backend la siga actualizando por APNs con la app suspendida
- *   o cerrada. En Android se actualiza solo con la app viva (decision de
- *   producto): no se registra en el backend y, con la app cerrada, el
- *   pasajero se entera por las notificaciones del viaje.
+ * - Registra en el backend a donde mandarle los cambios
+ *   (`PUT /rides/{id}/live-activity`), para que siga al dia con la app
+ *   suspendida o cerrada: iOS con el token de la actividad (APNs); Android
+ *   con el ExpoPushToken y el id de la notificacion (push silenciosa que
+ *   procesa `notifications/live-update-task.ts`).
  * - Al completarse o cancelarse lo cierra y le avisa al backend.
  *
  * Nada de esto puede romper la pantalla: cualquier fallo queda en silencio y
@@ -125,7 +126,21 @@ async function syncTracking(
   );
   if (notificationId === null) return;
 
-  await liveTrackingStorage.save({ tripId, activityId: String(notificationId), registeredToken: null });
+  const next: StoredLiveTracking = {
+    tripId,
+    activityId: String(notificationId),
+    registeredToken: stored?.activityId === String(notificationId) ? stored.registeredToken : null,
+  };
+  await liveTrackingStorage.save(next);
+
+  // El backend manda los cambios como push silenciosa al ExpoPushToken (ver
+  // `notifications/live-update-task.ts`): asi la Live Update se actualiza o se
+  // cierra aunque la app este cerrada.
+  const token = await getExpoPushToken().catch(() => null);
+  if (!token || token === next.registeredToken) return;
+
+  await registerLiveActivityAction(tripId, { platform: 'android', push_token: token, notification_id: notificationId });
+  await liveTrackingStorage.save({ ...next, registeredToken: token });
 }
 
 async function endTracking(tripId: string, finalProps: TripTrackingProps): Promise<void> {
