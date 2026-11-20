@@ -28,8 +28,9 @@ import {
  * - Mientras la app esta abierta lo actualiza ella misma con cada cambio.
  * - En iOS registra el token de la actividad (`PUT /rides/{id}/live-activity`)
  *   para que el backend la siga actualizando por APNs con la app suspendida
- *   o cerrada. En Android, por ahora, solo se actualiza con la app viva (ver
- *   `odd/tasks/live-activity-seguimiento.md`).
+ *   o cerrada. En Android se actualiza solo con la app viva (decision de
+ *   producto): no se registra en el backend y, con la app cerrada, el
+ *   pasajero se entera por las notificaciones del viaje.
  * - Al completarse o cancelarse lo cierra y le avisa al backend.
  *
  * Nada de esto puede romper la pantalla: cualquier fallo queda en silencio y
