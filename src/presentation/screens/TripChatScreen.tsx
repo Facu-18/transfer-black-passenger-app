@@ -116,12 +116,22 @@ export function TripChatScreen() {
 
   // Con el teclado abierto ya no hay barra de navegacion debajo: sin esto
   // queda un hueco de la altura del inset entre el input y el teclado.
+  // En Android la app es edge-to-edge (Expo 57): la ventana no se achica con el
+  // teclado y `KeyboardAvoidingView` no lo compensa, asi que se reserva a mano
+  // el alto del teclado debajo del campo (`androidKeyboardHeight`).
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
-    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    const showSub = Keyboard.addListener(showEvent, (event) => {
+      setIsKeyboardVisible(true);
+      if (Platform.OS === 'android') setAndroidKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+      setAndroidKeyboardHeight(0);
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -169,8 +179,11 @@ export function TripChatScreen() {
 
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // Solo iOS: en Android el alto del teclado se reserva con `paddingBottom` (ver arriba).
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         keyboardVerticalOffset={0}
+        style={Platform.OS === 'android' ? { paddingBottom: androidKeyboardHeight } : undefined}
       >
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
