@@ -35,12 +35,17 @@ initSentry();
 void ensureDefaultNotificationChannel();
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    // La push silenciosa del seguimiento (Live Update de Android) no tiene
+    // texto: la procesa la tarea en segundo plano y no se muestra.
+    const silent = notification.request.content.data?.type === 'live_update';
+    return {
+      shouldPlaySound: !silent,
+      shouldSetBadge: false,
+      shouldShowBanner: !silent,
+      shouldShowList: !silent,
+    };
+  },
 });
 
 function RootLayout() {

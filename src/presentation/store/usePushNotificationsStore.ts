@@ -1,10 +1,10 @@
-import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { registerPushDeviceAction } from '@/core/actions/register-push-device.action';
+import { getExpoPushToken } from '@/core/notifications/expo-push-token';
 import { ensureDefaultNotificationChannel } from '@/core/notifications/notification-channel';
 import { pushDeviceStorage } from '@/infrastructure/storage/push-device-storage';
 
@@ -56,13 +56,7 @@ export const usePushNotificationsStore = create<PushNotificationsState>()((set, 
         return;
       }
 
-      const projectId =
-        Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-      if (typeof projectId !== 'string' || projectId.length === 0) {
-        throw new Error('Falta vincular la app con un proyecto de Expo/EAS.');
-      }
-
-      const pushToken = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      const pushToken = await getExpoPushToken();
       const registered = await registerPushDeviceAction({
         push_token: pushToken,
         platform: Platform.OS,

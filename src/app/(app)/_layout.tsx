@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { useCurrentUser } from '@/presentation/hooks/useCurrentUser';
 import { usePushNotificationRegistration } from '@/presentation/hooks/usePushNotificationRegistration';
+import { useTripNotificationNavigation } from '@/presentation/hooks/useTripNotificationNavigation';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { colors } from '@/presentation/theme/colors';
 
@@ -21,6 +22,8 @@ export default function AppLayout() {
   const pathname = usePathname();
   const { user, isLoading } = useCurrentUser(isAuthenticated && emailVerified);
   usePushNotificationRegistration(isAuthenticated && emailVerified);
+  // Solo con el perfil cargado: antes, la zona privada todavia puede redirigir al login.
+  useTripNotificationNavigation(user !== null && !isLoading);
 
   if (!isAuthenticated) {
     return <Redirect href="/login" />;

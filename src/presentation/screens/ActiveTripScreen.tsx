@@ -22,6 +22,7 @@ import { useActiveTrip } from '@/presentation/hooks/useActiveTrip';
 import { useCancelTrip } from '@/presentation/hooks/useCancelTrip';
 import { useChatUnreadCount } from '@/presentation/hooks/useChatUnreadCount';
 import { useDriverEta } from '@/presentation/hooks/useDriverEta';
+import { useLiveTripTracking } from '@/presentation/hooks/useLiveTripTracking';
 import { useResumeCheckout } from '@/presentation/hooks/useResumeCheckout';
 import { useTripStore } from '@/presentation/store/useTripStore';
 
@@ -122,6 +123,8 @@ export function ActiveTripScreen() {
   const target = onBoard ? dropoff : pickup;
 
   const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
+  // Dynamic Island / pantalla bloqueada (iOS) y notificacion en curso (Android).
+  useLiveTripTracking(trip, eta.minutes);
 
   const [panelHeight, setPanelHeight] = useState(INITIAL_PANEL_HEIGHT);
   // Cada toque en "Destino" suma uno: el mapa anima la camara al destino.
