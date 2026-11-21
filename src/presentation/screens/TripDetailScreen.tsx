@@ -193,6 +193,14 @@ export function TripDetailScreen() {
                   <BreakdownRow label="Descuento" value={`- ${breakdown.discount.formattedAmount}`} />
                 ) : null}
                 {breakdown.fees.amount > 0 ? <BreakdownRow label="Cargos" value={breakdown.fees.formattedAmount} /> : null}
+                {/* Con paradas la distancia (y el precio) es la del recorrido completo: se aclara. */}
+                {trip.stops.length > 0 ? (
+                  <Typography variant="caption" tone="secondary">
+                    {`Recorrido con ${trip.stops.length} ${trip.stops.length === 1 ? 'parada' : 'paradas'}${
+                      trip.distanceKm !== null ? ` · ${trip.distanceKm.toLocaleString('es-AR', { maximumFractionDigits: 1 })} km` : ''
+                    }`}
+                  </Typography>
+                ) : null}
                 <View className="border-t border-charcoal pt-3">
                   <BreakdownRow label="Total cotizado" value={breakdown.total.formattedAmount} tone="accent" />
                 </View>
