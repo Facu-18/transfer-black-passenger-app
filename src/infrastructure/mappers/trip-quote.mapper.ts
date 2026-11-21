@@ -139,6 +139,7 @@ export const TripQuoteMapper = {
       driverId: trip.driver_id,
       formattedFare: trip.estimated_fare ? formatAmount(trip.estimated_fare, trip.currency) : null,
       pickup: toTripPoint(trip.pickup),
+      stops: (trip.stops ?? []).map((stop) => toTripPoint(stop)).filter((stop): stop is TripPoint => stop !== null),
       dropoff: toTripPoint(trip.dropoff),
       driver: toTripDriver(trip.driver),
       vehicle: toTripVehicle(trip.vehicle),

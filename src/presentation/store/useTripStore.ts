@@ -3,6 +3,9 @@ import { create } from 'zustand';
 import type { Coordinates, Place } from '@/infrastructure/interfaces/places';
 import type { GuestPassenger, PaymentMethod } from '@/infrastructure/interfaces/trips';
 
+/** Paradas intermedias como maximo: 3 destinos en total contando el final. */
+export const MAX_TRIP_STOPS = 2;
+
 interface TripState {
   /** Posicion del GPS; `null` sin permiso o mientras se obtiene. */
   currentLocation: Coordinates | null;
@@ -10,6 +13,11 @@ interface TripState {
   currentPlace: Place | null;
   origin: Place | null;
   destinationLocation: Place | null;
+  /**
+   * Paradas intermedias en el orden del recorrido. Un casillero en `null` es
+   * una parada agregada que todavia no tiene direccion.
+   */
+  stops: (Place | null)[];
   /** Invitado cargado para un viaje de tercero; `null` si viaja el titular. */
   guestPassenger: GuestPassenger | null;
   /** Medio de pago con el que arranca Cotizacion, por ejemplo desde "Viaje corporativo" del Home. */
@@ -30,6 +38,10 @@ interface TripState {
   setCurrentPlace: (place: Place) => void;
   setOrigin: (place: Place | null) => void;
   setDestination: (place: Place | null) => void;
+  /** Agrega un casillero vacio al final (hasta `MAX_TRIP_STOPS`). */
+  addStop: () => void;
+  setStop: (index: number, place: Place) => void;
+  removeStop: (index: number) => void;
   setGuestPassenger: (guest: GuestPassenger) => void;
   clearGuestPassenger: () => void;
   setPreferredPaymentMethod: (method: PaymentMethod | null) => void;
@@ -42,6 +54,7 @@ export const useTripStore = create<TripState>()((set) => ({
   currentPlace: null,
   origin: null,
   destinationLocation: null,
+  stops: [],
   guestPassenger: null,
   preferredPaymentMethod: null,
   pendingOriginPrompt: false,
@@ -57,6 +70,11 @@ export const useTripStore = create<TripState>()((set) => ({
 
   setOrigin: (origin) => set({ origin }),
   setDestination: (destinationLocation) => set({ destinationLocation }),
+  addStop: () =>
+    set((state) => (state.stops.length < MAX_TRIP_STOPS ? { stops: [...state.stops, null] } : state)),
+  setStop: (index, place) =>
+    set((state) => ({ stops: state.stops.map((stop, current) => (current === index ? place : stop)) })),
+  removeStop: (index) => set((state) => ({ stops: state.stops.filter((_, current) => current !== index) })),
   setGuestPassenger: (guestPassenger) => set({ guestPassenger }),
   clearGuestPassenger: () => set({ guestPassenger: null }),
   setPreferredPaymentMethod: (preferredPaymentMethod) => set({ preferredPaymentMethod }),
@@ -65,6 +83,7 @@ export const useTripStore = create<TripState>()((set) => ({
     set((state) => ({
       origin: state.currentPlace,
       destinationLocation: null,
+      stops: [],
       guestPassenger: null,
       preferredPaymentMethod: null,
       pendingOriginPrompt: false,

@@ -24,9 +24,11 @@ function toRoutePoint(place: Place): RoutePointRequest {
  * Errores que interesan a la pantalla: 400 (no se pudo calcular la ruta),
  * 403 (correo sin verificar) y 401 (sesion vencida).
  */
-export async function quoteRideAction(origin: Place, destination: Place): Promise<RideQuote> {
+export async function quoteRideAction(origin: Place, destination: Place, stops: Place[] = []): Promise<RideQuote> {
+  // Con paradas, la ruta pasa por ellas en este orden y el precio sale de esa distancia.
   const body: RideQuoteRequest = {
     origin: toRoutePoint(origin),
+    ...(stops.length > 0 ? { stops: stops.map(toRoutePoint) } : {}),
     destination: toRoutePoint(destination),
   };
 

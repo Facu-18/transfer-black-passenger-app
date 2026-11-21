@@ -119,6 +119,8 @@ export interface Trip {
   formattedFare: string | null;
   /** `null` con un backend que todavia no los devuelve. */
   pickup: TripPoint | null;
+  /** Paradas intermedias entre `pickup` y `dropoff`, en orden; vacio si el viaje es directo. */
+  stops: TripPoint[];
   dropoff: TripPoint | null;
   /** `null` mientras no hay chofer asignado. */
   driver: TripDriver | null;
