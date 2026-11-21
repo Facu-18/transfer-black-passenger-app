@@ -5,9 +5,25 @@ import type { RideQuote } from '@/infrastructure/interfaces/trips';
 import type { RideQuoteRequest, RideQuoteResponse, RoutePointRequest } from '@/infrastructure/interfaces/trips-api';
 import { TripQuoteMapper } from '@/infrastructure/mappers/trip-quote.mapper';
 
+/** Lo que acepta el backend como `address_text`. */
+const MAX_ADDRESS_LENGTH = 500;
+
+/**
+ * "Nuevocentro Shopping, Av. Duarte Quiros 1400..." en vez de solo la
+ * direccion: el backend guarda un unico texto por punto, y es lo que despues
+ * ven el pasajero (recorrido, recibo), el chofer y el panel. Si la direccion
+ * ya empieza con el nombre (una calle y altura), no se repite.
+ */
+function toAddressText(place: Place): string {
+  const name = place.name.trim();
+  const address = place.address.trim();
+  const text = !name || address.toLowerCase().startsWith(name.toLowerCase()) ? address : `${name}, ${address}`;
+  return text.slice(0, MAX_ADDRESS_LENGTH);
+}
+
 function toRoutePoint(place: Place): RoutePointRequest {
   return {
-    address_text: place.address,
+    address_text: toAddressText(place),
     place_id: place.placeId,
     latitude: place.coordinates.latitude,
     longitude: place.coordinates.longitude,

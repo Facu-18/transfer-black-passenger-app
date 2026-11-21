@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin, Plus, X } from 'lucide-react-native';
 import { Fragment, type RefObject } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlaceRow } from '@/presentation/components/PlaceRow';
@@ -10,8 +10,9 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { stopField, usePlanTrip, type TripField } from '@/presentation/hooks/usePlanTrip';
 import { colors } from '@/presentation/theme/colors';
 
-function showComingSoon(feature: string) {
-  Alert.alert(feature, 'Esta opción estará disponible pronto.', [{ text: 'Entendido' }]);
+/** Un nombre largo como placeholder ocupa dos lineas y queda cortado en el campo de una linea. */
+function shortPlaceholder(text: string, max = 32): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
 interface TripInputProps {
@@ -104,10 +105,15 @@ export function PlanTripScreen() {
           <ChevronLeft size={22} color={colors.platinum} />
         </Pressable>
 
-        <Typography variant="h2" className="text-3xl">
-          Planifica tu viaje
-        </Typography>
+        {/* Mientras se escribe, sin titulo ni selectores: mas lugar para las sugerencias. */}
+        {!search.isActive ? (
+          <Typography variant="h2" className="text-3xl">
+            {trip.isReserveMode ? 'Reservá tu viaje' : 'Planificá tu viaje'}
+          </Typography>
+        ) : null}
 
+        {/* La reserva ya eligio "Reserva" y no admite invitado: el selector solo confunde. */}
+        {!trip.isReserveMode && !search.isActive ? (
         <View className="flex-row gap-3">
           <View className="flex-1 flex-row rounded-2xl border border-charcoal bg-surface p-1">
             <View className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-field py-2">
@@ -127,13 +133,17 @@ export function PlanTripScreen() {
 
           <Pressable
             accessibilityRole="button"
-            onPress={() => showComingSoon('Viaje para otra persona')}
-            className="flex-1 flex-row items-center justify-between rounded-2xl border border-charcoal bg-surface px-4 active:opacity-80"
+            accessibilityLabel={trip.guestName ? `Viaja ${trip.guestName}. Cambiar pasajero` : 'Viajo yo. Pedir para un invitado'}
+            onPress={() => router.push('/guest')}
+            className="flex-1 flex-row items-center justify-between gap-2 rounded-2xl border border-charcoal bg-surface px-4 active:opacity-80"
           >
-            <Typography weight="medium">Para mí</Typography>
+            <Typography weight="medium" numberOfLines={1} className="flex-1">
+              {trip.guestName ? `Para ${trip.guestName.split(' ')[0]}` : 'Para mí'}
+            </Typography>
             <ChevronDown size={16} color={colors.ash} />
           </Pressable>
         </View>
+        ) : null}
 
         <View className="flex-row gap-3 rounded-2xl border border-charcoal bg-surface p-3">
           {/* Línea de tiempo: punto gold (origen), aro gold por parada y cuadrado (destino). */}
@@ -155,7 +165,7 @@ export function PlanTripScreen() {
               field="origin"
               active={activeField === 'origin'}
               value={trip.originQuery}
-              placeholder={trip.origin?.name ?? 'Punto de partida'}
+              placeholder={shortPlaceholder(trip.origin?.name ?? 'Punto de partida')}
               badge={originIsCurrentPlace ? 'Ubicación actual' : null}
               accessibilityLabel="Punto de partida"
               // Autofoco solo si se entro a elegir justo este campo (p. ej. desde la reserva).
@@ -171,7 +181,7 @@ export function PlanTripScreen() {
                   field={stopField(index)}
                   active={activeField === stopField(index)}
                   value={trip.stopQueries[index] ?? ''}
-                  placeholder={stop?.name ?? `Parada ${index + 1}`}
+                  placeholder={shortPlaceholder(stop?.name ?? `Parada ${index + 1}`)}
                   accessibilityLabel={`Parada ${index + 1}`}
                   // Una parada recien agregada se monta activa y abre el teclado.
                   autoFocus={activeField === stopField(index)}
@@ -187,7 +197,7 @@ export function PlanTripScreen() {
               field="destination"
               active={activeField === 'destination'}
               value={trip.destinationQuery}
-              placeholder={trip.destination?.name ?? '¿A dónde vas?'}
+              placeholder={shortPlaceholder(trip.destination?.name ?? '¿A dónde vas?')}
               accessibilityLabel="Destino"
               // Por defecto el flujo arranca pidiendo el destino.
               autoFocus={activeField === 'destination'}

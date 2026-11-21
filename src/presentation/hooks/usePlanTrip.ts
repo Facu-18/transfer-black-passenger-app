@@ -15,7 +15,7 @@ export type StopField = `stop-${number}`;
 export type TripField = 'origin' | 'destination' | StopField;
 
 const NO_STOPS: (Place | null)[] = [];
-const ORIGIN_HINT = 'Elige el punto de partida para continuar.';
+const ORIGIN_HINT = 'Elegí el punto de partida para continuar.';
 const SAME_PLACE_HINT = 'Elegí otro lugar: dos puntos seguidos del recorrido no pueden ser el mismo.';
 
 export function stopField(index: number): StopField {
@@ -68,6 +68,7 @@ export function usePlanTrip() {
   const addTripStop = useTripStore((state) => state.addStop);
   const removeTripStop = useTripStore((state) => state.removeStop);
   const setPendingOriginPrompt = useTripStore((state) => state.setPendingOriginPrompt);
+  const guestPassenger = useTripStore((state) => state.guestPassenger);
 
   const reservationOrigin = useReservationStore((state) => state.origin);
   const reservationDestination = useReservationStore((state) => state.destination);
@@ -208,7 +209,11 @@ export function usePlanTrip() {
     setHint(null);
     // Las busquedas de las paradas siguientes se corren un lugar, como las paradas.
     setStopQueries((previous) => [...previous.filter((_, current) => current !== index), '']);
-    if (activeStopIndex === index) setActiveField('destination');
+    if (activeStopIndex === index) {
+      setActiveField('destination');
+      // Al desmontarse el campo, Android pasa el foco al primero (el origen): se lo lleva al destino.
+      requestAnimationFrame(() => destinationInputRef.current?.focus());
+    }
     else if (activeStopIndex !== null && activeStopIndex > index) setActiveField(stopField(activeStopIndex - 1));
   };
 
@@ -267,6 +272,8 @@ export function usePlanTrip() {
 
   return {
     isReserveMode,
+    /** Nombre del invitado cargado (viaja otra persona); `null` si viaja el titular. */
+    guestName: isReserveMode ? null : (guestPassenger?.name ?? null),
     origin,
     destination,
     stops,
