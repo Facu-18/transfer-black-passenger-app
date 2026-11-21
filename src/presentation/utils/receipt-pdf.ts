@@ -66,6 +66,12 @@ function fareBreakdownRows(trip: Trip): string {
     </table>`;
 }
 
+/** Nombre del archivo a compartir: "Comprobante-TB-114935210F.pdf". */
+export function buildReceiptFileName(trip: Trip): string {
+  const code = (trip.publicCode ?? '').replace(/[^A-Za-z0-9_-]/g, '');
+  return code ? `Comprobante-${code}.pdf` : 'Comprobante.pdf';
+}
+
 /** Comprobante del viaje en HTML, listo para `Print.printToFileAsync`. */
 export function buildReceiptHtml(trip: Trip): string {
   const tripDate = trip.finishedAt ?? trip.startedAt ?? null;

@@ -65,9 +65,17 @@ export function TripHistoryCard({ item, now, onPress }: TripHistoryCardProps) {
         ) : null}
       </View>
 
-      <Typography variant="bodyLarge" weight="bold">
-        {item.formattedFare ?? '—'}
-      </Typography>
+      {/*
+        Un cancelado no muestra la tarifa como si fuera un cargo. Tampoco se
+        puede afirmar "sin cargo": uno pagado con Mercado Pago y cancelado
+        fuera de la ventana de reembolso si se cobro, y el listado no trae el
+        pago (eso esta en el detalle).
+      */}
+      {isCancelled ? null : (
+        <Typography variant="bodyLarge" weight="bold">
+          {item.formattedFare ?? '—'}
+        </Typography>
+      )}
     </Pressable>
   );
 }
