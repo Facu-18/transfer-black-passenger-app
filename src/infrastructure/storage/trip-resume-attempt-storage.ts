@@ -19,8 +19,9 @@ function isTripResumeAttempt(value: unknown): value is TripResumeAttempt {
  *
  * Se guarda antes de mostrar `ActiveTripScreen` (tanto al retomarlo al abrir
  * la app como al entrar de forma normal) y se borra a los pocos segundos de
- * quedar estable, o al salir de la pantalla porque el viaje termino o el
- * usuario volvio al inicio. Si en el proximo arranque la marca todavia esta
+ * quedar estable, al pasar la app a segundo plano (cerrarla a mano no es un
+ * crash), o al salir de la pantalla porque el viaje termino o el usuario
+ * volvio al inicio. Si en el proximo arranque la marca todavia esta
  * con el mismo viaje, la pantalla se cerro de nuevo antes de estabilizarse:
  * `useSessionRestore` no vuelve a navegar sola ahi, para no repetir el
  * cierre en cada apertura.
