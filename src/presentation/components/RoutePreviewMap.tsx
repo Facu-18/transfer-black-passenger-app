@@ -29,14 +29,17 @@ export function RoutePreviewMap({ origin, destination, stops = [], points, botto
     const coordinates = points.length > 0 ? points : [origin, ...stops, destination];
 
     // El padding inferior reserva el espacio del panel: sin esto la ruta queda tapada.
+    // En Android, react-native-maps suma este padding al `mapPadding` (que ya trae el
+    // alto del panel una vez listo el mapa): ahi el panel no se vuelve a contar.
+    const panelInset = mapReady && Platform.OS === 'android' ? 0 : bottomInset;
     mapRef.current?.fitToCoordinates(coordinates, {
-      edgePadding: { top: 140, right: 64, bottom: bottomInset + 48, left: 64 },
+      edgePadding: { top: 140, right: 64, bottom: panelInset + 48, left: 64 },
       animated: true,
     });
     // `stops` solo cuenta sin ruta todavia (llega en cada render como array nuevo): no se
     // pone como dependencia para no reencuadrar en cada render; la ruta nueva ya las incluye.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, origin, destination, bottomInset]);
+  }, [points, origin, destination, bottomInset, mapReady]);
 
   return (
     <MapView

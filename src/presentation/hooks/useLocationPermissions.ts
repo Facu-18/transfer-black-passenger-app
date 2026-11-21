@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
 
 import { resolvePlaceFromCoordinatesAction } from '@/core/actions/resolve-place-from-coordinates.action';
@@ -23,11 +23,16 @@ export function useLocationPermissions() {
   const [status, setStatus] = useState<LocationStatus>('checking');
   const [canAskAgain, setCanAskAgain] = useState(true);
 
+  // Puede haber dos busquedas en vuelo (ultima posicion y GPS preciso): solo
+  // vale la ultima pedida, aunque la otra responda despues.
+  const addressRequest = useRef(0);
+
   const resolveAddress = useCallback(
     async (coordinates: Coordinates) => {
+      const request = ++addressRequest.current;
       try {
         const place = await resolvePlaceFromCoordinatesAction(coordinates);
-        if (place) setCurrentPlace(place);
+        if (place && request === addressRequest.current) setCurrentPlace(place);
       } catch {
         // Sin direccion el mapa funciona igual; en la busqueda el origen se elige a mano.
       }

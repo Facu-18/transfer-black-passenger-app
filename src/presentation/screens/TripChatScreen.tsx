@@ -128,7 +128,7 @@ export function TripChatScreen() {
     };
   }, []);
 
-  const lastMineMessageId =messages.find((message) => message.isMine)?.id ?? null;
+  const lastMineMessageId = messages.find((message) => message.isMine)?.id ?? null;
 
   const renderItem = useCallback(
     ({ item }: { item: ChatMessage }) => (

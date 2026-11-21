@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import type { DrivingRoute } from '@/infrastructure/interfaces/routes';
-import { distanceMeters, trimRouteFromPosition } from '@/presentation/utils/geo';
+import { distanceMeters, trimRouteAhead } from '@/presentation/utils/geo';
 
 /**
  * Cada cuanto se recalcula la ruta mostrada. No hay proveedor de rutas para el
@@ -30,9 +30,17 @@ function pathMeters(points: Coordinates[]): number {
  * se mide lo que falta recorrer de esa ruta desde donde esta el auto; sin
  * ella, la distancia en linea recta con un factor de desvio.
  */
-function estimateRoute(from: Coordinates, to: Coordinates, quotedRoute: Coordinates[] | null): DrivingRoute {
+function estimateRoute(
+  from: Coordinates,
+  to: Coordinates,
+  quotedRoute: Coordinates[] | null,
+  progress: { current: number },
+): DrivingRoute {
   if (quotedRoute && quotedRoute.length > 1) {
-    const meters = pathMeters(trimRouteFromPosition(quotedRoute, from));
+    // Avanza desde el ultimo tramo alcanzado: en una ida y vuelta no se confunde con el regreso.
+    const trimmed = trimRouteAhead(quotedRoute, from, progress.current);
+    progress.current = trimmed.segment;
+    const meters = pathMeters(trimmed.points);
     // Se devuelve la ruta entera (misma referencia): el mapa recorta lo recorrido y no reencuadra.
     return { points: quotedRoute, distanceMeters: meters, durationSeconds: meters / FALLBACK_SPEED_METERS_PER_SECOND };
   }
@@ -65,6 +73,8 @@ export function useDriverEta(
   const lastRequestAt = useRef(0);
   const lastTarget = useRef<Coordinates | null>(null);
   const lastQuotedRoute = useRef<Coordinates[] | null>(null);
+  // Ultimo tramo de la ruta cotizada alcanzado por el auto.
+  const routeProgress = useRef(0);
 
   useEffect(() => {
     if (!enabled || !driver || !target) return;
@@ -77,8 +87,9 @@ export function useDriverEta(
 
     lastRequestAt.current = Date.now();
     lastTarget.current = target;
+    if (routeChanged) routeProgress.current = 0;
     lastQuotedRoute.current = quotedRoute;
-    setRoute(estimateRoute(driver, target, quotedRoute));
+    setRoute(estimateRoute(driver, target, quotedRoute, routeProgress));
     // Solo importa el valor de las coordenadas, no la identidad del objeto.
   }, [enabled, driver?.latitude, driver?.longitude, target?.latitude, target?.longitude, quotedRoute]);
 

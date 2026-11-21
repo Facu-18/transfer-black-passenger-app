@@ -5,7 +5,7 @@ import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { colors } from '@/presentation/theme/colors';
 import { darkMapStyle } from '@/presentation/theme/map-style';
-import { trimRouteFromPosition } from '@/presentation/utils/geo';
+import { trimRouteAhead } from '@/presentation/utils/geo';
 
 import { DriverCarMarker } from './DriverCarMarker';
 import { StopMarkerBadge } from './StopMarkerBadge';
@@ -123,15 +123,24 @@ export function ActiveTripMap({
 
   const locked = mode === 'searching';
 
-  // El tramo ya recorrido no se dibuja: se recorta la polilinea desde el punto
-  // de la ruta mas cercano a donde esta el auto ahora.
+  // El tramo ya recorrido no se dibuja: se recorta la polilinea desde donde
+  // esta el auto, avanzando sobre la ruta (ver `trimRouteAhead`). El progreso se
+  // guarda por ruta: con otra ruta se vuelve a empezar desde el principio.
   const driverLatitude = driver?.coordinate.latitude;
   const driverLongitude = driver?.coordinate.longitude;
+  const progress = useRef<{ route: Coordinates[]; segment: number }>({ route: routePoints, segment: 0 });
   const visibleRoute = useMemo(() => {
     if (driverLatitude === undefined || driverLongitude === undefined || routePoints.length < 2) {
       return routePoints;
     }
-    return trimRouteFromPosition(routePoints, { latitude: driverLatitude, longitude: driverLongitude });
+    if (progress.current.route !== routePoints) progress.current = { route: routePoints, segment: 0 };
+    const trimmed = trimRouteAhead(
+      routePoints,
+      { latitude: driverLatitude, longitude: driverLongitude },
+      progress.current.segment,
+    );
+    progress.current.segment = trimmed.segment;
+    return trimmed.points;
   }, [routePoints, driverLatitude, driverLongitude]);
 
   return (

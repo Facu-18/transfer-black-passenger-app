@@ -63,20 +63,37 @@ function nearestPointOnSegment(
   return { point: projected, distance: distanceMeters(point, projected) };
 }
 
+/** A esta distancia de un tramo, el auto se considera sobre ese tramo. */
+const ON_ROUTE_METERS = 60;
+
 /**
- * Recorta la polilinea de la ruta desde el punto mas cercano a `position`: el
- * tramo ya recorrido por el chofer no se dibuja. Si la ruta tiene menos de dos
- * puntos se devuelve sin cambios.
+ * Recorta la polilinea de la ruta desde donde esta el auto: el tramo ya
+ * recorrido no se dibuja ni se cuenta. Busca hacia adelante desde
+ * `fromSegment` (el ultimo tramo alcanzado) y se queda con el primero que pasa
+ * cerca del auto: en un recorrido de ida y vuelta (con paradas) el regreso pasa
+ * por los mismos lugares, y el tramo "mas cercano" de toda la ruta podria ser
+ * el ultimo. Si ninguno pasa cerca (el auto se desvio), usa el mas cercano de
+ * los que quedan. Con menos de dos puntos se devuelve la ruta sin cambios.
  */
-export function trimRouteFromPosition(route: Coordinates[], position: Coordinates): Coordinates[] {
-  if (route.length < 2) return route;
+export function trimRouteAhead(
+  route: Coordinates[],
+  position: Coordinates,
+  fromSegment = 0,
+): { points: Coordinates[]; segment: number } {
+  if (route.length < 2) return { points: route, segment: 0 };
 
+  const start = Math.min(Math.max(0, fromSegment), route.length - 2);
   let bestDistance = Infinity;
-  let bestSegment = 0;
-  let bestPoint: Coordinates = route[0];
+  let bestSegment = start;
+  let bestPoint: Coordinates = route[start]!;
 
-  for (let i = 0; i < route.length - 1; i++) {
-    const candidate = nearestPointOnSegment(position, route[i], route[i + 1]);
+  for (let i = start; i < route.length - 1; i++) {
+    const candidate = nearestPointOnSegment(position, route[i]!, route[i + 1]!);
+    if (candidate.distance <= ON_ROUTE_METERS) {
+      bestSegment = i;
+      bestPoint = candidate.point;
+      break;
+    }
     if (candidate.distance < bestDistance) {
       bestDistance = candidate.distance;
       bestSegment = i;
@@ -84,5 +101,10 @@ export function trimRouteFromPosition(route: Coordinates[], position: Coordinate
     }
   }
 
-  return [bestPoint, ...route.slice(bestSegment + 1)];
+  return { points: [bestPoint, ...route.slice(bestSegment + 1)], segment: bestSegment };
+}
+
+/** `trimRouteAhead` desde el principio de la ruta. */
+export function trimRouteFromPosition(route: Coordinates[], position: Coordinates): Coordinates[] {
+  return trimRouteAhead(route, position).points;
 }
