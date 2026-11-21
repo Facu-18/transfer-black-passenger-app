@@ -22,34 +22,36 @@ interface RoutePreviewMapProps {
 /** Mapa oscuro con la ruta del viaje, encuadrada entre origen y destino. */
 export function RoutePreviewMap({ origin, destination, stops = [], points, bottomInset }: RoutePreviewMapProps) {
   const mapRef = useRef<MapView>(null);
-  // En Android, `mapPadding` antes de `onMapReady` cierra la app.
   const [mapReady, setMapReady] = useState(false);
+  // Alto del mapa ya medido: con cada cambio de tamaño se vuelve a encuadrar.
+  const [mapHeight, setMapHeight] = useState(0);
 
   useEffect(() => {
     const coordinates = points.length > 0 ? points : [origin, ...stops, destination];
 
-    // El padding inferior reserva el espacio del panel: sin esto la ruta queda tapada.
-    // En Android, react-native-maps suma este padding al `mapPadding` (que ya trae el
-    // alto del panel una vez listo el mapa): ahi el panel no se vuelve a contar.
-    const panelInset = mapReady && Platform.OS === 'android' ? 0 : bottomInset;
+    if (!mapReady || mapHeight === 0) return;
+    // El mapa ya termina donde empieza el panel (ver `marginBottom`): solo hace
+    // falta margen para la barra de arriba y un respiro abajo.
     mapRef.current?.fitToCoordinates(coordinates, {
-      edgePadding: { top: 140, right: 64, bottom: panelInset + 48, left: 64 },
+      edgePadding: { top: 140, right: 64, bottom: 48, left: 64 },
       animated: true,
     });
     // `stops` solo cuenta sin ruta todavia (llega en cada render como array nuevo): no se
     // pone como dependencia para no reencuadrar en cada render; la ruta nueva ya las incluye.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, origin, destination, bottomInset, mapReady]);
+  }, [points, origin, destination, mapReady, mapHeight]);
 
   return (
     <MapView
       ref={mapRef}
-      style={{ flex: 1 }}
+      // El mapa termina donde empieza el panel: asi el logo de Google queda a la
+      // vista (es obligatorio) y el encuadre no depende de `mapPadding`, que en
+      // Android llega al mapa nativo despues del comando de encuadre del mismo render.
+      style={{ flex: 1, marginBottom: bottomInset }}
+      onLayout={(event) => setMapHeight(Math.round(event.nativeEvent.layout.height))}
       provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
       customMapStyle={darkMapStyle}
       userInterfaceStyle="dark"
-      // El panel inferior tapa el borde del mapa: el padding sube el logo de Google (obligatorio que se vea).
-      mapPadding={mapReady ? { top: 0, right: 0, bottom: bottomInset, left: 0 } : undefined}
       onMapReady={() => setMapReady(true)}
       initialRegion={{
         latitude: origin.latitude,
