@@ -67,6 +67,7 @@ export function usePlanTrip() {
   const setTripStop = useTripStore((state) => state.setStop);
   const addTripStop = useTripStore((state) => state.addStop);
   const removeTripStop = useTripStore((state) => state.removeStop);
+  const swapTripStopWithNext = useTripStore((state) => state.swapStopWithNext);
   const setPendingMapPick = useTripStore((state) => state.setPendingMapPick);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
 
@@ -302,6 +303,11 @@ export function usePlanTrip() {
     selectCurrentPlaceAsOrigin,
     addStop,
     removeStop,
+    /** Cambia el orden: la parada pasa abajo del punto que la seguia. */
+    swapStopWithNext: (index: number) => {
+      setHint(null);
+      swapTripStopWithNext(index);
+    },
     goToPricing,
   };
 }

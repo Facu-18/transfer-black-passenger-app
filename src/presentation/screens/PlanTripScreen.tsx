@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin, Plus, X } from 'lucide-react-native';
+import { ArrowDownUp, ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin, Plus, X } from 'lucide-react-native';
 import { Fragment, type RefObject } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +28,8 @@ interface TripInputProps {
   onFocus: (field: TripField) => void;
   /** Solo las paradas: quita el campo del recorrido. */
   onRemove?: () => void;
+  /** Solo las paradas con direccion: la intercambia con el punto de abajo. */
+  onSwapDown?: () => void;
 }
 
 /** Campo del recorrido (origen, parada o destino): borde gold y cursor gold mientras está activo. */
@@ -43,6 +45,7 @@ function TripInput({
   onChangeText,
   onFocus,
   onRemove,
+  onSwapDown,
 }: TripInputProps) {
   return (
     <View className={`h-12 flex-row items-center gap-2 rounded-xl border bg-surface px-3 ${active ? 'border-gold' : 'border-transparent'}`}>
@@ -65,6 +68,17 @@ function TripInput({
         <Typography variant="caption" tone="secondary">
           {badge}
         </Typography>
+      ) : null}
+      {onSwapDown ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Mover ${accessibilityLabel.toLowerCase()} después del punto siguiente`}
+          hitSlop={8}
+          onPress={onSwapDown}
+          className="h-7 w-7 items-center justify-center rounded-full active:opacity-70"
+        >
+          <ArrowDownUp size={16} color={colors.gold} />
+        </Pressable>
       ) : null}
       {onRemove ? (
         <Pressable
@@ -190,6 +204,10 @@ export function PlanTripScreen() {
                   onChangeText={(text) => trip.setStopQuery(index, text)}
                   onFocus={trip.setActiveField}
                   onRemove={() => trip.removeStop(index)}
+                  // Solo con direccion, y si abajo hay algo con que intercambiar.
+                  onSwapDown={
+                    stop && (index < trip.stops.length - 1 || trip.destination) ? () => trip.swapStopWithNext(index) : undefined
+                  }
                 />
               </Fragment>
             ))}
