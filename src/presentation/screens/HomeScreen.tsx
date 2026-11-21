@@ -10,9 +10,9 @@ import {
   UserPlus,
   UserRound,
 } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Place } from '@/infrastructure/interfaces/places';
@@ -21,6 +21,7 @@ import { MotionPressable } from '@/presentation/components/MotionPressable';
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
+import { ViewMarker } from '@/presentation/components/ViewMarker';
 import { UpcomingTripCard } from '@/presentation/components/UpcomingTripCard';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
@@ -46,10 +47,15 @@ const GPS_LABELS: Record<LocationStatus, string> = {
   unavailable: 'GPS sin señal · Reintentar',
 };
 
+/** Cuanto se monta la hoja de abajo sobre el mapa (`-mt-6`). */
+const SHEET_OVERLAP = 24;
+
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const mapRef = useRef<MapView>(null);
+  // En Android, `mapPadding` antes de `onMapReady` cierra la app.
+  const [mapReady, setMapReady] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const isLoadingUser = false;
@@ -162,13 +168,16 @@ export function HomeScreen() {
           showsCompass={false}
           toolbarEnabled={false}
           pitchEnabled
+          // La hoja de abajo se monta 24 px sobre el mapa (`-mt-6`): sin esto tapa el logo de Google.
+          mapPadding={mapReady ? { top: 0, right: 0, bottom: SHEET_OVERLAP, left: 0 } : undefined}
+          onMapReady={() => setMapReady(true)}
         >
           {currentLocation ? (
-            <Marker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <ViewMarker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }}>
               <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
                 <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
               </View>
-            </Marker>
+            </ViewMarker>
           ) : null}
         </MapView>
 

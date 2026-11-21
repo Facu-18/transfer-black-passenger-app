@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { StopMarkerBadge } from '@/presentation/components/StopMarkerBadge';
+import { ViewMarker } from '@/presentation/components/ViewMarker';
 import { colors } from '@/presentation/theme/colors';
 import { darkMapStyle } from '@/presentation/theme/map-style';
 
@@ -21,6 +22,8 @@ interface RoutePreviewMapProps {
 /** Mapa oscuro con la ruta del viaje, encuadrada entre origen y destino. */
 export function RoutePreviewMap({ origin, destination, stops = [], points, bottomInset }: RoutePreviewMapProps) {
   const mapRef = useRef<MapView>(null);
+  // En Android, `mapPadding` antes de `onMapReady` cierra la app.
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     const coordinates = points.length > 0 ? points : [origin, ...stops, destination];
@@ -42,6 +45,9 @@ export function RoutePreviewMap({ origin, destination, stops = [], points, botto
       provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
       customMapStyle={darkMapStyle}
       userInterfaceStyle="dark"
+      // El panel inferior tapa el borde del mapa: el padding sube el logo de Google (obligatorio que se vea).
+      mapPadding={mapReady ? { top: 0, right: 0, bottom: bottomInset, left: 0 } : undefined}
+      onMapReady={() => setMapReady(true)}
       initialRegion={{
         latitude: origin.latitude,
         longitude: origin.longitude,
@@ -56,19 +62,22 @@ export function RoutePreviewMap({ origin, destination, stops = [], points, botto
         <Polyline coordinates={points} strokeColor={colors.gold} strokeWidth={4} />
       ) : null}
 
-      <Marker coordinate={origin} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-        <View className="h-4 w-4 rounded-full border-2 border-obsidian bg-gold" />
-      </Marker>
+      {/* Partida con halo: se distingue de las paradas numeradas. */}
+      <ViewMarker coordinate={origin} anchor={{ x: 0.5, y: 0.5 }}>
+        <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
+          <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
+        </View>
+      </ViewMarker>
 
       {stops.map((stop, index) => (
-        <Marker key={`stop-${index}`} coordinate={stop} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+        <ViewMarker key={`stop-${index}`} coordinate={stop} anchor={{ x: 0.5, y: 0.5 }} redrawKey={index}>
           <StopMarkerBadge number={index + 1} />
-        </Marker>
+        </ViewMarker>
       ))}
 
-      <Marker coordinate={destination} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+      <ViewMarker coordinate={destination} anchor={{ x: 0.5, y: 0.5 }}>
         <View className="h-4 w-4 border-2 border-obsidian bg-platinum" />
-      </Marker>
+      </ViewMarker>
     </MapView>
   );
 }

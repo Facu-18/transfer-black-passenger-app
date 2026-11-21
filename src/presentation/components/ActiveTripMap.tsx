@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { colors } from '@/presentation/theme/colors';
@@ -9,6 +9,7 @@ import { trimRouteFromPosition } from '@/presentation/utils/geo';
 
 import { DriverCarMarker } from './DriverCarMarker';
 import { StopMarkerBadge } from './StopMarkerBadge';
+import { ViewMarker } from './ViewMarker';
 
 /** Zoom del radar: unas pocas cuadras alrededor del punto de partida. */
 const SEARCH_ZOOM = 15.5;
@@ -158,20 +159,15 @@ export function ActiveTripMap({
       {/* A bordo, las paradas del recorrido en orden, ademas del destino. */}
       {mode === 'tracking' && targetKind === 'dropoff'
         ? stops.map((stop, index) => (
-            <Marker key={`stop-${index}`} coordinate={stop} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <ViewMarker key={`stop-${index}`} coordinate={stop} anchor={{ x: 0.5, y: 0.5 }} redrawKey={index}>
               <StopMarkerBadge number={index + 1} />
-            </Marker>
+            </ViewMarker>
           ))
         : null}
 
       {/* Durante la busqueda el origen lo dibuja el radar, encima del mapa. */}
       {mode === 'tracking' && target ? (
-        <Marker
-          key={targetKind}
-          coordinate={target}
-          anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={false}
-        >
+        <ViewMarker key={targetKind} coordinate={target} anchor={{ x: 0.5, y: 0.5 }} redrawKey={targetKind}>
           {targetKind === 'pickup' ? (
             <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
               <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
@@ -181,7 +177,7 @@ export function ActiveTripMap({
               <View className="h-3 w-3 bg-gold" />
             </View>
           )}
-        </Marker>
+        </ViewMarker>
       ) : null}
 
       {/*
