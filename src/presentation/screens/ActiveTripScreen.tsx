@@ -122,7 +122,14 @@ export function ActiveTripScreen() {
   // Con el pasajero arriba, el auto va al destino.
   const target = onBoard ? dropoff : pickup;
 
-  const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard);
+  // A bordo, la ruta cotizada (pasa por las paradas): se dibuja y la llegada se mide sobre ella.
+  // Se identifica por viaje y largo: cada consulta trae un `trip` nuevo con la misma ruta.
+  const quotedRoute = useMemo(
+    () => (onBoard && trip && trip.routePoints.length > 1 ? trip.routePoints : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onBoard, trip?.id, trip?.routePoints.length],
+  );
+  const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard, quotedRoute);
   // Dynamic Island / pantalla bloqueada (iOS) y notificacion en curso (Android).
   useLiveTripTracking(trip, eta.minutes);
 

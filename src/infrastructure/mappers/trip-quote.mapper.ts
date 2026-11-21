@@ -1,4 +1,5 @@
 import { decodePolyline } from './decode-polyline';
+import type { Coordinates } from '@/infrastructure/interfaces/places';
 import type {
   ConfirmedTrip,
   FareBreakdown,
@@ -43,6 +44,16 @@ export function formatAmount(amount: string, currency: string): string {
   }
 
   return formatter.format(Number(amount));
+}
+
+/** GeoJSON guarda [longitud, latitud]; las lineas de la MultiLineString se recorren en orden. */
+function toRoutePoints(geometry: TripDetailResponse['route_geometry']): Coordinates[] {
+  if (!geometry || geometry.type !== 'MultiLineString' || !Array.isArray(geometry.coordinates)) return [];
+  return geometry.coordinates.flatMap((line) =>
+    line
+      .filter((position) => position.length >= 2)
+      .map(([longitude, latitude]) => ({ latitude: latitude as number, longitude: longitude as number })),
+  );
 }
 
 function toTripPoint(point: TripStopPointResponse | null | undefined): TripPoint | null {
@@ -140,6 +151,7 @@ export const TripQuoteMapper = {
       formattedFare: trip.estimated_fare ? formatAmount(trip.estimated_fare, trip.currency) : null,
       pickup: toTripPoint(trip.pickup),
       stops: (trip.stops ?? []).map((stop) => toTripPoint(stop)).filter((stop): stop is TripPoint => stop !== null),
+      routePoints: toRoutePoints(trip.route_geometry),
       dropoff: toTripPoint(trip.dropoff),
       driver: toTripDriver(trip.driver),
       vehicle: toTripVehicle(trip.vehicle),

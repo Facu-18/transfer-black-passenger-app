@@ -121,6 +121,8 @@ export interface Trip {
   pickup: TripPoint | null;
   /** Paradas intermedias entre `pickup` y `dropoff`, en orden; vacio si el viaje es directo. */
   stops: TripPoint[];
+  /** Ruta cotizada en orden (con sus paradas); vacia si el backend no la manda. Se dibuja a bordo. */
+  routePoints: Coordinates[];
   dropoff: TripPoint | null;
   /** `null` mientras no hay chofer asignado. */
   driver: TripDriver | null;
