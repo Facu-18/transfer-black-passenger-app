@@ -1,5 +1,5 @@
 import { Redirect, router } from 'expo-router';
-import { ArrowRight, ChevronLeft, Plus } from 'lucide-react-native';
+import { ArrowRight, ChevronLeft, Pencil, Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip
 import { BoardingPinToggle } from '@/presentation/components/BoardingPinToggle';
 import { PaymentMethodPills, type CorporatePaymentOption } from '@/presentation/components/PaymentMethodPills';
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
+import { SecondaryButton } from '@/presentation/components/SecondaryButton';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Toast } from '@/presentation/components/Toast';
@@ -107,11 +108,20 @@ export function PricingScreen() {
 
         <View className="flex-1 flex-row items-center justify-center gap-2 rounded-full border border-charcoal bg-obsidian/80 px-4 py-2">
           <View className="h-1.5 w-1.5 rounded-full bg-gold" />
-          <Typography variant="caption" weight="semibold" numberOfLines={1}>
+          {/* El nombre se corta solo; paradas y minutos quedan siempre a la vista. */}
+          <Typography variant="caption" weight="semibold" numberOfLines={1} className="shrink">
             {destination.name}
-            {stops.length > 0 ? ` · ${stops.length} ${stops.length === 1 ? 'parada' : 'paradas'}` : ''}
-            {quote ? ` · ${quote.route.durationMinutes} min` : ''}
           </Typography>
+          {stops.length > 0 || quote ? (
+            <Typography variant="caption" tone="secondary">
+              {[
+                stops.length > 0 ? `${stops.length} ${stops.length === 1 ? 'parada' : 'paradas'}` : null,
+                quote ? `${quote.route.durationMinutes} min` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Typography>
+          ) : null}
         </View>
 
         {stopSlots.length < MAX_TRIP_STOPS ? (
@@ -154,6 +164,12 @@ export function PricingScreen() {
               {error}
             </Typography>
             <VIPButton title="Reintentar" disabled={isRateLimited} onPress={() => void retry()} />
+            {/* Si la ruta no existe (por ejemplo, dos puntos iguales), reintentar no alcanza. */}
+            <SecondaryButton
+              title="Cambiar recorrido"
+              icon={Pencil}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/search'))}
+            />
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} />
           </View>
         ) : quote ? (

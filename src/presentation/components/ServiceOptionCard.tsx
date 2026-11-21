@@ -57,7 +57,7 @@ export function ServiceOptionCard({
           ) : null}
         </View>
         <Typography variant="caption" tone="secondary">
-          Llega en ~{durationMinutes} min
+          Viaje de ~{durationMinutes} min
         </Typography>
       </View>
 

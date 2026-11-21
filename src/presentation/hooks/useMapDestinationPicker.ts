@@ -6,6 +6,7 @@ import { resolvePlaceFromCoordinatesAction } from '@/core/actions/resolve-place-
 import type { Coordinates, Place } from '@/infrastructure/interfaces/places';
 import { useRecentPlaces } from '@/presentation/hooks/useRecentPlaces';
 import { useTripStore } from '@/presentation/store/useTripStore';
+import { distanceMeters } from '@/presentation/utils/geo';
 import { getPlacesErrorMessage } from '@/presentation/utils/places-error-message';
 
 /** Centro de Cordoba: si no hay origen ni ubicacion, el mapa nunca arranca en (0,0). */
@@ -18,6 +19,9 @@ const REVERSE_DEBOUNCE_MS = 400;
 const SLOW_RESPONSE_MS = 8000;
 
 export type MapPickerStatus = 'loading' | 'ready' | 'error';
+
+/** Mas cerca que esto del punto anterior se considera el mismo lugar. */
+const MIN_DISTANCE_FROM_PREVIOUS_METERS = 100;
 
 function getReverseErrorMessage(reason: unknown): string {
   const placesMessage = getPlacesErrorMessage(reason);
@@ -41,6 +45,7 @@ export function useMapDestinationPicker() {
   const currentLocation = useTripStore((state) => state.currentLocation);
   const setDestination = useTripStore((state) => state.setDestination);
   const setPendingOriginPrompt = useTripStore((state) => state.setPendingOriginPrompt);
+  const stops = useTripStore((state) => state.stops);
   const { addRecentPlace } = useRecentPlaces();
 
   // Se lee una sola vez: el mapa arranca ahi y despues lo mueve el pasajero.
@@ -142,8 +147,22 @@ export function useMapDestinationPicker() {
     [clearTimers],
   );
 
+  // El punto anterior al destino: la ultima parada con direccion, o el origen.
+  const previousPoint = [...stops].reverse().find((stop): stop is Place => stop !== null) ?? origin;
+  // El mapa arranca centrado en el origen: confirmar sin moverlo daria un viaje
+  // al mismo lugar, que el backend rechaza con un error de ruta poco claro.
+  const tooClose =
+    place !== null &&
+    previousPoint !== null &&
+    distanceMeters(previousPoint.coordinates, place.coordinates) < MIN_DISTANCE_FROM_PREVIOUS_METERS;
+  const blockedMessage = tooClose
+    ? previousPoint === origin
+      ? 'Ese es tu punto de partida. Mové el mapa hasta tu destino.'
+      : 'Ese lugar es tu última parada. Mové el mapa hasta tu destino.'
+    : null;
+
   const confirm = useCallback(() => {
-    if (status !== 'ready' || !place || confirmedRef.current) return;
+    if (status !== 'ready' || !place || confirmedRef.current || tooClose) return;
     confirmedRef.current = true;
     setIsConfirming(true);
 
@@ -158,7 +177,7 @@ export function useMapDestinationPicker() {
     // Sin origen no se puede cotizar: vuelve a la busqueda, que pide el punto de partida.
     setPendingOriginPrompt(true);
     router.back();
-  }, [status, place, origin, setDestination, setPendingOriginPrompt, addRecentPlace]);
+  }, [status, place, origin, tooClose, setDestination, setPendingOriginPrompt, addRecentPlace]);
 
   return {
     initialCenter,
@@ -167,6 +186,8 @@ export function useMapDestinationPicker() {
     errorMessage,
     isSlow,
     isConfirming,
+    /** Por que no se puede confirmar este punto (muy cerca del anterior); `null` si se puede. */
+    blockedMessage,
     onCenterChange,
     resolveInitialCenter,
     retry,

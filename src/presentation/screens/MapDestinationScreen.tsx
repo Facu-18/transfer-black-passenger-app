@@ -98,13 +98,18 @@ export function MapDestinationScreen() {
                 {picker.place.detail}
               </Typography>
             ) : null}
+            {picker.blockedMessage ? (
+              <Typography tone="accent" className="mt-1">
+                {picker.blockedMessage}
+              </Typography>
+            ) : null}
           </View>
         ) : null}
 
         <VIPButton
           title="Confirmar destino"
           accessibilityLabel="Confirmar destino"
-          disabled={picker.status !== 'ready' || picker.isConfirming}
+          disabled={picker.status !== 'ready' || picker.isConfirming || picker.blockedMessage !== null}
           onPress={picker.confirm}
         />
       </View>
