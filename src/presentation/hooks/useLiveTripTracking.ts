@@ -46,7 +46,7 @@ export function useLiveTripTracking(trip: Trip | null, etaMinutes: number | null
     () => (trip ? buildTripTrackingProps(trip, etaMinutes) : null),
     // `etaEndsAt` se recalcula con `Date.now()`: se actualiza solo cuando cambian los minutos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trip?.id, trip?.status, trip?.driver?.displayName, trip?.vehicle?.plate, trip?.vehicle?.name, etaMinutes],
+    [trip?.id, trip?.status, trip?.driver?.displayName, trip?.vehicle?.plate, trip?.vehicle?.name, trip?.stops.length, etaMinutes],
   );
 
   const tripId = trip?.id ?? null;

@@ -61,11 +61,18 @@ export function buildTripTrackingProps(trip: Trip, etaMinutes: number | null): T
   const plate = trip.vehicle?.plate || null;
   const copy = describe(trip.status, driverName, vehicleName, plate);
   const showsEta = trip.status === 'driver_arriving' || trip.status === 'in_progress';
+  // A bordo, si el recorrido tiene paradas se avisa (solo con la app abierta:
+  // con la app cerrada el texto lo arma el backend, que todavia no las menciona).
+  const stopCount = trip.stops.length;
+  const subtitle =
+    trip.status === 'in_progress' && stopCount > 0
+      ? `Recorrido con ${stopCount} ${stopCount === 1 ? 'parada' : 'paradas'} antes del destino.`
+      : copy.subtitle;
 
   return {
     status: trip.status,
     title: copy.title,
-    subtitle: copy.subtitle,
+    subtitle,
     driverName,
     vehicle: vehicleName,
     plate,
