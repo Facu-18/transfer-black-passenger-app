@@ -23,17 +23,18 @@ interface TripState {
   /** Medio de pago con el que arranca Cotizacion, por ejemplo desde "Viaje corporativo" del Home. */
   preferredPaymentMethod: PaymentMethod | null;
   /**
-   * Aviso de un solo uso: el mapa fijo el destino sin origen y volvio a la busqueda,
-   * que al enfocarse debe pedir el punto de partida y consumir el aviso.
+   * Aviso de un solo uso: "Elegir en el mapa" ya guardo un punto del recorrido
+   * y volvio a la busqueda, que al enfocarse sigue el flujo (pide lo que falta o
+   * pasa a la cotizacion) y consume el aviso.
    */
-  pendingOriginPrompt: boolean;
+  pendingMapPick: boolean;
   /**
    * Checkout de Mercado Pago del ultimo viaje confirmado: `GET /rides/{tripId}` no trae
    * la URL, asi que se guarda para poder reabrirlo si el pasajero cerro la pestaña.
    */
   pendingCheckout: { tripId: string; url: string } | null;
   setPendingCheckout: (checkout: { tripId: string; url: string } | null) => void;
-  setPendingOriginPrompt: (pending: boolean) => void;
+  setPendingMapPick: (pending: boolean) => void;
   setCurrentLocation: (coordinates: Coordinates) => void;
   setCurrentPlace: (place: Place) => void;
   setOrigin: (place: Place | null) => void;
@@ -59,11 +60,11 @@ export const useTripStore = create<TripState>()((set) => ({
   stops: [],
   guestPassenger: null,
   preferredPaymentMethod: null,
-  pendingOriginPrompt: false,
+  pendingMapPick: false,
   pendingCheckout: null,
 
   setPendingCheckout: (pendingCheckout) => set({ pendingCheckout }),
-  setPendingOriginPrompt: (pendingOriginPrompt) => set({ pendingOriginPrompt }),
+  setPendingMapPick: (pendingMapPick) => set({ pendingMapPick }),
   setCurrentLocation: (currentLocation) => set({ currentLocation }),
 
   // Mientras el usuario no haya elegido otro origen, la ubicacion actual lo es
@@ -93,7 +94,7 @@ export const useTripStore = create<TripState>()((set) => ({
       stops: [],
       guestPassenger: null,
       preferredPaymentMethod: null,
-      pendingOriginPrompt: false,
+      pendingMapPick: false,
       pendingCheckout: null,
     })),
 }));

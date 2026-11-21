@@ -68,7 +68,7 @@ export function MapDestinationScreen() {
         style={{ paddingBottom: insets.bottom + 16 }}
       >
         <Typography variant="caption" weight="semibold" tone="secondary" className="uppercase tracking-widest">
-          Destino
+          {picker.targetLabel}
         </Typography>
 
         {picker.status === 'error' ? (
@@ -107,8 +107,8 @@ export function MapDestinationScreen() {
         ) : null}
 
         <VIPButton
-          title="Confirmar destino"
-          accessibilityLabel="Confirmar destino"
+          title={`Confirmar ${picker.targetLabel.toLowerCase()}`}
+          accessibilityLabel={`Confirmar ${picker.targetLabel.toLowerCase()}`}
           disabled={picker.status !== 'ready' || picker.isConfirming || picker.blockedMessage !== null}
           onPress={picker.confirm}
         />

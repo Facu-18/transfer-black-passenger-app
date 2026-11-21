@@ -90,7 +90,9 @@ export function PlanTripScreen() {
   const showCurrentPlaceOption =
     activeField === 'origin' && trip.currentPlace !== null && !originIsCurrentPlace && !search.isActive;
 
-  const showMapPickerOption = activeField === 'destination' && !trip.isReserveMode;
+  // Destino o parada (la reserva no usa este selector: guarda en otro store).
+  const showMapPickerOption = (activeField === 'destination' || activeField.startsWith('stop-')) && !trip.isReserveMode;
+  const mapPickerTarget = activeField.startsWith('stop-') ? 'la parada' : 'el destino';
 
   return (
     <View className="flex-1 bg-obsidian" style={{ paddingTop: insets.top + 12 }}>
@@ -291,9 +293,9 @@ export function PlanTripScreen() {
                 <PlaceRow
                   icon={MapIcon}
                   title="Elegir en el mapa"
-                  subtitle="Mové el mapa y marcá el destino"
+                  subtitle={`Mové el mapa y marcá ${mapPickerTarget}`}
                   isFirst
-                  onPress={() => router.push('/search-map')}
+                  onPress={() => router.push({ pathname: '/search-map', params: { field: activeField } })}
                 />
               </View>
             ) : null}

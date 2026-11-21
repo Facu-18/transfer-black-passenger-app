@@ -67,7 +67,7 @@ export function usePlanTrip() {
   const setTripStop = useTripStore((state) => state.setStop);
   const addTripStop = useTripStore((state) => state.addStop);
   const removeTripStop = useTripStore((state) => state.removeStop);
-  const setPendingOriginPrompt = useTripStore((state) => state.setPendingOriginPrompt);
+  const setPendingMapPick = useTripStore((state) => state.setPendingMapPick);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
 
   const reservationOrigin = useReservationStore((state) => state.origin);
@@ -221,19 +221,21 @@ export function usePlanTrip() {
   const isRouteComplete =
     !isReserveMode && origin !== null && destination !== null && stops.every((stop) => stop !== null);
 
-  // Al volver de "Elegir en el mapa" con el destino ya fijado pero sin origen,
-  // pasa lo mismo que al elegir un resultado sin origen: se pide la partida.
-  // El mapa deja un aviso de un solo uso que se consume aca, para no pisar el
-  // campo que elija el pasajero en enfoques posteriores.
+  // Al volver de "Elegir en el mapa" (que ya guardo el destino o una parada)
+  // se sigue igual que al elegir un resultado: se pide lo que falta o se pasa a
+  // la cotizacion. El mapa deja un aviso de un solo uso que se consume aca, para
+  // no repetirlo en enfoques posteriores. Se lee el store fresco: este efecto
+  // corre antes de que el render tome los valores nuevos.
+  const continueRef = useRef(continueWith);
+  continueRef.current = continueWith;
   useFocusEffect(
     useCallback(() => {
-      if (!useTripStore.getState().pendingOriginPrompt) return;
-      setPendingOriginPrompt(false);
-      if (isReserveMode || !tripDestination || tripOrigin) return;
-      setActiveField('origin');
-      setHint(ORIGIN_HINT);
-      originInputRef.current?.focus();
-    }, [isReserveMode, tripDestination, tripOrigin, setPendingOriginPrompt]),
+      const state = useTripStore.getState();
+      if (!state.pendingMapPick) return;
+      setPendingMapPick(false);
+      if (isReserveMode) return;
+      continueRef.current({ origin: state.origin, stops: state.stops, destination: state.destinationLocation });
+    }, [isReserveMode, setPendingMapPick]),
   );
 
   /**
