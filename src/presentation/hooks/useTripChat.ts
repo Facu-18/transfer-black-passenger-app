@@ -23,6 +23,8 @@ const POLLING_INTERVAL_MS = 4_000;
 const READ_STATE_REFRESH_MS = 15_000;
 /** Espera antes de marcar como leido: evita mandar una solicitud por cada mensaje que llega junto. */
 const MARK_READ_DEBOUNCE_MS = 1_200;
+/** Refresco de respaldo del estado del viaje (el chat solo lo muestra en la cabecera). */
+const HEADER_REFRESH_MS = 15_000;
 
 export type ChatConnectionMode = 'connecting' | 'realtime' | 'polling';
 
@@ -280,10 +282,31 @@ export function useTripChat(tripId: string | null) {
   // Al volver del segundo plano se pudo perder algun aviso.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && isFocusedRef.current) void syncNew();
+      if (state === 'active' && isFocusedRef.current) {
+        void syncNew();
+        void loadHeader();
+      }
     });
     return () => subscription.remove();
-  }, [syncNew]);
+  }, [syncNew, loadHeader]);
+
+  // El estado del viaje cambia mientras el chat esta abierto: REST es la
+  // verdad, asi que cada aviso del socket dispara una nueva consulta.
+  useEffect(() => {
+    if (!tripId) return;
+    return realtimeClient.onTripStatusChanged(() => {
+      void loadHeader();
+    });
+  }, [tripId, loadHeader]);
+
+  // Respaldo sin socket (o si el aviso se perdio): se re-consulta cada tanto.
+  useEffect(() => {
+    if (!tripId) return;
+    const timer = setInterval(() => {
+      if (isFocusedRef.current) void loadHeader();
+    }, HEADER_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [tripId, loadHeader]);
 
   // Marca como leidos los mensajes del chofer, con un debounce para no mandar
   // una solicitud por cada mensaje que llega junto.

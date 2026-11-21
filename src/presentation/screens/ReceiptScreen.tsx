@@ -1,20 +1,25 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Check, ChevronRight, Download, MessageCircle } from 'lucide-react-native';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { RatingTag, Trip } from '@/infrastructure/interfaces/trips';
 import { RatingStars } from '@/presentation/components/RatingStars';
 import { Skeleton } from '@/presentation/components/Skeleton';
+import { Toast } from '@/presentation/components/Toast';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useDownloadReceipt } from '@/presentation/hooks/useDownloadReceipt';
 import { useRateTrip } from '@/presentation/hooks/useRateTrip';
+import { useToast } from '@/presentation/hooks/useToast';
 import { useTripReceipt } from '@/presentation/hooks/useTripReceipt';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
+
+/** Tiempo que se ve el agradecimiento antes de volver al Home. */
+const THANKS_DELAY_MS = 1400;
 
 const STAR_LABELS = ['', 'Muy malo', 'Malo', 'Regular', 'Muy bueno', 'Excelente servicio'];
 
@@ -90,8 +95,20 @@ function ReceiptCard({ trip }: { trip: Trip }) {
             <Typography weight="semibold">{trip.pickup?.address ?? '—'}</Typography>
           </View>
         </View>
+        {trip.stops.map((stop, index) => (
+          <View key={index} className="flex-row gap-3">
+            <View className="mt-1.5 h-2 w-2 rounded-full border border-gold" />
+            <View className="flex-1">
+              <Typography variant="caption" tone="secondary" className="uppercase tracking-widest">
+                {`Parada ${index + 1}`}
+              </Typography>
+              <Typography weight="semibold">{stop.address}</Typography>
+            </View>
+          </View>
+        ))}
         <View className="flex-row gap-3">
-          <View className="mt-1.5 h-2 w-2 rounded-full border border-gold" />
+          {/* Cuadrado, como el destino en el resto de la app. */}
+          <View className="mt-1.5 h-2 w-2 bg-platinum" />
           <View className="flex-1">
             <Typography variant="caption" tone="secondary" className="uppercase tracking-widest">
               Destino
@@ -129,7 +146,25 @@ export function ReceiptScreen() {
     router.dismissTo('/home');
   }, [resetTrip]);
 
-  const { stars, selectStars, tags, toggleTag, submit, isSubmitting } = useRateTrip(tripId, { onRated: goHome });
+  const { toast, show: showToast } = useToast();
+  const [isLeaving, setIsLeaving] = useState(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    },
+    [],
+  );
+
+  // El aviso vive en esta pantalla: se muestra un instante y recien despues se vuelve al Home.
+  const handleRated = useCallback(() => {
+    setIsLeaving(true);
+    showToast('¡Gracias por calificar!');
+    leaveTimer.current = setTimeout(goHome, THANKS_DELAY_MS);
+  }, [goHome, showToast]);
+
+  const { stars, selectStars, tags, toggleTag, submit, isSubmitting } = useRateTrip(tripId, { onRated: handleRated });
   const { download, isDownloading, error: downloadError } = useDownloadReceipt();
 
   // "Atras" en Android equivale a omitir: no hay pantalla previa a la que volver.
@@ -271,11 +306,11 @@ export function ReceiptScreen() {
             <VIPButton
               title="Calificar y finalizar"
               trailingIcon={ChevronRight}
-              loading={isSubmitting}
-              disabled={stars === 0 || !trip}
+              loading={isSubmitting || isLeaving}
+              disabled={stars === 0 || !trip || isLeaving}
               onPress={() => void submit()}
             />
-            <Pressable accessibilityRole="button" hitSlop={8} onPress={goHome} disabled={isSubmitting} className="items-center">
+            <Pressable accessibilityRole="button" hitSlop={8} onPress={goHome} disabled={isSubmitting || isLeaving} className="items-center">
               <Typography tone="secondary" weight="medium">
                 Omitir
               </Typography>
@@ -308,6 +343,8 @@ export function ReceiptScreen() {
           </Typography>
         ) : null}
       </View>
+
+      <Toast toast={toast} bottomOffset={180} />
     </View>
   );
 }

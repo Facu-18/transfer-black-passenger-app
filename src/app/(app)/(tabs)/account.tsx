@@ -1,16 +1,16 @@
 import { BriefcaseBusiness, ChevronRight, CircleHelp, FileText, ShieldCheck, Trash2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 
 import { logoutAction } from '@/core/actions/logout.action';
 import { revokePushDeviceAction } from '@/core/actions/revoke-push-device.action';
 import { pushDeviceStorage } from '@/infrastructure/storage/push-device-storage';
 import { refreshTokenStorage } from '@/infrastructure/storage/refresh-token-storage';
-import { BrandLogo } from '@/presentation/components/BrandLogo';
 import { ProfileSummaryCard } from '@/presentation/components/ProfileSummaryCard';
-import { Screen } from '@/presentation/components/Screen';
+import { SecondaryButton } from '@/presentation/components/SecondaryButton';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { CompleteProfileScreen } from '@/presentation/screens/CompleteProfileScreen';
@@ -20,6 +20,8 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { PRIVACY_URL, TERMS_URL } from '@/presentation/utils/legal-links';
 import { contactWhatsAppHelp } from '@/presentation/utils/whatsapp-services';
+
+const LOGO = require('../../../../assets/splash-icon.png');
 
 interface AccountActionProps {
   title: string;
@@ -70,6 +72,7 @@ function DestructiveAccountAction({ title, description, icon: Icon, onPress }: A
 }
 
 export default function AccountRoute() {
+  const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const user = useAuthStore((state) => state.user);
@@ -121,9 +124,26 @@ export default function AccountRoute() {
   }
 
   return (
-    <Screen scrollable contentClassName="gap-6">
+    <View className="flex-1 bg-obsidian">
+      {/* Franja fija con la altura de la barra de estado: al desplazar, el contenido
+          no pasa por debajo de los iconos del sistema. */}
+      <View className="bg-obsidian" style={{ height: insets.top }} />
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-6 px-6"
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 16 }}
+        showsVerticalScrollIndicator={false}
+      >
       <View className="items-center gap-3">
-        <BrandLogo size="md" />
+        {/* La imagen de la marca con fondo transparente se ve nitida a este tamano; el
+            sello JPEG recortado en cuadrado salia pixelado y descentrado. */}
+        <Image
+          source={LOGO}
+          accessibilityRole="image"
+          accessibilityLabel="Transfer Black"
+          resizeMode="contain"
+          className="h-28 w-28"
+        />
         <Typography variant="h2" className="text-center">Mi cuenta</Typography>
         <Typography tone="secondary" className="text-center">
           Gestioná tu perfil y accedé a nuestros canales exclusivos.
@@ -192,9 +212,10 @@ export default function AccountRoute() {
         onPress={() => router.push('/delete-account')}
       />
 
-      <VIPButton title="Cerrar sesión" loading={isLoggingOut} onPress={() => void logout()} />
+      <SecondaryButton title="Cerrar sesión" loading={isLoggingOut} onPress={() => void logout()} />
       <View className="h-20" />
-    </Screen>
+      </ScrollView>
+    </View>
   );
 }
 

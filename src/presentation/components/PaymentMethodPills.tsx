@@ -1,10 +1,11 @@
 import { CreditCard } from 'lucide-react-native';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import type { PaymentMethod } from '@/infrastructure/interfaces/trips';
 import { colors } from '@/presentation/theme/colors';
 
 import { Typography } from './Typography';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** Pastilla "Corporativo": solo se ofrece con un vinculo empresarial vigente. */
 export interface CorporatePaymentOption {
@@ -66,7 +67,7 @@ export function PaymentMethodPills({
               disabled={disabled}
               onPress={() => {
                 if (corporateBlocked) {
-                  Alert.alert(
+                  appAlert(
                     'Cuenta corporativa no disponible',
                     corporateOption?.disabledReason ?? 'No podés pagar así por ahora.',
                     [{ text: 'Entendido' }],

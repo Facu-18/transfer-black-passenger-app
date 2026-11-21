@@ -76,15 +76,18 @@ export function useSessionRestore() {
         // desmonto mientras tanto, para no quedarse con uno ya quemado.
         await useAuthStore.getState().updateTokens(session);
 
-        const user = await getCurrentUserAction();
+        // Perfil y viaje para retomar a la vez (los dos solo necesitan el token
+        // nuevo): ahorra una ida y vuelta al backend en cada arranque. Un fallo del
+        // viaje no bloquea el ingreso; uno del perfil si (lo maneja el catch de abajo).
+        const [user, resumable] = await Promise.all([
+          getCurrentUserAction(),
+          getResumableTripAction().catch(() => undefined),
+        ]);
         useAuthStore.getState().markAuthenticated(user);
 
-        // Sin viaje para retomar no bloquea el ingreso: se entra igual al Home.
-        try {
-          const resumable = await getResumableTripAction();
+        // `undefined`: no se pudo saber; se entra como si no hubiera viaje.
+        if (resumable !== undefined) {
           await applyResumableTrip(resumable?.id ?? null);
-        } catch {
-          // No hay nada que retomar con certeza: se entra como si no hubiera viaje.
         }
 
         if (isMountedRef.current) setStatus('done');

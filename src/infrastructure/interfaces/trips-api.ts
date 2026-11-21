@@ -31,6 +31,8 @@ export interface RideQuoteResponse {
 
 export interface RideQuoteRequest {
   origin: RoutePointRequest;
+  /** Paradas intermedias en orden (hasta 2). Sin paradas no se manda. */
+  stops?: RoutePointRequest[];
   destination: RoutePointRequest;
 }
 
@@ -89,6 +91,10 @@ export interface TripStopPointResponse {
  */
 export interface TripDetailResponse extends TripResponse {
   pickup?: TripStopPointResponse | null;
+  /** Paradas intermedias en orden. Ausente con un backend anterior a las paradas. */
+  stops?: TripStopPointResponse[];
+  /** Ruta cotizada (GeoJSON MultiLineString, [lng, lat]) pasando por las paradas. Ausente con un backend anterior. */
+  route_geometry?: { type: 'MultiLineString'; coordinates: number[][][] } | null;
   dropoff?: TripStopPointResponse | null;
   driver?: {
     first_name: string;

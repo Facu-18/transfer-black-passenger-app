@@ -1,12 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { rateTripAction } from '@/core/actions/rate-trip.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import type { RatingTag } from '@/infrastructure/interfaces/trips';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 interface UseRateTripOptions {
   /** Se llama cuando la calificacion quedo guardada (o ya lo estaba). */
@@ -54,7 +54,7 @@ export function useRateTrip(tripId: string | null, { onRated }: UseRateTripOptio
         }
       }
 
-      Alert.alert('No pudimos enviar tu calificación', getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'), [
+      appAlert('No pudimos enviar tu calificación', getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'), [
         { text: 'Entendido' },
       ]);
     } finally {

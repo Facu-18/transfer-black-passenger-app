@@ -26,7 +26,7 @@ interface AppIntroProps {
 /**
  * Animacion de apertura. Arranca igual que la splash nativa (fondo obsidian y
  * el mismo mapa centrado), asi el relevo no se nota: el mapa late, aparece la
- * marca debajo, y todo se desvanece agrandandose para dejar ver la app, que ya
+ * marca debajo, y todo se desvanece agrandandose para dejar ver la app (~1 s en total: cada arranque la paga), que ya
  * esta montada detras. Con "reducir movimiento" activado solo se desvanece.
  */
 export function AppIntro({ onFinish }: AppIntroProps) {
@@ -50,13 +50,13 @@ export function AppIntro({ onFinish }: AppIntroProps) {
     }
 
     iconScale.value = withSequence(
-      withTiming(1.08, { duration: 380, easing: EASE_OUT }),
-      withTiming(1, { duration: 320, easing: Easing.inOut(Easing.cubic) }),
+      withTiming(1.08, { duration: 300, easing: EASE_OUT }),
+      withTiming(1, { duration: 250, easing: Easing.inOut(Easing.cubic) }),
     );
-    brandOpacity.value = withDelay(250, withTiming(1, { duration: 450, easing: EASE_OUT }));
-    brandOffset.value = withDelay(250, withTiming(0, { duration: 450, easing: EASE_OUT }));
-    overlayScale.value = withDelay(1100, withTiming(1.15, { duration: 450, easing: Easing.in(Easing.cubic) }));
-    overlayOpacity.value = withDelay(1100, withTiming(0, { duration: 450, easing: Easing.in(Easing.quad) }, finish));
+    brandOpacity.value = withDelay(150, withTiming(1, { duration: 350, easing: EASE_OUT }));
+    brandOffset.value = withDelay(150, withTiming(0, { duration: 350, easing: EASE_OUT }));
+    overlayScale.value = withDelay(650, withTiming(1.15, { duration: 350, easing: Easing.in(Easing.cubic) }));
+    overlayOpacity.value = withDelay(650, withTiming(0, { duration: 350, easing: Easing.in(Easing.quad) }, finish));
   }, [brandOffset, brandOpacity, iconScale, onFinish, overlayOpacity, overlayScale, reduceMotion]);
 
   const overlayStyle = useAnimatedStyle(() => ({

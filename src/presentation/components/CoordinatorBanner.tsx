@@ -1,9 +1,10 @@
 import { MessageCircle } from 'lucide-react-native';
-import { Alert, Linking, Pressable, Share, View } from 'react-native';
+import { Linking, Pressable, Share, View } from 'react-native';
 
 import { colors } from '@/presentation/theme/colors';
 
 import { Typography } from './Typography';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 interface CoordinatorBannerProps {
   guestName: string;
@@ -29,7 +30,7 @@ async function shareTracking(phoneE164: string, message: string): Promise<void> 
     try {
       await Share.share({ message });
     } catch {
-      Alert.alert('No pudimos compartir el seguimiento', 'Intentá de nuevo en unos segundos.', [{ text: 'Entendido' }]);
+      appAlert('No pudimos compartir el seguimiento', 'Intentá de nuevo en unos segundos.', [{ text: 'Entendido' }]);
     }
   }
 }

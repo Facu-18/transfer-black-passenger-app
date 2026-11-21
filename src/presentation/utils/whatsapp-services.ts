@@ -1,7 +1,8 @@
 import { Bus, Construction, Ellipsis, Truck, type LucideIcon } from 'lucide-react-native';
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 
 import { formatClockTime, formatReservationDate } from '@/presentation/utils/format-date';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /**
  * Servicios que no pasan por el backend: el pasajero escribe por WhatsApp y
@@ -50,7 +51,7 @@ async function openWhatsApp(number: string, message: string): Promise<boolean> {
     await Linking.openURL(url);
     return true;
   } catch {
-    Alert.alert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 926-0327.', [{ text: 'Entendido' }]);
+    appAlert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 926-0327.', [{ text: 'Entendido' }]);
     return false;
   }
 }
@@ -59,14 +60,14 @@ async function openWhatsApp(number: string, message: string): Promise<boolean> {
 export function contactWhatsAppService(service: WhatsAppService, trip: WhatsAppTrip = {}): void {
   const message = buildMessage(service, trip);
 
-  Alert.alert(service.name, 'Lo coordinamos por WhatsApp. ¿Con qué línea querés hablar?', [
+  appAlert(service.name, 'Lo coordinamos por WhatsApp. ¿Con qué línea querés hablar?', [
     ...WHATSAPP_LINES.map((line) => ({ text: line.label, onPress: () => void openWhatsApp(line.number, message) })),
     { text: 'Cancelar', style: 'cancel' as const },
   ]);
 }
 
 function contactWhatsApp(title: string, prompt: string, message: string): void {
-  Alert.alert(title, prompt, [
+  appAlert(title, prompt, [
     ...WHATSAPP_LINES.map((line) => ({
       text: line.label,
       onPress: () => void openWhatsApp(line.number, message),
@@ -126,7 +127,7 @@ export function buildReservationMessage(details: ReservationWhatsAppDetails): st
 export function contactWhatsAppReservation(details: ReservationWhatsAppDetails, onOpened: () => void): void {
   const message = buildReservationMessage(details);
 
-  Alert.alert('Reservar viaje', 'Lo coordinamos por WhatsApp. ¿Con qué línea querés hablar?', [
+  appAlert('Reservar viaje', 'Lo coordinamos por WhatsApp. ¿Con qué línea querés hablar?', [
     ...WHATSAPP_LINES.map((line) => ({
       text: line.label,
       onPress: () => {
@@ -152,7 +153,7 @@ function buildCancelReservationMessage(publicCode: string): string {
 export function contactWhatsAppToCancelReservation(publicCode: string): void {
   const message = buildCancelReservationMessage(publicCode);
 
-  Alert.alert('Cancelar viaje reservado', '¿Con qué línea querés hablar?', [
+  appAlert('Cancelar viaje reservado', '¿Con qué línea querés hablar?', [
     ...WHATSAPP_LINES.map((line) => ({
       text: line.label,
       onPress: () => void openWhatsApp(line.number, message),

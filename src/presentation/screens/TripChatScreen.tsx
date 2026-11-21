@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Send } from 'lucide-react-native';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -113,6 +114,20 @@ export function TripChatScreen() {
     refresh,
   } = useTripChat(tripId);
 
+  // Con el teclado abierto ya no hay barra de navegacion debajo: sin esto
+  // queda un hueco de la altura del inset entre el input y el teclado.
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const lastMineMessageId = messages.find((message) => message.isMine)?.id ?? null;
 
   const renderItem = useCallback(
@@ -154,8 +169,8 @@ export function TripChatScreen() {
 
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
@@ -197,7 +212,7 @@ export function TripChatScreen() {
         {!isChatClosed ? (
           <View
             className="flex-row items-end gap-3 border-t border-charcoal bg-obsidian px-4 pt-3"
-            style={{ paddingBottom: insets.bottom + 12 }}
+            style={{ paddingBottom: (isKeyboardVisible ? 0 : insets.bottom) + 12 }}
           >
             <View className="max-h-28 flex-1 justify-center rounded-2xl border border-charcoal bg-field px-4 py-2.5">
               <TextInput

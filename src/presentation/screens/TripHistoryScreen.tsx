@@ -33,7 +33,8 @@ const EMPTY_COPY: Record<TripHistoryFilter, string> = {
 function FilterChips({ value, onChange }: { value: TripHistoryFilter; onChange: (filter: TripHistoryFilter) => void }) {
   return (
     <View className="rounded-2xl border border-charcoal bg-surface/90 p-1.5">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-1.5">
+      {/* No entran los cuatro filtros: el indicador deja a la vista que hay mas a la derecha. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator contentContainerClassName="gap-1.5 pb-1.5">
         {FILTERS.map((option) => {
           const selected = option.value === value;
           const Icon = option.icon;

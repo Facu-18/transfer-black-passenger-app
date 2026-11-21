@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useReservationStore } from '@/presentation/store/useReservationStore';
+import { useTripStore } from '@/presentation/store/useTripStore';
 import { contactWhatsAppReservation } from '@/presentation/utils/whatsapp-services';
 
 /** Minimo de anticipacion que pide la agencia para poder coordinar la reserva. */
@@ -21,6 +22,17 @@ export function useReservationForm() {
   const setScheduledAt = useReservationStore((state) => state.setScheduledAt);
   const setNotes = useReservationStore((state) => state.setNotes);
   const reset = useReservationStore((state) => state.reset);
+  const setOrigin = useReservationStore((state) => state.setOrigin);
+  const currentPlace = useTripStore((state) => state.currentPlace);
+
+  // Como en el viaje "Ahora", la ubicacion actual se propone como origen. Una
+  // sola vez por apertura: si el pasajero elige otro, no se le pisa.
+  const prefilledOrigin = useRef(false);
+  useEffect(() => {
+    if (prefilledOrigin.current || origin || !currentPlace) return;
+    prefilledOrigin.current = true;
+    setOrigin(currentPlace);
+  }, [origin, currentPlace, setOrigin]);
 
   const user = useAuthStore((state) => state.user);
 

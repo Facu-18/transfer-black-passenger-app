@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { quoteRideAction } from '@/core/actions/quote-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
@@ -20,10 +20,13 @@ const REQUOTE_DEBOUNCE_MS = 600;
 
 export const RATE_LIMITED_QUOTE_MESSAGE = 'Esperá unos segundos antes de recalcular la ruta.';
 
-/** Identifica el par origen/destino de una cotizacion: dos pares con la misma clave son el mismo viaje. */
-function getRouteKey(origin: Place, destination: Place): string {
+/**
+ * Identifica el recorrido de una cotizacion (origen, paradas en orden y
+ * destino): dos recorridos con la misma clave son el mismo viaje.
+ */
+function getRouteKey(origin: Place, destination: Place, stops: Place[]): string {
   const point = (place: Place) => `${place.placeId}|${place.coordinates.latitude},${place.coordinates.longitude}`;
-  return `${point(origin)}>${point(destination)}`;
+  return [origin, ...stops, destination].map(point).join('>');
 }
 
 function describeQuoteError(error: unknown): string {
@@ -43,6 +46,9 @@ function describeQuoteError(error: unknown): string {
 export function useRideQuote() {
   const origin = useTripStore((state) => state.origin);
   const destination = useTripStore((state) => state.destinationLocation);
+  const stopSlots = useTripStore((state) => state.stops);
+  // Solo las paradas con direccion: un casillero vacio no cambia el recorrido.
+  const stops = useMemo(() => stopSlots.filter((stop): stop is Place => stop !== null), [stopSlots]);
 
   const [quote, setQuote] = useState<RideQuote | null>(null);
   const [selectedFareId, setSelectedFareId] = useState<string | null>(null);
@@ -77,13 +83,13 @@ export function useRideQuote() {
     }
 
     // Una respuesta lenta de una cotizacion anterior no debe pisar a la nueva.
-    const requestRouteKey = getRouteKey(origin, destination);
+    const requestRouteKey = getRouteKey(origin, destination, stops);
     const currentRequest = ++requestId.current;
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await quoteRideAction(origin, destination);
+      const result = await quoteRideAction(origin, destination, stops);
       if (currentRequest !== requestId.current) return;
 
       quoteRef.current = result;
@@ -130,12 +136,12 @@ export function useRideQuote() {
     } finally {
       if (currentRequest === requestId.current) setIsLoading(false);
     }
-  }, [origin, destination, startRateLimit, showToast]);
+  }, [origin, destination, stops, startRateLimit, showToast]);
 
   loadRef.current = load;
 
   // La clave evita recotizar si cambia la identidad de los objetos pero no los puntos.
-  const routeKey = origin && destination ? getRouteKey(origin, destination) : null;
+  const routeKey = origin && destination ? getRouteKey(origin, destination, stops) : null;
 
   // Cotizacion de otro viaje (un 429 o el debounce dejaron a la vista la anterior): confirmarla crearia un viaje al destino equivocado.
   const isStale = quote !== null && quoteRouteKey !== routeKey;

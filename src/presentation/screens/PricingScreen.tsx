@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
-import { ArrowRight, ChevronLeft } from 'lucide-react-native';
-import { useState } from 'react';
+import { ArrowRight, ChevronLeft, Pencil, Plus } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip
 import { BoardingPinToggle } from '@/presentation/components/BoardingPinToggle';
 import { PaymentMethodPills, type CorporatePaymentOption } from '@/presentation/components/PaymentMethodPills';
 import { RoutePreviewMap } from '@/presentation/components/RoutePreviewMap';
+import { SecondaryButton } from '@/presentation/components/SecondaryButton';
 import { ServiceOptionCard } from '@/presentation/components/ServiceOptionCard';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Toast } from '@/presentation/components/Toast';
@@ -17,7 +18,8 @@ import { WhatsAppServicesRow } from '@/presentation/components/WhatsAppServicesR
 import { useConfirmRide } from '@/presentation/hooks/useConfirmRide';
 import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useRideQuote } from '@/presentation/hooks/useRideQuote';
-import { useTripStore } from '@/presentation/store/useTripStore';
+import { stopField } from '@/presentation/hooks/usePlanTrip';
+import { MAX_TRIP_STOPS, useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import {
   exceedsCompanyBalance,
@@ -35,6 +37,10 @@ export function PricingScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const origin = useTripStore((state) => state.origin);
   const destination = useTripStore((state) => state.destinationLocation);
+  const stopSlots = useTripStore((state) => state.stops);
+  const addStop = useTripStore((state) => state.addStop);
+  // Solo las paradas con direccion: las mismas que se cotizaron.
+  const stops = useMemo(() => stopSlots.filter((stop) => stop !== null), [stopSlots]);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
   const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
@@ -80,6 +86,7 @@ export function PricingScreen() {
       <RoutePreviewMap
         origin={origin.coordinates}
         destination={destination.coordinates}
+        stops={stops.map((stop) => stop.coordinates)}
         points={quote?.route.points ?? []}
         bottomInset={panelHeight}
       />
@@ -101,11 +108,38 @@ export function PricingScreen() {
 
         <View className="flex-1 flex-row items-center justify-center gap-2 rounded-full border border-charcoal bg-obsidian/80 px-4 py-2">
           <View className="h-1.5 w-1.5 rounded-full bg-gold" />
-          <Typography variant="caption" weight="semibold" numberOfLines={1}>
+          {/* El nombre se corta solo; paradas y minutos quedan siempre a la vista. */}
+          <Typography variant="caption" weight="semibold" numberOfLines={1} className="shrink">
             {destination.name}
-            {quote ? ` · ${quote.route.durationMinutes} min` : ''}
           </Typography>
+          {stops.length > 0 || quote ? (
+            <Typography variant="caption" tone="secondary">
+              {[
+                stops.length > 0 ? `${stops.length} ${stops.length === 1 ? 'parada' : 'paradas'}` : null,
+                quote ? `${quote.route.durationMinutes} min` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Typography>
+          ) : null}
         </View>
+
+        {stopSlots.length < MAX_TRIP_STOPS ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Agregar parada"
+            hitSlop={8}
+            onPress={() => {
+              // Casillero nuevo al final; la busqueda vuelve aca al completarlo.
+              const field = stopField(stopSlots.length);
+              addStop();
+              router.push({ pathname: '/search', params: { field, returnTo: 'pricing' } });
+            }}
+            className="h-11 w-11 items-center justify-center rounded-full border border-charcoal bg-obsidian/80 active:opacity-80"
+          >
+            <Plus size={20} color={colors.gold} />
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView
@@ -130,6 +164,12 @@ export function PricingScreen() {
               {error}
             </Typography>
             <VIPButton title="Reintentar" disabled={isRateLimited} onPress={() => void retry()} />
+            {/* Si la ruta no existe (por ejemplo, dos puntos iguales), reintentar no alcanza. */}
+            <SecondaryButton
+              title="Cambiar recorrido"
+              icon={Pencil}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/search'))}
+            />
             <WhatsAppServicesRow origin={origin.name} destination={destination.name} />
           </View>
         ) : quote ? (

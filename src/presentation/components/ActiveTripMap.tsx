@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { colors } from '@/presentation/theme/colors';
 import { darkMapStyle } from '@/presentation/theme/map-style';
-import { trimRouteFromPosition } from '@/presentation/utils/geo';
+import { trimRouteAhead } from '@/presentation/utils/geo';
 
 import { DriverCarMarker } from './DriverCarMarker';
+import { StopMarkerBadge } from './StopMarkerBadge';
+import { ViewMarker } from './ViewMarker';
 
 /** Zoom del radar: unas pocas cuadras alrededor del punto de partida. */
 const SEARCH_ZOOM = 15.5;
@@ -24,6 +26,9 @@ const FOCUS_ZOOM = 16;
  * se queda ahi hasta el primer `animateCamera` de los efectos de abajo.
  */
 const DEFAULT_CENTER: Coordinates = { latitude: -31.4201, longitude: -64.1888 };
+
+/** Misma referencia en cada render cuando no hay paradas. */
+const NO_STOPS: Coordinates[] = [];
 
 interface ActiveTripMapProps {
   /**
@@ -51,6 +56,8 @@ interface ActiveTripMapProps {
    */
   focusRequest?: number;
   focusPoint?: Coordinates | null;
+  /** Paradas intermedias en orden: se marcan numeradas con el pasajero a bordo. */
+  stops?: Coordinates[];
 }
 
 export function ActiveTripMap({
@@ -63,6 +70,7 @@ export function ActiveTripMap({
   bottomInset,
   focusRequest = 0,
   focusPoint = null,
+  stops = NO_STOPS,
 }: ActiveTripMapProps) {
   const mapRef = useRef<MapView>(null);
   const hasDriver = driver !== null;
@@ -115,15 +123,24 @@ export function ActiveTripMap({
 
   const locked = mode === 'searching';
 
-  // El tramo ya recorrido no se dibuja: se recorta la polilinea desde el punto
-  // de la ruta mas cercano a donde esta el auto ahora.
+  // El tramo ya recorrido no se dibuja: se recorta la polilinea desde donde
+  // esta el auto, avanzando sobre la ruta (ver `trimRouteAhead`). El progreso se
+  // guarda por ruta: con otra ruta se vuelve a empezar desde el principio.
   const driverLatitude = driver?.coordinate.latitude;
   const driverLongitude = driver?.coordinate.longitude;
+  const progress = useRef<{ route: Coordinates[]; segment: number }>({ route: routePoints, segment: 0 });
   const visibleRoute = useMemo(() => {
     if (driverLatitude === undefined || driverLongitude === undefined || routePoints.length < 2) {
       return routePoints;
     }
-    return trimRouteFromPosition(routePoints, { latitude: driverLatitude, longitude: driverLongitude });
+    if (progress.current.route !== routePoints) progress.current = { route: routePoints, segment: 0 };
+    const trimmed = trimRouteAhead(
+      routePoints,
+      { latitude: driverLatitude, longitude: driverLongitude },
+      progress.current.segment,
+    );
+    progress.current.segment = trimmed.segment;
+    return trimmed.points;
   }, [routePoints, driverLatitude, driverLongitude]);
 
   return (
@@ -148,14 +165,18 @@ export function ActiveTripMap({
         <Polyline coordinates={visibleRoute} strokeColor={colors.gold} strokeWidth={4} zIndex={1} />
       ) : null}
 
+      {/* A bordo, las paradas del recorrido en orden, ademas del destino. */}
+      {mode === 'tracking' && targetKind === 'dropoff'
+        ? stops.map((stop, index) => (
+            <ViewMarker key={`stop-${index}`} coordinate={stop} anchor={{ x: 0.5, y: 0.5 }} redrawKey={index}>
+              <StopMarkerBadge number={index + 1} />
+            </ViewMarker>
+          ))
+        : null}
+
       {/* Durante la busqueda el origen lo dibuja el radar, encima del mapa. */}
       {mode === 'tracking' && target ? (
-        <Marker
-          key={targetKind}
-          coordinate={target}
-          anchor={{ x: 0.5, y: 0.5 }}
-          tracksViewChanges={false}
-        >
+        <ViewMarker key={targetKind} coordinate={target} anchor={{ x: 0.5, y: 0.5 }} redrawKey={targetKind}>
           {targetKind === 'pickup' ? (
             <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
               <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
@@ -165,7 +186,7 @@ export function ActiveTripMap({
               <View className="h-3 w-3 bg-gold" />
             </View>
           )}
-        </Marker>
+        </ViewMarker>
       ) : null}
 
       {/*

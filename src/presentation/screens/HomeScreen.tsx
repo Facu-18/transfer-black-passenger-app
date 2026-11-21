@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   BriefcaseBusiness,
   CalendarClock,
@@ -10,9 +10,9 @@ import {
   UserPlus,
   UserRound,
 } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
-import { Alert, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Place } from '@/infrastructure/interfaces/places';
@@ -21,6 +21,7 @@ import { MotionPressable } from '@/presentation/components/MotionPressable';
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Skeleton } from '@/presentation/components/Skeleton';
 import { Typography } from '@/presentation/components/Typography';
+import { ViewMarker } from '@/presentation/components/ViewMarker';
 import { UpcomingTripCard } from '@/presentation/components/UpcomingTripCard';
 import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
@@ -32,6 +33,7 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
 import { darkMapStyle } from '@/presentation/theme/map-style';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** Centro de Córdoba: se muestra hasta tener la ubicación del usuario (o si no la comparte). */
 const DEFAULT_REGION = { latitude: -31.4201, longitude: -64.1888, latitudeDelta: 0.05, longitudeDelta: 0.05 };
@@ -46,10 +48,15 @@ const GPS_LABELS: Record<LocationStatus, string> = {
   unavailable: 'GPS sin señal · Reintentar',
 };
 
+/** Cuanto se monta la hoja de abajo sobre el mapa (`-mt-6`). */
+const SHEET_OVERLAP = 24;
+
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const mapRef = useRef<MapView>(null);
+  // En Android, `mapPadding` antes de `onMapReady` cierra la app.
+  const [mapReady, setMapReady] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const isLoadingUser = false;
@@ -57,6 +64,7 @@ export function HomeScreen() {
   const { recentPlaces } = useRecentPlaces();
   const origin = useTripStore((state) => state.origin);
   const setDestination = useTripStore((state) => state.setDestination);
+  const clearStops = useTripStore((state) => state.clearStops);
   const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
   const { nextTrip } = useUpcomingTrips();
   const crashedTripId = useSessionRestoreStore((state) => state.crashedTripId);
@@ -68,6 +76,20 @@ export function HomeScreen() {
     refresh: refreshCorporateMembership,
   } = useCorporateEligibility();
 
+  // El Home es una pestaña que queda montada debajo de la busqueda, la
+  // cotizacion y el viaje: su mapa de Google seguiria ocupando memoria y GPU.
+  // Se desmonta al perder el foco y se vuelve a montar al volver.
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => {
+        setIsFocused(false);
+        setMapReady(false);
+      };
+    }, []),
+  );
+
   // Centra el mapa cada vez que llega una posición nueva, con inclinación para la vista 3D.
   useEffect(() => {
     if (!currentLocation) return;
@@ -76,12 +98,14 @@ export function HomeScreen() {
 
   const startSearch = () => {
     setDestination(null);
+    clearStops();
     setPreferredPaymentMethod(null);
     router.push('/search');
   };
 
   const selectRecent = (place: Place) => {
     setDestination(place);
+    clearStops();
     setPreferredPaymentMethod(null);
     // Sin origen (no hay ubicación) se completa en la búsqueda; con origen se pasa directo a cotizar.
     router.push(origin ? '/pricing' : '/search');
@@ -100,7 +124,7 @@ export function HomeScreen() {
     // Todavia no sabemos si hay vinculo: recien ahi se puede decidir si se
     // ofrece la opcion o se manda a vincular el perfil.
     if (isLoadingCorporateMembership) {
-      Alert.alert('Cuenta corporativa', 'Estamos cargando tu cuenta corporativa. Probá de nuevo en un momento.', [
+      appAlert('Cuenta corporativa', 'Estamos cargando tu cuenta corporativa. Probá de nuevo en un momento.', [
         { text: 'Entendido' },
       ]);
       return;
@@ -109,7 +133,7 @@ export function HomeScreen() {
     // La consulta fallo (red, servidor): no es lo mismo que "no vinculado",
     // asi que se ofrece reintentar en vez de mandar a vincular de nuevo.
     if (corporateMembershipError) {
-      Alert.alert('Cuenta corporativa', 'No pudimos confirmar tu cuenta corporativa. Probá de nuevo.', [
+      appAlert('Cuenta corporativa', 'No pudimos confirmar tu cuenta corporativa. Probá de nuevo.', [
         { text: 'Reintentar', onPress: () => void refreshCorporateMembership() },
         { text: 'Ahora no', style: 'cancel' },
       ]);
@@ -117,7 +141,7 @@ export function HomeScreen() {
     }
 
     if (!corporateMembership) {
-      Alert.alert(
+      appAlert(
         'Cuenta corporativa',
         'Vinculá tu perfil con el código de tu empresa desde Mi Cuenta para viajar a cuenta corporativa.',
         [
@@ -129,13 +153,14 @@ export function HomeScreen() {
     }
 
     if (!corporateMembership.canRideOnAccount) {
-      Alert.alert('Cuenta corporativa no disponible', getCorporateIneligibilityMessage(corporateMembership), [
+      appAlert('Cuenta corporativa no disponible', getCorporateIneligibilityMessage(corporateMembership), [
         { text: 'Entendido' },
       ]);
       return;
     }
 
     setDestination(null);
+    clearStops();
     setPreferredPaymentMethod('corporate');
     router.push('/search');
   };
@@ -146,27 +171,39 @@ export function HomeScreen() {
   return (
     <View className="flex-1 bg-obsidian">
       <View style={{ height: height * 0.42 }}>
+        {isFocused ? (
         <MapView
           ref={mapRef}
           style={{ flex: 1 }}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           customMapStyle={darkMapStyle}
           userInterfaceStyle="dark"
-          initialRegion={DEFAULT_REGION}
+          // Al volver a montarse (ver `isFocused`) arranca donde esta el pasajero, no en el centro de la ciudad.
+          initialCamera={
+            currentLocation
+              ? { center: currentLocation, zoom: 16, pitch: 45, heading: 0 }
+              : { center: { latitude: DEFAULT_REGION.latitude, longitude: DEFAULT_REGION.longitude }, zoom: 13, pitch: 0, heading: 0 }
+          }
           showsPointsOfInterests={false}
           showsBuildings
           showsCompass={false}
           toolbarEnabled={false}
           pitchEnabled
+          // La hoja de abajo se monta 24 px sobre el mapa (`-mt-6`): sin esto tapa el logo de Google.
+          mapPadding={mapReady ? { top: 0, right: 0, bottom: SHEET_OVERLAP, left: 0 } : undefined}
+          onMapReady={() => setMapReady(true)}
         >
           {currentLocation ? (
-            <Marker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <ViewMarker coordinate={currentLocation} anchor={{ x: 0.5, y: 0.5 }}>
               <View className="h-8 w-8 items-center justify-center rounded-full bg-gold/25">
                 <View className="h-3.5 w-3.5 rounded-full border-2 border-obsidian bg-gold" />
               </View>
-            </Marker>
+            </ViewMarker>
           ) : null}
         </MapView>
+        ) : (
+          <View className="flex-1 bg-obsidian" />
+        )}
 
         <View className="absolute left-0 right-0 top-0 gap-3 px-4" style={{ paddingTop: insets.top + 8 }}>
           <GlassSurface className="flex-row items-center justify-between rounded-3xl px-4 py-3">

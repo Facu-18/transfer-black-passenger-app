@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import type { DrivingRoute } from '@/infrastructure/interfaces/routes';
-import { distanceMeters } from '@/presentation/utils/geo';
+import { distanceMeters, trimRouteAhead } from '@/presentation/utils/geo';
 
 /**
  * Cada cuanto se recalcula la ruta mostrada. No hay proveedor de rutas para el
@@ -16,8 +16,35 @@ const ROUTE_REFRESH_MS = 30_000;
 const DETOUR_FACTOR = 1.3;
 const FALLBACK_SPEED_METERS_PER_SECOND = 25_000 / 3_600;
 
-/** Estimacion local a partir de la distancia en linea recta. */
-function estimateRoute(from: Coordinates, to: Coordinates): DrivingRoute {
+/** Largo de una polilinea, sumando sus tramos. */
+function pathMeters(points: Coordinates[]): number {
+  let total = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    total += distanceMeters(points[index - 1]!, points[index]!);
+  }
+  return total;
+}
+
+/**
+ * Estimacion local. Con la ruta cotizada (a bordo, pasando por las paradas)
+ * se mide lo que falta recorrer de esa ruta desde donde esta el auto; sin
+ * ella, la distancia en linea recta con un factor de desvio.
+ */
+function estimateRoute(
+  from: Coordinates,
+  to: Coordinates,
+  quotedRoute: Coordinates[] | null,
+  progress: { current: number },
+): DrivingRoute {
+  if (quotedRoute && quotedRoute.length > 1) {
+    // Avanza desde el ultimo tramo alcanzado: en una ida y vuelta no se confunde con el regreso.
+    const trimmed = trimRouteAhead(quotedRoute, from, progress.current);
+    progress.current = trimmed.segment;
+    const meters = pathMeters(trimmed.points);
+    // Se devuelve la ruta entera (misma referencia): el mapa recorta lo recorrido y no reencuadra.
+    return { points: quotedRoute, distanceMeters: meters, durationSeconds: meters / FALLBACK_SPEED_METERS_PER_SECOND };
+  }
+
   const meters = distanceMeters(from, to) * DETOUR_FACTOR;
   return {
     points: [from, to],
@@ -35,23 +62,36 @@ function estimateRoute(from: Coordinates, to: Coordinates): DrivingRoute {
  * al llegar la primera posicion y despues cada 30 segundos, o antes si cambia
  * el destino, para no reencuadrar el mapa con cada posicion.
  */
-export function useDriverEta(driver: Coordinates | null, target: Coordinates | null, enabled: boolean) {
+export function useDriverEta(
+  driver: Coordinates | null,
+  target: Coordinates | null,
+  enabled: boolean,
+  /** Ruta cotizada hasta `target` (a bordo); `null` para estimar en linea recta. */
+  quotedRoute: Coordinates[] | null = null,
+) {
   const [route, setRoute] = useState<DrivingRoute | null>(null);
   const lastRequestAt = useRef(0);
   const lastTarget = useRef<Coordinates | null>(null);
+  const lastQuotedRoute = useRef<Coordinates[] | null>(null);
+  // Ultimo tramo de la ruta cotizada alcanzado por el auto.
+  const routeProgress = useRef(0);
 
   useEffect(() => {
     if (!enabled || !driver || !target) return;
 
     const targetChanged =
       lastTarget.current?.latitude !== target.latitude || lastTarget.current?.longitude !== target.longitude;
-    if (!targetChanged && Date.now() - lastRequestAt.current < ROUTE_REFRESH_MS) return;
+    // Llegar la ruta cotizada cambia la estimacion tanto como cambiar el destino.
+    const routeChanged = lastQuotedRoute.current !== quotedRoute;
+    if (!targetChanged && !routeChanged && Date.now() - lastRequestAt.current < ROUTE_REFRESH_MS) return;
 
     lastRequestAt.current = Date.now();
     lastTarget.current = target;
-    setRoute(estimateRoute(driver, target));
+    if (routeChanged) routeProgress.current = 0;
+    lastQuotedRoute.current = quotedRoute;
+    setRoute(estimateRoute(driver, target, quotedRoute, routeProgress));
     // Solo importa el valor de las coordenadas, no la identidad del objeto.
-  }, [enabled, driver?.latitude, driver?.longitude, target?.latitude, target?.longitude]);
+  }, [enabled, driver?.latitude, driver?.longitude, target?.latitude, target?.longitude, quotedRoute]);
 
   useEffect(() => {
     if (!enabled) {
