@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   BriefcaseBusiness,
   CalendarClock,
@@ -10,7 +10,7 @@ import {
   UserPlus,
   UserRound,
 } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,6 +75,20 @@ export function HomeScreen() {
     error: corporateMembershipError,
     refresh: refreshCorporateMembership,
   } = useCorporateEligibility();
+
+  // El Home es una pestaña que queda montada debajo de la busqueda, la
+  // cotizacion y el viaje: su mapa de Google seguiria ocupando memoria y GPU.
+  // Se desmonta al perder el foco y se vuelve a montar al volver.
+  const [isFocused, setIsFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => {
+        setIsFocused(false);
+        setMapReady(false);
+      };
+    }, []),
+  );
 
   // Centra el mapa cada vez que llega una posición nueva, con inclinación para la vista 3D.
   useEffect(() => {
@@ -157,13 +171,19 @@ export function HomeScreen() {
   return (
     <View className="flex-1 bg-obsidian">
       <View style={{ height: height * 0.42 }}>
+        {isFocused ? (
         <MapView
           ref={mapRef}
           style={{ flex: 1 }}
           provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           customMapStyle={darkMapStyle}
           userInterfaceStyle="dark"
-          initialRegion={DEFAULT_REGION}
+          // Al volver a montarse (ver `isFocused`) arranca donde esta el pasajero, no en el centro de la ciudad.
+          initialCamera={
+            currentLocation
+              ? { center: currentLocation, zoom: 16, pitch: 45, heading: 0 }
+              : { center: { latitude: DEFAULT_REGION.latitude, longitude: DEFAULT_REGION.longitude }, zoom: 13, pitch: 0, heading: 0 }
+          }
           showsPointsOfInterests={false}
           showsBuildings
           showsCompass={false}
@@ -181,6 +201,9 @@ export function HomeScreen() {
             </ViewMarker>
           ) : null}
         </MapView>
+        ) : (
+          <View className="flex-1 bg-obsidian" />
+        )}
 
         <View className="absolute left-0 right-0 top-0 gap-3 px-4" style={{ paddingTop: insets.top + 8 }}>
           <GlassSurface className="flex-row items-center justify-between rounded-3xl px-4 py-3">
