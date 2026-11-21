@@ -155,7 +155,12 @@ export function DriverEnRoutePanel({
         ) : null}
       </View>
 
-      <TripRouteCard origin={trip.pickup?.address ?? null} destination={trip.dropoff?.address ?? null} fare={trip.formattedFare} />
+      <TripRouteCard
+        origin={trip.pickup?.address ?? null}
+        stops={trip.stops.map((stop) => stop.address)}
+        destination={trip.dropoff?.address ?? null}
+        fare={trip.formattedFare}
+      />
 
       <View className="flex-row">
         <ActionButton

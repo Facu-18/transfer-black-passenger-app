@@ -8,13 +8,15 @@ import { Typography } from './Typography';
 interface TripSearchingPanelProps {
   origin: string | null;
   destination: string | null;
+  /** Paradas intermedias en orden. */
+  stops: string[];
   fare: string | null;
   isCancelling: boolean;
   onCancel: () => void;
 }
 
 /** Panel del radar: la busqueda en curso y la salida para cancelarla. */
-export function TripSearchingPanel({ origin, destination, fare, isCancelling, onCancel }: TripSearchingPanelProps) {
+export function TripSearchingPanel({ origin, destination, stops, fare, isCancelling, onCancel }: TripSearchingPanelProps) {
   return (
     <View className="gap-5">
       <View className="items-center gap-2">
@@ -32,7 +34,7 @@ export function TripSearchingPanel({ origin, destination, fare, isCancelling, on
         </Typography>
       </View>
 
-      <TripRouteCard origin={origin} destination={destination} fare={fare} />
+      <TripRouteCard origin={origin} stops={stops} destination={destination} fare={fare} />
 
       <SecondaryButton title="Cancelar búsqueda" icon={X} loading={isCancelling} onPress={onCancel} />
     </View>

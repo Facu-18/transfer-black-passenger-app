@@ -166,6 +166,7 @@ export function buildReceiptHtml(trip: Trip): string {
           ${row('Código', trip.publicCode)}
           ${row('Fecha', tripDate ? dateTimeFormatter.format(tripDate) : null)}
           ${row('Origen', trip.pickup?.address ?? null)}
+          ${trip.stops.map((stop, index) => row(`Parada ${index + 1}`, stop.address)).join('')}
           ${row('Destino', trip.dropoff?.address ?? null)}
           ${row('Recorrido', tripFacts(trip))}
         </table>

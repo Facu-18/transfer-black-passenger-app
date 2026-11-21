@@ -8,6 +8,7 @@ import { darkMapStyle } from '@/presentation/theme/map-style';
 import { trimRouteFromPosition } from '@/presentation/utils/geo';
 
 import { DriverCarMarker } from './DriverCarMarker';
+import { StopMarkerBadge } from './StopMarkerBadge';
 
 /** Zoom del radar: unas pocas cuadras alrededor del punto de partida. */
 const SEARCH_ZOOM = 15.5;
@@ -24,6 +25,9 @@ const FOCUS_ZOOM = 16;
  * se queda ahi hasta el primer `animateCamera` de los efectos de abajo.
  */
 const DEFAULT_CENTER: Coordinates = { latitude: -31.4201, longitude: -64.1888 };
+
+/** Misma referencia en cada render cuando no hay paradas. */
+const NO_STOPS: Coordinates[] = [];
 
 interface ActiveTripMapProps {
   /**
@@ -51,6 +55,8 @@ interface ActiveTripMapProps {
    */
   focusRequest?: number;
   focusPoint?: Coordinates | null;
+  /** Paradas intermedias en orden: se marcan numeradas con el pasajero a bordo. */
+  stops?: Coordinates[];
 }
 
 export function ActiveTripMap({
@@ -63,6 +69,7 @@ export function ActiveTripMap({
   bottomInset,
   focusRequest = 0,
   focusPoint = null,
+  stops = NO_STOPS,
 }: ActiveTripMapProps) {
   const mapRef = useRef<MapView>(null);
   const hasDriver = driver !== null;
@@ -147,6 +154,15 @@ export function ActiveTripMap({
       {mode === 'tracking' && visibleRoute.length > 1 ? (
         <Polyline coordinates={visibleRoute} strokeColor={colors.gold} strokeWidth={4} zIndex={1} />
       ) : null}
+
+      {/* A bordo, las paradas del recorrido en orden, ademas del destino. */}
+      {mode === 'tracking' && targetKind === 'dropoff'
+        ? stops.map((stop, index) => (
+            <Marker key={`stop-${index}`} coordinate={stop} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+              <StopMarkerBadge number={index + 1} />
+            </Marker>
+          ))
+        : null}
 
       {/* Durante la busqueda el origen lo dibuja el radar, encima del mapa. */}
       {mode === 'tracking' && target ? (

@@ -179,6 +179,7 @@ export function TripDetailScreen() {
 
             <TripRouteCard
               origin={trip.pickup?.address ?? null}
+              stops={trip.stops.map((stop) => stop.address)}
               destination={trip.dropoff?.address ?? null}
               fare={trip.formattedFinalFare ?? trip.formattedFare}
             />

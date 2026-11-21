@@ -137,6 +137,8 @@ export function ActiveTripScreen() {
   const noDriverFound = trip?.status === 'cancelled' && trip.cancellationReasonCode === 'no_driver_found';
 
   // Badge del chat: solo tiene sentido con chofer asignado y esta pantalla al frente.
+  // Paradas del recorrido para el mapa: se recalcula solo si cambian.
+  const stopPoints = useMemo(() => trip?.stops.map((stop) => stop.coordinates) ?? NO_ROUTE, [trip?.stops]);
   const unreadChatCount = useChatUnreadCount(tripId, trip?.driverId != null && !isFinished);
 
   const showBoardingPin =
@@ -227,6 +229,7 @@ export function ActiveTripScreen() {
         bottomInset={panelHeight}
         focusRequest={focusRequest}
         focusPoint={dropoff}
+        stops={stopPoints}
       />
 
       {view === 'searching' && pickup ? (
@@ -268,6 +271,7 @@ export function ActiveTripScreen() {
             <TripSearchingPanel
               origin={trip?.pickup?.address ?? plannedOrigin?.address ?? null}
               destination={trip?.dropoff?.address ?? plannedDestination?.address ?? null}
+              stops={trip?.stops.map((stop) => stop.address) ?? []}
               fare={trip?.formattedFare ?? null}
               isCancelling={isCancelling}
               onCancel={() => void requestCancel('searching')}

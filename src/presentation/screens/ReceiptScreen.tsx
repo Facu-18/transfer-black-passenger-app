@@ -90,6 +90,17 @@ function ReceiptCard({ trip }: { trip: Trip }) {
             <Typography weight="semibold">{trip.pickup?.address ?? '—'}</Typography>
           </View>
         </View>
+        {trip.stops.map((stop, index) => (
+          <View key={index} className="flex-row gap-3">
+            <View className="mt-1.5 h-2 w-2 rounded-full border border-gold" />
+            <View className="flex-1">
+              <Typography variant="caption" tone="secondary" className="uppercase tracking-widest">
+                {`Parada ${index + 1}`}
+              </Typography>
+              <Typography weight="semibold">{stop.address}</Typography>
+            </View>
+          </View>
+        ))}
         <View className="flex-row gap-3">
           <View className="mt-1.5 h-2 w-2 rounded-full border border-gold" />
           <View className="flex-1">
