@@ -1,6 +1,6 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, View } from 'react-native';
+import { AppState, BackHandler, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -173,7 +173,17 @@ export function ActiveTripScreen() {
       void tripResumeAttemptStorage.clear();
     }, RESUME_ATTEMPT_STABLE_MS);
 
-    return () => clearTimeout(stableTimer);
+    // Pasar a segundo plano no es un cierre por error: un crash no pasa por
+    // aca, y cerrar la app a mano (deslizarla) siempre pasa primero. Sin esto,
+    // cerrarla antes de los 8 s hacia que el proximo arranque no abriera el viaje.
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') void tripResumeAttemptStorage.clear();
+    });
+
+    return () => {
+      clearTimeout(stableTimer);
+      appStateSubscription.remove();
+    };
   }, [tripId]);
 
   // Mismo origen/destino, sin tocar el store: una nueva cotizacion crea otro borrador.

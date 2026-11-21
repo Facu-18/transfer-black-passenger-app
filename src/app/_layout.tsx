@@ -11,12 +11,13 @@ import * as Notifications from 'expo-notifications';
 import { router, Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { captureRenderError, initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
 import { ensureDefaultNotificationChannel } from '@/core/notifications/notification-channel';
+import { AppIntro } from '@/presentation/components/AppIntro';
 import { RouteErrorFallback } from '@/presentation/components/RouteErrorFallback';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
@@ -68,6 +69,11 @@ function RootLayout() {
     }
   }, [ready]);
 
+  // La animacion de apertura tapa la app ya montada y se quita sola al terminar.
+  const [introDone, setIntroDone] = useState(false);
+  const finishIntro = useCallback(() => setIntroDone(true), []);
+  const intro = introDone ? null : <AppIntro onFinish={finishIntro} />;
+
   if (!ready) {
     return null;
   }
@@ -86,6 +92,7 @@ function RootLayout() {
           </Typography>
           <VIPButton title="Reintentar" onPress={() => void retryRestore()} />
         </View>
+        {intro}
         <StatusBar style="light" />
       </GestureHandlerRootView>
     );
@@ -100,6 +107,7 @@ function RootLayout() {
           animation: 'fade',
         }}
       />
+      {intro}
       <StatusBar style="light" />
     </GestureHandlerRootView>
   );

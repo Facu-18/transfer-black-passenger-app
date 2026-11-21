@@ -1,5 +1,6 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 
+import { colors } from '@/presentation/theme/colors';
 import type { TripTrackingProps } from '@/presentation/utils/trip-tracking-content';
 
 /**
@@ -129,7 +130,13 @@ export async function startOrUpdateAndroidLiveUpdate(
 
   try {
     const state = toAndroidState(props);
-    const config = { deepLinkUrl: deepLink };
+    // La libreria antepone sola el scheme de la app (`<scheme>://<deepLinkUrl>`):
+    // con la URL completa quedaria `transferblack-passenger://transferblack-passenger://...`,
+    // una ruta que no existe. Se le pasa solo la ruta (`trip/<id>`).
+    const config = {
+      deepLinkUrl: deepLink.replace(/^[a-z][a-z0-9+.-]*:\/\//i, ''),
+      iconBackgroundColor: colors.gold,
+    };
 
     if (notificationId !== null) {
       module.updateLiveUpdate(notificationId, state, config);
