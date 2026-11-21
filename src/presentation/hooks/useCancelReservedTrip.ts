@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { cancelTripAction } from '@/core/actions/cancel-trip.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** El backend bloquea asi la cancelacion de un reservado ya pago: la gestiona la agencia. */
 const AGENCY_CANCEL_CODE = 'SCHEDULED_TRIP_CANCEL_VIA_AGENCY';
@@ -45,7 +45,7 @@ export function useCancelReservedTrip(tripId: string | null, { onCancelled }: Us
         }
       }
 
-      Alert.alert(
+      appAlert(
         'No pudimos cancelar la reserva',
         getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'),
         [{ text: 'Entendido' }],
@@ -56,7 +56,7 @@ export function useCancelReservedTrip(tripId: string | null, { onCancelled }: Us
   };
 
   const requestCancel = () => {
-    Alert.alert('¿Cancelar la reserva?', 'Vas a cancelar este viaje reservado.', [
+    appAlert('¿Cancelar la reserva?', 'Vas a cancelar este viaje reservado.', [
       { text: 'Seguir con la reserva', style: 'cancel' },
       { text: 'Cancelar reserva', style: 'destructive', onPress: () => void cancel() },
     ]);

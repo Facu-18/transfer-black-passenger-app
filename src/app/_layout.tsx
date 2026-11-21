@@ -17,6 +17,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { captureRenderError, initSentry, wrapWithSentry } from '@/core/monitoring/sentry';
 import { ensureDefaultNotificationChannel } from '@/core/notifications/notification-channel';
+import { AppDialogHost } from '@/presentation/components/AppDialogHost';
 import { AppIntro } from '@/presentation/components/AppIntro';
 import { RouteErrorFallback } from '@/presentation/components/RouteErrorFallback';
 import { Typography } from '@/presentation/components/Typography';
@@ -107,6 +108,8 @@ function RootLayout() {
           animation: 'fade',
         }}
       />
+      {/* Dialogos de `appAlert` (reemplazo con estilo de `Alert.alert`). */}
+      <AppDialogHost />
       {intro}
       <StatusBar style="light" />
     </GestureHandlerRootView>

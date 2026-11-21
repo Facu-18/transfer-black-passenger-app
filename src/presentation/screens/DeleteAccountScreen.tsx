@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { TriangleAlert, Lock } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Screen } from '@/presentation/components/Screen';
 import { Typography } from '@/presentation/components/Typography';
@@ -9,6 +9,7 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { VIPTextInput } from '@/presentation/components/VIPTextInput';
 import { useDeleteAccount } from '@/presentation/hooks/useDeleteAccount';
 import { colors } from '@/presentation/theme/colors';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** "Mi cuenta" → "Eliminar mi cuenta": explica las consecuencias y pide la contraseña para confirmar. */
 export function DeleteAccountScreen() {
@@ -16,7 +17,7 @@ export function DeleteAccountScreen() {
   const { submit, isDeleting, errorMessage } = useDeleteAccount();
 
   const confirmDelete = () => {
-    Alert.alert('Eliminar tu cuenta', 'Esta acción no se puede deshacer. ¿Confirmás que querés eliminar tu cuenta?', [
+    appAlert('Eliminar tu cuenta', 'Esta acción no se puede deshacer. ¿Confirmás que querés eliminar tu cuenta?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => void submit(password) },
     ]);

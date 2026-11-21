@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { deleteAccountAction } from '@/core/actions/delete-account.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
@@ -9,6 +8,7 @@ import { useAuthStore } from '@/presentation/store/useAuthStore';
 import { usePushNotificationsStore } from '@/presentation/store/usePushNotificationsStore';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** Mensajes propios de este flujo; cualquier otro codigo cae al generico de `getApiErrorMessage`. */
 const BUSINESS_ERROR_MESSAGES: Record<string, string> = {
@@ -67,7 +67,7 @@ export function useDeleteAccount() {
       setIsDeleting(false);
     }
 
-    Alert.alert(
+    appAlert(
       'Cuenta eliminada',
       'Eliminamos tu cuenta correctamente. Gracias por haber sido parte de Transfer Black.',
       [{ text: 'Entendido', onPress: () => router.replace('/login') }],

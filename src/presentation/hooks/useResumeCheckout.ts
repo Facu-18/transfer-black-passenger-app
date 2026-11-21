@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { openCheckout } from '@/presentation/utils/open-checkout';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 interface UseResumeCheckoutOptions {
   /** Al volver del checkout se consulta el estado real: el pago pudo haberse acreditado. */
@@ -27,7 +27,7 @@ export function useResumeCheckout(tripId: string | null, { onReturn }: UseResume
       await openCheckout(checkoutUrl);
       onReturn();
     } catch {
-      Alert.alert('No pudimos abrir Mercado Pago', 'Intentá de nuevo en unos segundos.', [{ text: 'Entendido' }]);
+      appAlert('No pudimos abrir Mercado Pago', 'Intentá de nuevo en unos segundos.', [{ text: 'Entendido' }]);
     } finally {
       setIsResuming(false);
     }

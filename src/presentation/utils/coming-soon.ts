@@ -1,6 +1,6 @@
-import { Alert } from 'react-native';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** Aviso para acciones del diseño que todavia no tienen backend detras. */
 export function showComingSoon(feature: string): void {
-  Alert.alert('Próximamente', `${feature} va a estar disponible muy pronto.`);
+  appAlert('Próximamente', `${feature} va a estar disponible muy pronto.`);
 }

@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 
 import { confirmRideAction } from '@/core/actions/confirm-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
@@ -14,6 +13,7 @@ import { exceedsCompanyBalance } from '@/presentation/utils/corporate-eligibilit
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
 import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
 import { openCheckout } from '@/presentation/utils/open-checkout';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 interface UseConfirmRideOptions {
   quote: RideQuote | null;
@@ -101,7 +101,7 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
     // frenar aca que dejar pasar un cobro elegido mientras la pastilla
     // corporativa todavia esta escondida en la pantalla.
     if (paymentMethod === 'corporate' && isCorporateEligibilityLoading) {
-      Alert.alert('Cuenta corporativa', 'Estamos confirmando tu cuenta corporativa. Probá de nuevo en un momento.', [
+      appAlert('Cuenta corporativa', 'Estamos confirmando tu cuenta corporativa. Probá de nuevo en un momento.', [
         { text: 'Entendido' },
       ]);
       return;
@@ -150,13 +150,13 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
         }
 
         if (error.code === 'FARE_QUOTE_EXPIRED') {
-          Alert.alert('La tarifa venció', 'Estamos calculando el precio otra vez.', [{ text: 'Entendido' }]);
+          appAlert('La tarifa venció', 'Estamos calculando el precio otra vez.', [{ text: 'Entendido' }]);
           onQuoteExpired();
           return;
         }
 
         if (error.code === 'INVALID_TRIP_TRANSITION') {
-          Alert.alert('Este viaje ya no se puede confirmar', 'Volvé a pedirlo desde el inicio.', [
+          appAlert('Este viaje ya no se puede confirmar', 'Volvé a pedirlo desde el inicio.', [
             { text: 'Entendido', onPress: () => router.replace('/home') },
           ]);
           return;
@@ -171,12 +171,12 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
           // traerlos de nuevo en vez de repetir lo que ya sabemos que esta mal.
           setPaymentMethod('account_money');
           invalidateCorporateEligibility();
-          Alert.alert('No pudimos cobrar con tu cuenta corporativa', corporateMessage, [{ text: 'Entendido' }]);
+          appAlert('No pudimos cobrar con tu cuenta corporativa', corporateMessage, [{ text: 'Entendido' }]);
           return;
         }
       }
 
-      Alert.alert('No pudimos confirmar el viaje', getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'), [
+      appAlert('No pudimos confirmar el viaje', getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'), [
         { text: 'Entendido' },
       ]);
     } finally {

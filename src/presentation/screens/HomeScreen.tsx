@@ -11,7 +11,7 @@ import {
   UserRound,
 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,6 +33,7 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
 import { darkMapStyle } from '@/presentation/theme/map-style';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** Centro de Córdoba: se muestra hasta tener la ubicación del usuario (o si no la comparte). */
 const DEFAULT_REGION = { latitude: -31.4201, longitude: -64.1888, latitudeDelta: 0.05, longitudeDelta: 0.05 };
@@ -109,7 +110,7 @@ export function HomeScreen() {
     // Todavia no sabemos si hay vinculo: recien ahi se puede decidir si se
     // ofrece la opcion o se manda a vincular el perfil.
     if (isLoadingCorporateMembership) {
-      Alert.alert('Cuenta corporativa', 'Estamos cargando tu cuenta corporativa. Probá de nuevo en un momento.', [
+      appAlert('Cuenta corporativa', 'Estamos cargando tu cuenta corporativa. Probá de nuevo en un momento.', [
         { text: 'Entendido' },
       ]);
       return;
@@ -118,7 +119,7 @@ export function HomeScreen() {
     // La consulta fallo (red, servidor): no es lo mismo que "no vinculado",
     // asi que se ofrece reintentar en vez de mandar a vincular de nuevo.
     if (corporateMembershipError) {
-      Alert.alert('Cuenta corporativa', 'No pudimos confirmar tu cuenta corporativa. Probá de nuevo.', [
+      appAlert('Cuenta corporativa', 'No pudimos confirmar tu cuenta corporativa. Probá de nuevo.', [
         { text: 'Reintentar', onPress: () => void refreshCorporateMembership() },
         { text: 'Ahora no', style: 'cancel' },
       ]);
@@ -126,7 +127,7 @@ export function HomeScreen() {
     }
 
     if (!corporateMembership) {
-      Alert.alert(
+      appAlert(
         'Cuenta corporativa',
         'Vinculá tu perfil con el código de tu empresa desde Mi Cuenta para viajar a cuenta corporativa.',
         [
@@ -138,7 +139,7 @@ export function HomeScreen() {
     }
 
     if (!corporateMembership.canRideOnAccount) {
-      Alert.alert('Cuenta corporativa no disponible', getCorporateIneligibilityMessage(corporateMembership), [
+      appAlert('Cuenta corporativa no disponible', getCorporateIneligibilityMessage(corporateMembership), [
         { text: 'Entendido' },
       ]);
       return;

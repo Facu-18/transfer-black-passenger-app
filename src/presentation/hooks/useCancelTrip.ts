@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { cancelTripAction } from '@/core/actions/cancel-trip.action';
 import { getCancellationPreviewAction } from '@/core/actions/get-cancellation-preview.action';
@@ -14,6 +13,7 @@ import {
   type CancelStage,
 } from '@/presentation/utils/cancellation-copy';
 import { handleExpiredSession } from '@/presentation/utils/expired-session';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 interface UseCancelTripOptions {
   /** Relee el viaje cuando el backend dice que ya no se puede cancelar. */
@@ -36,11 +36,13 @@ export function useCancelTrip(tripId: string | null, { onRefresh }: UseCancelTri
 
       const refundMessage = buildCancelledRefundMessage(result);
       if (refundMessage) {
-        Alert.alert('Viaje cancelado', refundMessage, [
+        appAlert('Viaje cancelado', refundMessage, [
           { text: 'Entendido', onPress: () => router.dismissTo('/home') },
         ]);
       } else {
         router.dismissTo('/home');
+        // Sin reintegro que explicar (efectivo, o antes de pagar): igual se confirma que se cancelo.
+        appAlert('Viaje cancelado', 'Listo, cancelamos tu viaje.');
       }
     } catch (error: unknown) {
       if (error instanceof ApiRequestError) {
@@ -50,14 +52,14 @@ export function useCancelTrip(tripId: string | null, { onRefresh }: UseCancelTri
         }
 
         if (error.code === 'TRIP_CANNOT_BE_CANCELLED') {
-          Alert.alert('Ya no se puede cancelar', 'El viaje avanzó mientras lo cancelabas.', [
+          appAlert('Ya no se puede cancelar', 'El viaje avanzó mientras lo cancelabas.', [
             { text: 'Entendido', onPress: onRefresh },
           ]);
           return;
         }
       }
 
-      Alert.alert('No pudimos cancelar el viaje', getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'), [
+      appAlert('No pudimos cancelar el viaje', getApiErrorMessage(error, 'Intentá de nuevo en unos segundos.'), [
         { text: 'Entendido' },
       ]);
     } finally {
@@ -88,7 +90,7 @@ export function useCancelTrip(tripId: string | null, { onRefresh }: UseCancelTri
     }
     setIsCancelling(false);
 
-    Alert.alert(
+    appAlert(
       CANCEL_CONFIRMATION_TITLE[stage],
       buildCancelConfirmationMessage(stage, preview),
       [

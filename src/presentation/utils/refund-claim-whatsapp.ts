@@ -6,9 +6,10 @@
 // abrir `wa.me` con el mensaje ya escrito) en un archivo propio: ese modulo no
 // exporta sus lineas de atencion ni su helper para abrir WhatsApp.
 
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 
 import { formatClockTime, formatReservationDate } from '@/presentation/utils/format-date';
+import { appAlert } from '@/presentation/utils/app-alert';
 
 /** Mismas lineas que `whatsapp-services.ts`; si cambian los numeros hay que actualizar los dos archivos. */
 const WHATSAPP_LINES = [
@@ -22,7 +23,7 @@ async function openWhatsApp(number: string, message: string): Promise<void> {
   try {
     await Linking.openURL(url);
   } catch {
-    Alert.alert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 926-0327.', [{ text: 'Entendido' }]);
+    appAlert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 926-0327.', [{ text: 'Entendido' }]);
   }
 }
 
@@ -54,7 +55,7 @@ function buildRefundClaimMessage(details: RefundClaimDetails): string {
 export function contactWhatsAppRefundClaim(details: RefundClaimDetails): void {
   const message = buildRefundClaimMessage(details);
 
-  Alert.alert('Reclamo de devolución', '¿Con qué línea querés hablar?', [
+  appAlert('Reclamo de devolución', '¿Con qué línea querés hablar?', [
     ...WHATSAPP_LINES.map((line) => ({ text: line.label, onPress: () => void openWhatsApp(line.number, message) })),
     { text: 'Cancelar', style: 'cancel' as const },
   ]);
