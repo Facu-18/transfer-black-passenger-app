@@ -66,9 +66,13 @@ export const useTripStore = create<TripState>()((set) => ({
   setPendingOriginPrompt: (pendingOriginPrompt) => set({ pendingOriginPrompt }),
   setCurrentLocation: (currentLocation) => set({ currentLocation }),
 
-  // Mientras el usuario no haya elegido otro origen, la ubicacion actual lo es.
+  // Mientras el usuario no haya elegido otro origen, la ubicacion actual lo es
+  // (y se actualiza si el GPS la afina despues de la ultima posicion conocida).
   setCurrentPlace: (currentPlace) =>
-    set((state) => ({ currentPlace, origin: state.origin ?? currentPlace })),
+    set((state) => ({
+      currentPlace,
+      origin: state.origin === null || state.origin === state.currentPlace ? currentPlace : state.origin,
+    })),
 
   setOrigin: (origin) => set({ origin }),
   setDestination: (destinationLocation) => set({ destinationLocation }),
