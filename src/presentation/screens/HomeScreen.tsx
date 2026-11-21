@@ -57,6 +57,7 @@ export function HomeScreen() {
   const { recentPlaces } = useRecentPlaces();
   const origin = useTripStore((state) => state.origin);
   const setDestination = useTripStore((state) => state.setDestination);
+  const clearStops = useTripStore((state) => state.clearStops);
   const setPreferredPaymentMethod = useTripStore((state) => state.setPreferredPaymentMethod);
   const { nextTrip } = useUpcomingTrips();
   const crashedTripId = useSessionRestoreStore((state) => state.crashedTripId);
@@ -76,12 +77,14 @@ export function HomeScreen() {
 
   const startSearch = () => {
     setDestination(null);
+    clearStops();
     setPreferredPaymentMethod(null);
     router.push('/search');
   };
 
   const selectRecent = (place: Place) => {
     setDestination(place);
+    clearStops();
     setPreferredPaymentMethod(null);
     // Sin origen (no hay ubicación) se completa en la búsqueda; con origen se pasa directo a cotizar.
     router.push(origin ? '/pricing' : '/search');
@@ -136,6 +139,7 @@ export function HomeScreen() {
     }
 
     setDestination(null);
+    clearStops();
     setPreferredPaymentMethod('corporate');
     router.push('/search');
   };

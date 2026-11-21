@@ -42,6 +42,8 @@ interface TripState {
   addStop: () => void;
   setStop: (index: number, place: Place) => void;
   removeStop: (index: number) => void;
+  /** Un viaje nuevo desde el Home arranca sin las paradas del anterior. */
+  clearStops: () => void;
   setGuestPassenger: (guest: GuestPassenger) => void;
   clearGuestPassenger: () => void;
   setPreferredPaymentMethod: (method: PaymentMethod | null) => void;
@@ -75,6 +77,7 @@ export const useTripStore = create<TripState>()((set) => ({
   setStop: (index, place) =>
     set((state) => ({ stops: state.stops.map((stop, current) => (current === index ? place : stop)) })),
   removeStop: (index) => set((state) => ({ stops: state.stops.filter((_, current) => current !== index) })),
+  clearStops: () => set({ stops: [] }),
   setGuestPassenger: (guestPassenger) => set({ guestPassenger }),
   clearGuestPassenger: () => set({ guestPassenger: null }),
   setPreferredPaymentMethod: (preferredPaymentMethod) => set({ preferredPaymentMethod }),

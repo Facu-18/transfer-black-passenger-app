@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
-import { ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin } from 'lucide-react-native';
-import type { RefObject } from 'react';
+import { ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin, Plus, X } from 'lucide-react-native';
+import { Fragment, type RefObject } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlaceRow } from '@/presentation/components/PlaceRow';
 import { Typography } from '@/presentation/components/Typography';
-import { usePlanTrip, type TripField } from '@/presentation/hooks/usePlanTrip';
+import { VIPButton } from '@/presentation/components/VIPButton';
+import { stopField, usePlanTrip, type TripField } from '@/presentation/hooks/usePlanTrip';
 import { colors } from '@/presentation/theme/colors';
 
 function showComingSoon(feature: string) {
@@ -21,12 +22,27 @@ interface TripInputProps {
   placeholder: string;
   badge?: string | null;
   autoFocus?: boolean;
+  accessibilityLabel: string;
   onChangeText: (text: string) => void;
   onFocus: (field: TripField) => void;
+  /** Solo las paradas: quita el campo del recorrido. */
+  onRemove?: () => void;
 }
 
-/** Campo de origen o destino: borde gold y cursor gold mientras está activo. */
-function TripInput({ inputRef, field, active, value, placeholder, badge, autoFocus, onChangeText, onFocus }: TripInputProps) {
+/** Campo del recorrido (origen, parada o destino): borde gold y cursor gold mientras está activo. */
+function TripInput({
+  inputRef,
+  field,
+  active,
+  value,
+  placeholder,
+  badge,
+  autoFocus,
+  accessibilityLabel,
+  onChangeText,
+  onFocus,
+  onRemove,
+}: TripInputProps) {
   return (
     <View className={`h-12 flex-row items-center gap-2 rounded-xl border bg-surface px-3 ${active ? 'border-gold' : 'border-transparent'}`}>
       <TextInput
@@ -40,7 +56,7 @@ function TripInput({ inputRef, field, active, value, placeholder, badge, autoFoc
         autoFocus={autoFocus}
         autoCorrect={false}
         returnKeyType="search"
-        accessibilityLabel={field === 'origin' ? 'Punto de partida' : 'Destino'}
+        accessibilityLabel={accessibilityLabel}
         onFocus={() => onFocus(field)}
         onChangeText={onChangeText}
       />
@@ -48,6 +64,17 @@ function TripInput({ inputRef, field, active, value, placeholder, badge, autoFoc
         <Typography variant="caption" tone="secondary">
           {badge}
         </Typography>
+      ) : null}
+      {onRemove ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Quitar ${accessibilityLabel.toLowerCase()}`}
+          hitSlop={8}
+          onPress={onRemove}
+          className="h-7 w-7 items-center justify-center rounded-full active:opacity-70"
+        >
+          <X size={16} color={colors.ash} />
+        </Pressable>
       ) : null}
     </View>
   );
@@ -109,9 +136,15 @@ export function PlanTripScreen() {
         </View>
 
         <View className="flex-row gap-3 rounded-2xl border border-charcoal bg-surface p-3">
-          {/* Línea de tiempo: punto gold (origen), trazo y cuadrado (destino). */}
+          {/* Línea de tiempo: punto gold (origen), aro gold por parada y cuadrado (destino). */}
           <View className="items-center py-5">
             <View className="h-2.5 w-2.5 rounded-full bg-gold" />
+            {trip.stops.map((_, index) => (
+              <Fragment key={index}>
+                <View className="my-1 w-px flex-1 bg-charcoal" />
+                <View className="h-2.5 w-2.5 rounded-full border border-gold" />
+              </Fragment>
+            ))}
             <View className="my-1 w-px flex-1 bg-charcoal" />
             <View className="h-2.5 w-2.5 bg-platinum" />
           </View>
@@ -124,11 +157,30 @@ export function PlanTripScreen() {
               value={trip.originQuery}
               placeholder={trip.origin?.name ?? 'Punto de partida'}
               badge={originIsCurrentPlace ? 'Ubicación actual' : null}
+              accessibilityLabel="Punto de partida"
               // Autofoco solo si se entro a elegir justo este campo (p. ej. desde la reserva).
               autoFocus={activeField === 'origin'}
               onChangeText={trip.setOriginQuery}
               onFocus={trip.setActiveField}
             />
+            {trip.stops.map((stop, index) => (
+              <Fragment key={index}>
+                <View className="h-px bg-charcoal" />
+                <TripInput
+                  inputRef={trip.stopInputRefs[index]!}
+                  field={stopField(index)}
+                  active={activeField === stopField(index)}
+                  value={trip.stopQueries[index] ?? ''}
+                  placeholder={stop?.name ?? `Parada ${index + 1}`}
+                  accessibilityLabel={`Parada ${index + 1}`}
+                  // Una parada recien agregada se monta activa y abre el teclado.
+                  autoFocus={activeField === stopField(index)}
+                  onChangeText={(text) => trip.setStopQuery(index, text)}
+                  onFocus={trip.setActiveField}
+                  onRemove={() => trip.removeStop(index)}
+                />
+              </Fragment>
+            ))}
             <View className="h-px bg-charcoal" />
             <TripInput
               inputRef={trip.destinationInputRef}
@@ -136,6 +188,7 @@ export function PlanTripScreen() {
               active={activeField === 'destination'}
               value={trip.destinationQuery}
               placeholder={trip.destination?.name ?? '¿A dónde vas?'}
+              accessibilityLabel="Destino"
               // Por defecto el flujo arranca pidiendo el destino.
               autoFocus={activeField === 'destination'}
               onChangeText={trip.setDestinationQuery}
@@ -143,6 +196,28 @@ export function PlanTripScreen() {
             />
           </View>
         </View>
+
+        {trip.canAddStop || trip.isRouteComplete ? (
+          <View className="flex-row items-center justify-between gap-3">
+            {trip.canAddStop ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={trip.addStop}
+                className="flex-row items-center gap-2 rounded-full border border-charcoal bg-surface px-4 py-2 active:opacity-80"
+              >
+                <Plus size={16} color={colors.gold} />
+                <Typography weight="medium">Agregar parada</Typography>
+              </Pressable>
+            ) : (
+              <View />
+            )}
+            {trip.isRouteComplete ? (
+              <View className="flex-1">
+                <VIPButton title="Ver tarifas" onPress={trip.goToPricing} />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {trip.hint ? (
           <Typography tone="accent" accessibilityLiveRegion="polite">
