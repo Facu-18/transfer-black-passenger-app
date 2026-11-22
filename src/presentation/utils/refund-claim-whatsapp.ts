@@ -14,7 +14,7 @@ import { appAlert } from '@/presentation/utils/app-alert';
 /** Mismas lineas que `whatsapp-services.ts`; si cambian los numeros hay que actualizar los dos archivos. */
 const WHATSAPP_LINES = [
   { label: 'Línea 1 · 351 926-0326', number: '5493519260326' },
-  { label: 'Línea 2 · 351 926-0327', number: '5493519260327' },
+  { label: 'Línea 2 · 351 590-1798', number: '5493515901798' },
 ];
 
 async function openWhatsApp(number: string, message: string): Promise<void> {
@@ -23,7 +23,7 @@ async function openWhatsApp(number: string, message: string): Promise<void> {
   try {
     await Linking.openURL(url);
   } catch {
-    appAlert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 926-0327.', [{ text: 'Entendido' }]);
+    appAlert('No pudimos abrir WhatsApp', 'Escribinos al 351 926-0326 o al 351 590-1798.', [{ text: 'Entendido' }]);
   }
 }
 
