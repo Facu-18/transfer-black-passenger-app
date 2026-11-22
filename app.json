@@ -69,6 +69,7 @@
           "frequentUpdates": true
         }
       ],
+      "./plugins/with-optional-portrait-feature",
       "./plugins/with-live-updates-local-only",
       [
         "expo-live-updates",
