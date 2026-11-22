@@ -1,5 +1,5 @@
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, BackHandler, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -144,6 +144,34 @@ export function ActiveTripScreen() {
   const noDriverFound = trip?.status === 'cancelled' && trip.cancellationReasonCode === 'no_driver_found';
 
   // Badge del chat: solo tiene sentido con chofer asignado y esta pantalla al frente.
+  // Mientras esta pantalla queda tapada (chat abierto, telefono bloqueado, app
+  // en segundo plano) el mapa nativo de Android queda desconectado: la ruta,
+  // los marcadores y la camara que se agregan en ese momento (por ejemplo, al
+  // pasar a "a bordo") no se dibujan nunca. Al volver a estar a la vista se
+  // monta un mapa nuevo (`key`), que arranca con el estado actual del viaje.
+  const [mapEpoch, setMapEpoch] = useState(0);
+  const wasHidden = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (wasHidden.current) setMapEpoch((epoch) => epoch + 1);
+      wasHidden.current = false;
+      return () => {
+        wasHidden.current = true;
+      };
+    }, []),
+  );
+  useEffect(() => {
+    let wentToBackground = false;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') wentToBackground = true;
+      if (state === 'active' && wentToBackground) {
+        wentToBackground = false;
+        setMapEpoch((epoch) => epoch + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   // Paradas del recorrido para el mapa: se recalcula solo si cambian.
   const stopPoints = useMemo(() => trip?.stops.map((stop) => stop.coordinates) ?? NO_ROUTE, [trip?.stops]);
   const unreadChatCount = useChatUnreadCount(tripId, trip?.driverId != null && !isFinished);
@@ -223,6 +251,7 @@ export function ActiveTripScreen() {
   return (
     <View className="flex-1 bg-obsidian">
       <ActiveTripMap
+        key={mapEpoch}
         target={target}
         targetKind={onBoard ? 'dropoff' : 'pickup'}
         mode={tracking ? 'tracking' : 'searching'}

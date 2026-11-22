@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Ban, CalendarClock, CarFront, CheckCircle2, ListFilter, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { TripHistoryFilter, TripHistoryItem } from '@/infrastructure/interfaces/trips';
@@ -33,8 +33,12 @@ const EMPTY_COPY: Record<TripHistoryFilter, string> = {
 function FilterChips({ value, onChange }: { value: TripHistoryFilter; onChange: (filter: TripHistoryFilter) => void }) {
   return (
     <View className="rounded-2xl border border-charcoal bg-surface/90 p-1.5">
-      {/* No entran los cuatro filtros: el indicador deja a la vista que hay mas a la derecha. */}
-      <ScrollView horizontal showsHorizontalScrollIndicator contentContainerClassName="gap-1.5 pb-1.5">
+      {/*
+        Cuatro pestañas del mismo ancho, con el icono arriba del texto: en fila
+        con scroll, "Cancelados" quedaba cortado en el borde y no se notaba que
+        habia mas.
+      */}
+      <View className="flex-row gap-1">
         {FILTERS.map((option) => {
           const selected = option.value === value;
           const Icon = option.icon;
@@ -44,18 +48,25 @@ function FilterChips({ value, onChange }: { value: TripHistoryFilter; onChange: 
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               onPress={() => onChange(option.value)}
-              className={`h-11 flex-row items-center justify-center gap-2 rounded-xl px-4 active:opacity-80 ${
+              className={`h-14 flex-1 items-center justify-center gap-1 rounded-xl px-1 active:opacity-80 ${
                 selected ? 'bg-gold' : 'bg-transparent'
               }`}
             >
               <Icon size={16} color={selected ? colors.obsidian : colors.ash} strokeWidth={2.2} />
-              <Typography variant="caption" weight="semibold" tone={selected ? 'inverse' : 'secondary'}>
+              <Typography
+                variant="caption"
+                weight="semibold"
+                tone={selected ? 'inverse' : 'secondary'}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {option.label}
               </Typography>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }

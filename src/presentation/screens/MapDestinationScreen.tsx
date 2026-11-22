@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { ChevronLeft, MapPin, RefreshCw } from 'lucide-react-native';
+import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,11 +27,14 @@ const PIN_SIZE = 44;
 export function MapDestinationScreen() {
   const insets = useSafeAreaInsets();
   const picker = useMapDestinationPicker();
+  // Alto de la tarjeta de abajo: el mapa termina donde empieza, asi el logo de
+  // Google queda a la vista (es obligatorio) y el puntero marca su centro real.
+  const [cardHeight, setCardHeight] = useState(0);
 
   return (
     <View className="flex-1 bg-obsidian">
       <MapView
-        style={{ flex: 1 }}
+        style={{ flex: 1, marginBottom: cardHeight }}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         customMapStyle={darkMapStyle}
         userInterfaceStyle="dark"
@@ -47,7 +51,11 @@ export function MapDestinationScreen() {
       />
 
       {/* Puntero fijo: la punta queda en el centro del mapa (el relleno inferior sube el icono). */}
-      <View pointerEvents="none" className="absolute inset-0 items-center justify-center" style={{ paddingBottom: PIN_SIZE }}>
+      <View
+        pointerEvents="none"
+        className="absolute left-0 right-0 top-0 items-center justify-center"
+        style={{ bottom: cardHeight, paddingBottom: PIN_SIZE }}
+      >
         <MapPin size={PIN_SIZE} color={colors.gold} fill={colors.obsidian} strokeWidth={2} />
       </View>
 
@@ -66,6 +74,7 @@ export function MapDestinationScreen() {
       <View
         className="absolute bottom-0 left-0 right-0 gap-4 rounded-t-3xl border border-charcoal bg-surface px-5 pt-5"
         style={{ paddingBottom: insets.bottom + 16 }}
+        onLayout={(event) => setCardHeight(Math.round(event.nativeEvent.layout.height))}
       >
         <Typography variant="caption" weight="semibold" tone="secondary" className="uppercase tracking-widest">
           {picker.targetLabel}
