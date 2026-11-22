@@ -1,68 +1,64 @@
-import { CreditCard } from 'lucide-react-native';
+import { Banknote, Building2, CreditCard, Wallet, type LucideIcon } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
-import type { PaymentMethod } from '@/infrastructure/interfaces/trips';
 import { colors } from '@/presentation/theme/colors';
+import type { PaymentOption } from '@/presentation/utils/payment-options';
 
 import { Typography } from './Typography';
 import { appAlert } from '@/presentation/utils/app-alert';
 
-/** Pastilla "Corporativo": solo se ofrece con un vinculo empresarial vigente. */
+/** Opcion "Corporativo": solo se ofrece si el pasajero puede viajar a cuenta de su empresa. */
 export interface CorporatePaymentOption {
-  label: string;
+  /** Nombre de la empresa, debajo de las opciones cuando esta elegida. */
+  companyName: string;
   enabled: boolean;
-  /** Por que no se puede pagar asi ahora mismo; se muestra al tocar la pastilla deshabilitada. */
+  /** Por que no se puede pagar asi ahora mismo; se muestra al tocar la opcion deshabilitada. */
   disabledReason?: string;
-  /** "Te quedan $X este mes"; se muestra debajo cuando esta elegida y habilitada. */
+  /** "Saldo de tu empresa: $X"; se muestra debajo cuando esta elegida y habilitada. */
   remainingMessage?: string | null;
 }
 
 interface PaymentMethodPillsProps {
-  value: PaymentMethod;
+  value: PaymentOption;
   disabled?: boolean;
-  /** `null` sin vinculo empresarial: la pastilla ni se muestra. */
+  /** `null` si no puede viajar a cuenta de una empresa: la opcion ni se muestra. */
   corporateOption?: CorporatePaymentOption | null;
-  onChange: (method: PaymentMethod) => void;
+  onChange: (option: PaymentOption) => void;
 }
 
-const BASE_METHODS: { value: PaymentMethod; label: string }[] = [
-  // `account_money` abre el checkout de Mercado Pago, que admite dinero en
-  // cuenta y tarjetas de credito o debito.
-  { value: 'account_money', label: 'Mercado Pago' },
-  { value: 'cash', label: 'Efectivo' },
+const BASE_OPTIONS: { value: PaymentOption; label: string; icon: LucideIcon }[] = [
+  { value: 'cash', label: 'Efectivo', icon: Banknote },
+  // "Tarjeta" y "Mercado Pago" abren el mismo checkout de Mercado Pago, que
+  // admite tarjetas de credito o debito y dinero en cuenta.
+  { value: 'card', label: 'Tarjeta', icon: CreditCard },
+  { value: 'mercado_pago', label: 'Mercado Pago', icon: Wallet },
 ];
 
+const CORPORATE_OPTION = { value: 'corporate' as const, label: 'Corporativo', icon: Building2 };
+
 /**
- * Metodo de pago: segmentado de ancho completo con opciones de igual ancho,
- * para que entren todas sin scroll horizontal (antes se cortaban en una fila
- * deslizable).
+ * Metodo de pago: opciones de igual ancho con el icono arriba del texto, para
+ * que entren las cuatro en una fila sin scroll horizontal.
  */
-export function PaymentMethodPills({
-  value,
-  disabled = false,
-  corporateOption = null,
-  onChange,
-}: PaymentMethodPillsProps) {
-  const methods = corporateOption
-    ? [...BASE_METHODS, { value: 'corporate' as const, label: corporateOption.label }]
-    : BASE_METHODS;
+export function PaymentMethodPills({ value, disabled = false, corporateOption = null, onChange }: PaymentMethodPillsProps) {
+  const options = corporateOption ? [...BASE_OPTIONS, CORPORATE_OPTION] : BASE_OPTIONS;
+  const corporateSelected = value === 'corporate' && corporateOption?.enabled;
 
   return (
     <View className="gap-2">
-      <View className="flex-row items-center gap-2">
-        <CreditCard size={18} color={colors.ash} />
-        <Typography tone="secondary">Método de pago</Typography>
-      </View>
+      <Typography tone="secondary">Método de pago</Typography>
 
       <View className="flex-row gap-2">
-        {methods.map((method) => {
-          const selected = method.value === value;
-          const corporateBlocked = method.value === 'corporate' && corporateOption ? !corporateOption.enabled : false;
+        {options.map((option) => {
+          const selected = option.value === value;
+          const corporateBlocked = option.value === 'corporate' && corporateOption ? !corporateOption.enabled : false;
+          const Icon = option.icon;
 
           return (
             <Pressable
-              key={method.value}
+              key={option.value}
               accessibilityRole="radio"
+              accessibilityLabel={option.label}
               accessibilityState={{ checked: selected, disabled: disabled || corporateBlocked }}
               disabled={disabled}
               onPress={() => {
@@ -74,29 +70,31 @@ export function PaymentMethodPills({
                   );
                   return;
                 }
-                onChange(method.value);
+                onChange(option.value);
               }}
-              className={`flex-1 items-center rounded-full px-2 py-2.5 active:opacity-80 ${
+              className={`h-14 flex-1 items-center justify-center gap-1 rounded-xl px-1 active:opacity-80 ${
                 selected ? 'border border-gold/50 bg-gold/20' : 'border border-charcoal'
               } ${corporateBlocked ? 'opacity-50' : ''}`}
             >
+              <Icon size={16} color={selected ? colors.gold : colors.ash} strokeWidth={2.2} />
               <Typography
                 variant="caption"
                 weight="semibold"
                 tone={selected ? 'accent' : 'secondary'}
                 numberOfLines={1}
-                className="text-center"
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
-                {method.label}
+                {option.label}
               </Typography>
             </Pressable>
           );
         })}
       </View>
 
-      {value === 'corporate' && corporateOption?.enabled && corporateOption.remainingMessage ? (
+      {corporateSelected ? (
         <Typography variant="caption" tone="secondary" className="text-right">
-          {corporateOption.remainingMessage}
+          {[corporateOption.companyName, corporateOption.remainingMessage].filter(Boolean).join(' · ')}
         </Typography>
       ) : null}
     </View>

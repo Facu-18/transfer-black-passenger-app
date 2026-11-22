@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { confirmRideAction } from '@/core/actions/confirm-ride.action';
 import { ApiRequestError } from '@/core/api/api-request-error';
 import { newIdempotencyKey } from '@/core/api/idempotency';
-import type { FareOption, PaymentMethod, RideQuote } from '@/infrastructure/interfaces/trips';
+import type { FareOption, RideQuote } from '@/infrastructure/interfaces/trips';
 import { invalidateCorporateEligibility, useCorporateEligibility } from '@/presentation/hooks/useCorporateEligibility';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { getApiErrorMessage } from '@/presentation/utils/api-error-message';
@@ -14,6 +14,7 @@ import { handleExpiredSession } from '@/presentation/utils/expired-session';
 import { handleIncompleteProfile } from '@/presentation/utils/incomplete-profile';
 import { openCheckout } from '@/presentation/utils/open-checkout';
 import { appAlert } from '@/presentation/utils/app-alert';
+import { toPaymentMethod, toPaymentOption, type PaymentOption } from '@/presentation/utils/payment-options';
 
 interface UseConfirmRideOptions {
   quote: RideQuote | null;
@@ -26,7 +27,9 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
   const preferredPaymentMethod = useTripStore((state) => state.preferredPaymentMethod);
   // Arranca en el medio preferido (p. ej. "Viaje corporativo" del Home) o en
   // Mercado Pago, como antes de que existiera esa preferencia.
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(preferredPaymentMethod ?? 'account_money');
+  const [paymentOption, setPaymentOption] = useState<PaymentOption>(() => toPaymentOption(preferredPaymentMethod));
+  // Lo que viaja al backend: "Tarjeta" y "Mercado Pago" son el mismo `account_money`.
+  const paymentMethod = toPaymentMethod(paymentOption);
   const [requirePin, setRequirePin] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
@@ -44,7 +47,7 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
 
   useEffect(() => {
     if (!isCorporateEligibilityLoading && paymentMethod === 'corporate' && !canUseCorporate) {
-      setPaymentMethod('account_money');
+      setPaymentOption('mercado_pago');
     }
   }, [isCorporateEligibilityLoading, canUseCorporate, paymentMethod]);
 
@@ -169,7 +172,7 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
           // descarta el cache: el limite, el estado de la empresa o el
           // centro de costo cambiaron y la proxima consulta tiene que
           // traerlos de nuevo en vez de repetir lo que ya sabemos que esta mal.
-          setPaymentMethod('account_money');
+          setPaymentOption('mercado_pago');
           invalidateCorporateEligibility();
           appAlert('No pudimos cobrar con tu cuenta corporativa', corporateMessage, [{ text: 'Entendido' }]);
           return;
@@ -184,5 +187,5 @@ export function useConfirmRide({ quote, selectedFare, onQuoteExpired }: UseConfi
     }
   };
 
-  return { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming };
+  return { paymentOption, setPaymentOption, requirePin, setRequirePin, confirm, isConfirming };
 }

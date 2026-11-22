@@ -23,7 +23,6 @@ import { MAX_TRIP_STOPS, useTripStore } from '@/presentation/store/useTripStore'
 import { colors } from '@/presentation/theme/colors';
 import {
   exceedsCompanyBalance,
-  getCorporateIneligibilityMessage,
   getCorporateRemainingMessage,
 } from '@/presentation/utils/corporate-eligibility-copy';
 
@@ -45,7 +44,7 @@ export function PricingScreen() {
   const clearGuestPassenger = useTripStore((state) => state.clearGuestPassenger);
 
   const { quote, selectedFare, selectFare, isLoading, error, retry, hasTrip, isRateLimited, isStale, toast } = useRideQuote();
-  const { paymentMethod, setPaymentMethod, requirePin, setRequirePin, confirm, isConfirming } = useConfirmRide({
+  const { paymentOption, setPaymentOption, requirePin, setRequirePin, confirm, isConfirming } = useConfirmRide({
     // Una cotizacion vieja no se confirma: su borrador es del viaje anterior.
     quote: isStale ? null : quote,
     selectedFare: isStale ? null : selectedFare,
@@ -58,15 +57,14 @@ export function PricingScreen() {
   const fareExceedsCompanyBalance =
     corporateMembership && selectedFare ? exceedsCompanyBalance(corporateMembership, selectedFare.totalAmount) : false;
 
-  const corporateOption: CorporatePaymentOption | null = corporateMembership
+  // "Corporativo" solo aparece si el pasajero puede viajar a cuenta de su
+  // empresa. Si puede pero esta tarifa supera el saldo, se ve deshabilitada
+  // y al tocarla explica por que.
+  const corporateOption: CorporatePaymentOption | null = corporateMembership?.canRideOnAccount
     ? {
-        label: `Corporativo · ${corporateMembership.company.tradeName ?? corporateMembership.company.legalName}`,
-        enabled: corporateMembership.canRideOnAccount && !fareExceedsCompanyBalance,
-        disabledReason: !corporateMembership.canRideOnAccount
-          ? getCorporateIneligibilityMessage(corporateMembership)
-          : fareExceedsCompanyBalance
-            ? 'El saldo de tu empresa no alcanza para este viaje.'
-            : undefined,
+        companyName: corporateMembership.company.tradeName ?? corporateMembership.company.legalName,
+        enabled: !fareExceedsCompanyBalance,
+        disabledReason: fareExceedsCompanyBalance ? 'El saldo de tu empresa no alcanza para este viaje.' : undefined,
         remainingMessage: getCorporateRemainingMessage(corporateMembership),
       }
     : null;
@@ -220,10 +218,10 @@ export function PricingScreen() {
             />
 
             <PaymentMethodPills
-              value={paymentMethod}
+              value={paymentOption}
               disabled={isConfirming || isStale}
               corporateOption={corporateOption}
-              onChange={setPaymentMethod}
+              onChange={setPaymentOption}
             />
 
             <BoardingPinToggle value={requirePin} disabled={isConfirming || isStale} onChange={setRequirePin} />
