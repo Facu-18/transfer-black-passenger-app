@@ -205,7 +205,8 @@ export function ActiveTripScreen() {
   useEffect(() => {
     if (!tripId) return undefined;
 
-    void tripResumeAttemptStorage.set(tripId);
+    // `ensure`: si la restauracion ya anoto este intento, no se cuenta dos veces.
+    void tripResumeAttemptStorage.ensure(tripId);
     const stableTimer = setTimeout(() => {
       void tripResumeAttemptStorage.clear();
     }, RESUME_ATTEMPT_STABLE_MS);
