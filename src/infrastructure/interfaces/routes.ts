@@ -1,5 +1,5 @@
-// Ruta estimada del chofer en movimiento (no hay proveedor de rutas para esto,
-// solo para la cotizacion ya hecha): ver `useDriverEta`.
+// Ruta del chofer en movimiento (la calcula el backend, `GET /rides/{tripId}/driver-route`):
+// ver `useDriverEta`.
 
 import type { Coordinates } from './places';
 

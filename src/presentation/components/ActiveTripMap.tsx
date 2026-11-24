@@ -5,11 +5,14 @@ import MapView, { Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { colors } from '@/presentation/theme/colors';
 import { darkMapStyle } from '@/presentation/theme/map-style';
-import { trimRouteAhead } from '@/presentation/utils/geo';
+import { distanceMeters, trimRouteAhead } from '@/presentation/utils/geo';
 
 import { DriverCarMarker } from './DriverCarMarker';
 import { StopMarkerBadge } from './StopMarkerBadge';
 import { ViewMarker } from './ViewMarker';
+
+/** A esta distancia de la ruta, el auto se dibuja sobre la linea. */
+const SNAP_TO_ROUTE_METERS = 40;
 
 /** Zoom del radar: unas pocas cuadras alrededor del punto de partida. */
 const SEARCH_ZOOM = 15.5;
@@ -143,6 +146,16 @@ export function ActiveTripMap({
     return trimmed.points;
   }, [routePoints, driverLatitude, driverLongitude]);
 
+  // El GPS del chofer oscila unos metros a los costados de la calle: si esta
+  // cerca de la ruta, el auto se dibuja sobre ella (el primer punto de la ruta
+  // recortada es su proyeccion), asi no se ve "afuera" de la linea.
+  const carCoordinate = useMemo(() => {
+    if (!driver) return null;
+    const projected = visibleRoute.length > 1 ? visibleRoute[0] : undefined;
+    if (projected && distanceMeters(driver.coordinate, projected) <= SNAP_TO_ROUTE_METERS) return projected;
+    return driver.coordinate;
+  }, [driver, visibleRoute]);
+
   return (
     <MapView
       ref={mapRef}
@@ -199,9 +212,7 @@ export function ActiveTripMap({
         tiempo que `onMapReady`, y sin esta condicion el Marker se montaba
         sin esperarlo.
       */}
-      {mapReady && mode === 'tracking' && driver ? (
-        <DriverCarMarker coordinate={driver.coordinate} />
-      ) : null}
+      {mapReady && mode === 'tracking' && carCoordinate ? <DriverCarMarker coordinate={carCoordinate} /> : null}
     </MapView>
   );
 }

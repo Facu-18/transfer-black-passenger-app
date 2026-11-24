@@ -129,7 +129,7 @@ export function ActiveTripScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [onBoard, trip?.id, trip?.routePoints.length],
   );
-  const eta = useDriverEta(driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard, quotedRoute);
+  const eta = useDriverEta(tripId, driverLocation?.coordinates ?? null, target, view === 'enRoute' || onBoard, quotedRoute);
   // Dynamic Island / pantalla bloqueada (iOS) y notificacion en curso (Android).
   useLiveTripTracking(trip, eta.minutes);
 
