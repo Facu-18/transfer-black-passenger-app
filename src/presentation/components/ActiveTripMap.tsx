@@ -20,6 +20,9 @@ const SEARCH_ZOOM = 15.5;
 /** Zoom al centrar el mapa en el destino a pedido del pasajero. */
 const FOCUS_ZOOM = 16;
 
+/** Si `onMapLoaded` no llega (por ejemplo, sin red para las teselas), la camara se mueve igual. */
+const CAMERA_READY_FALLBACK_MS = 1500;
+
 /**
  * Centro de Cordoba: si al retomar un viaje activo (la app se cerro y se
  * reabrio) todavia no llego el origen/destino ni la ubicacion del usuario,
@@ -83,18 +86,29 @@ export function ActiveTripMap({
   // al cambiar de estado el viaje, porque cambia la altura del panel. Ni el
   // padding ni la camara se tocan hasta `onMapReady`.
   const [mapReady, setMapReady] = useState(false);
+  // `onMapReady` llega antes de que el mapa tenga tamaño: un `fitToCoordinates`
+  // en ese momento se pierde sin error. Al retomar un viaje a bordo la ruta
+  // cotizada ya esta y no cambia mas, asi que el mapa quedaba en la camara
+  // inicial sin encuadrar nunca la ruta. El encuadre automatico espera a
+  // `onMapLoaded` (mapa ya dibujado), con un respaldo por si no llega.
+  const [cameraReady, setCameraReady] = useState(false);
+  useEffect(() => {
+    if (!mapReady || cameraReady) return undefined;
+    const fallback = setTimeout(() => setCameraReady(true), CAMERA_READY_FALLBACK_MS);
+    return () => clearTimeout(fallback);
+  }, [mapReady, cameraReady]);
 
   // Radar: el origen en el centro del area visible.
   useEffect(() => {
-    if (!mapReady || mode !== 'searching' || !target) return;
+    if (!cameraReady || mode !== 'searching' || !target) return;
     mapRef.current?.animateCamera({ center: target, zoom: SEARCH_ZOOM }, { duration: 600 });
-  }, [mapReady, mode, target, bottomInset]);
+  }, [cameraReady, mode, target, bottomInset]);
 
   // Seguimiento: auto y destino a la vista. Solo al aparecer el auto, al cambiar
   // el destino y al recalcularse la ruta; no en cada posicion, porque entonces
   // el mapa no se dejaria mover.
   useEffect(() => {
-    if (!mapReady || mode !== 'tracking' || !target) return;
+    if (!cameraReady || mode !== 'tracking' || !target) return;
 
     const coordinates = routePoints.length > 1 ? routePoints : driver ? [driver.coordinate, target] : [target];
 
@@ -108,7 +122,7 @@ export function ActiveTripMap({
       animated: true,
     });
     // `driver` cambia cada 3 s: solo interesa si hay auto, no donde esta.
-  }, [mapReady, mode, target, routePoints, hasDriver, bottomInset]);
+  }, [cameraReady, mode, target, routePoints, hasDriver, bottomInset]);
 
   // Centrar en un punto a pedido (boton "Destino"). Solo reacciona al contador:
   // si `focusPoint` cambia solo, el mapa no se mueve. Mismo guard `mapReady`
@@ -165,6 +179,7 @@ export function ActiveTripMap({
       userInterfaceStyle="dark"
       mapPadding={mapReady ? { top: topInset, right: 0, bottom: bottomInset, left: 0 } : undefined}
       onMapReady={() => setMapReady(true)}
+      onMapLoaded={() => setCameraReady(true)}
       initialCamera={{ center: target ?? DEFAULT_CENTER, zoom: SEARCH_ZOOM, heading: 0, pitch: 0 }}
       scrollEnabled={!locked}
       zoomEnabled={!locked}
