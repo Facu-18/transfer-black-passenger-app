@@ -1,5 +1,7 @@
 import { Text, type TextProps } from 'react-native';
 
+import { MAX_FONT_SCALE } from '@/presentation/theme/font-scale';
+
 type TypographyWeight = 'regular' | 'medium' | 'semibold' | 'bold';
 /** `inverse` es para texto sobre superficies gold o platinum; `danger`, para mensajes de error. */
 type TypographyTone = 'primary' | 'secondary' | 'accent' | 'inverse' | 'danger';
@@ -51,10 +53,13 @@ export function Typography({
   weight,
   tone = 'primary',
   className,
+  maxFontSizeMultiplier = MAX_FONT_SCALE,
   ...props
 }: TypographyProps) {
   const { size, weight: defaultWeight } = VARIANTS[variant];
   const classes = [size, WEIGHT_CLASSES[weight ?? defaultWeight], TONE_CLASSES[tone], className];
 
-  return <Text className={classes.filter(Boolean).join(' ')} {...props} />;
+  return (
+    <Text className={classes.filter(Boolean).join(' ')} maxFontSizeMultiplier={maxFontSizeMultiplier} {...props} />
+  );
 }
