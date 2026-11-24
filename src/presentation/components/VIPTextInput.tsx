@@ -5,6 +5,7 @@ import { Pressable, TextInput, View, type TextInputProps } from 'react-native';
 import { colors } from '@/presentation/theme/colors';
 
 import { Typography } from './Typography';
+import { MAX_FONT_SCALE } from '@/presentation/theme/font-scale';
 
 interface VIPTextInputProps extends TextInputProps {
   label: string;
@@ -50,6 +51,7 @@ export function VIPTextInput({
           </View>
         ) : null}
         <TextInput
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           className="flex-1 font-regular text-sm text-platinum"
           placeholderTextColor={colors.ash}
           selectionColor={colors.gold}

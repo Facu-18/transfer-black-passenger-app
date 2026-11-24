@@ -9,6 +9,7 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { stopField, usePlanTrip, type TripField } from '@/presentation/hooks/usePlanTrip';
 import { colors } from '@/presentation/theme/colors';
+import { MAX_FONT_SCALE } from '@/presentation/theme/font-scale';
 
 /** Un nombre largo como placeholder ocupa dos lineas y queda cortado en el campo de una linea. */
 function shortPlaceholder(text: string, max = 32): string {
@@ -51,6 +52,7 @@ function TripInput({
     <View className={`h-12 flex-row items-center gap-2 rounded-xl border bg-surface px-3 ${active ? 'border-gold' : 'border-transparent'}`}>
       <TextInput
         ref={inputRef}
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
         className="flex-1 font-semibold text-base text-platinum"
         value={value}
         placeholder={placeholder}

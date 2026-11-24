@@ -20,6 +20,7 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useTripChat } from '@/presentation/hooks/useTripChat';
 import { colors } from '@/presentation/theme/colors';
+import { MAX_FONT_SCALE } from '@/presentation/theme/font-scale';
 
 const MAX_MESSAGE_LENGTH = 1000;
 
@@ -229,6 +230,7 @@ export function TripChatScreen() {
           >
             <View className="max-h-28 flex-1 justify-center rounded-2xl border border-charcoal bg-field px-4 py-2.5">
               <TextInput
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
                 value={composerText}
                 onChangeText={setComposerText}
                 placeholder={composerPlaceholder}
