@@ -2,7 +2,6 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-rou
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, BackHandler, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Coordinates } from '@/infrastructure/interfaces/places';
 import { FINISHED_TRIP_STATUSES, type Trip, type TripStatus } from '@/infrastructure/interfaces/trips';
@@ -10,7 +9,7 @@ import { tripResumeAttemptStorage } from '@/infrastructure/storage/trip-resume-a
 import { ActiveTripMap } from '@/presentation/components/ActiveTripMap';
 import { BoardingPinCard } from '@/presentation/components/BoardingPinCard';
 import { CollapsibleTripPanel } from '@/presentation/components/CollapsibleTripPanel';
-import { CoordinatorBanner } from '@/presentation/components/CoordinatorBanner';
+import { CoordinatorBanner, ShareTrackingButton } from '@/presentation/components/CoordinatorBanner';
 import { DriverEnRoutePanel } from '@/presentation/components/DriverEnRoutePanel';
 import { OnBoardPanel } from '@/presentation/components/OnBoardPanel';
 import { OnBoardTopBar } from '@/presentation/components/OnBoardTopBar';
@@ -25,6 +24,7 @@ import { useDriverEta } from '@/presentation/hooks/useDriverEta';
 import { useLiveTripTracking } from '@/presentation/hooks/useLiveTripTracking';
 import { useResumeCheckout } from '@/presentation/hooks/useResumeCheckout';
 import { useTripStore } from '@/presentation/store/useTripStore';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 /** Alto estimado del panel hasta que se mide: evita un encuadre raro en el primer frame. */
 const INITIAL_PANEL_HEIGHT = 360;
@@ -102,7 +102,7 @@ function useStableCoordinates(source: Coordinates | null): Coordinates | null {
 export function ActiveTripScreen() {
   const { tripId: tripIdParam } = useLocalSearchParams<{ tripId?: string }>();
   const tripId = tripIdParam ?? null;
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
 
   const { trip, driverLocation, connection, error, refresh } = useActiveTrip(tripId);
   const { requestCancel, isCancelling } = useCancelTrip(tripId, { onRefresh: () => void refresh() });
@@ -286,15 +286,20 @@ export function ActiveTripScreen() {
             <BoardingPinCard pin={trip.boardingPin!} />
           </View>
         ) : null}
-        {trip?.thirdParty && !isFinished ? (
-          <CoordinatorBanner
+        {trip?.thirdParty && !isFinished ? <CoordinatorBanner guestName={trip.thirdParty.name} /> : null}
+        <ReconnectingBanner visible={connection === 'reconnecting' && !isFinished} />
+      </View>
+
+      {/* Seguimiento para el invitado: bien a la vista, justo encima del panel del viaje. */}
+      {trip?.thirdParty && !isFinished && trip.trackingUrl ? (
+        <View className="absolute left-0 right-0 px-5" style={{ bottom: panelHeight + 12 }} pointerEvents="box-none">
+          <ShareTrackingButton
             guestName={trip.thirdParty.name}
             trackingUrl={trip.trackingUrl}
             guestPhoneE164={trip.thirdParty.phoneE164}
           />
-        ) : null}
-        <ReconnectingBanner visible={connection === 'reconnecting' && !isFinished} />
-      </View>
+        </View>
+      ) : null}
 
       <CollapsibleTripPanel
         summary={describePeekSummary(view, trip, eta.minutes)}

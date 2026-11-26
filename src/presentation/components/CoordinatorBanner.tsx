@@ -37,32 +37,48 @@ async function shareTracking(phoneE164: string, message: string): Promise<void> 
 
 /**
  * Cuando el viaje es para un invitado, le recuerda al titular que es quien
- * coordina y le deja mandar el link de seguimiento por WhatsApp. No hay chat
- * (ticket aparte): el titular avisa por fuera de la app.
+ * coordina. El envio del seguimiento va aparte (`ShareTrackingButton`), bien
+ * a la vista encima del panel del viaje.
  */
-export function CoordinatorBanner({ guestName, trackingUrl, guestPhoneE164 }: CoordinatorBannerProps) {
+export function CoordinatorBanner({ guestName }: Pick<CoordinatorBannerProps, 'guestName'>) {
   return (
-    <View className="gap-2">
-      <View className="flex-row items-center gap-2 self-start rounded-full border border-gold/40 bg-obsidian/80 px-3 py-1.5">
-        <View className="h-1.5 w-1.5 rounded-full bg-gold" />
-        <Typography variant="caption" weight="semibold" numberOfLines={1}>
-          Sos el coordinador · viaja {guestName}
+    <View className="flex-row items-center gap-2 self-start rounded-full border border-gold/40 bg-obsidian/80 px-3 py-1.5">
+      <View className="h-1.5 w-1.5 rounded-full bg-gold" />
+      <Typography variant="caption" weight="semibold" numberOfLines={1}>
+        Sos el coordinador · viaja {guestName}
+      </Typography>
+    </View>
+  );
+}
+
+/**
+ * Boton principal para mandarle al invitado el link de seguimiento por
+ * WhatsApp. No hay chat con el invitado (ticket aparte): el titular avisa por
+ * fuera de la app. Sin `trackingUrl` (backend viejo) no se muestra.
+ */
+export function ShareTrackingButton({ guestName, trackingUrl, guestPhoneE164 }: CoordinatorBannerProps) {
+  if (!trackingUrl) return null;
+  const firstName = guestName.split(' ')[0] || guestName;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Enviar el seguimiento del viaje a ${guestName} por WhatsApp`}
+      onPress={() => void shareTracking(guestPhoneE164, buildTrackingMessage(guestName, trackingUrl))}
+      className="flex-row items-center gap-3 rounded-2xl bg-gold px-4 py-3.5 active:opacity-80"
+      style={{ boxShadow: `0px 6px 20px ${colors.gold}66` }}
+    >
+      <View className="h-10 w-10 items-center justify-center rounded-full bg-obsidian">
+        <MessageCircle size={20} color={colors.gold} />
+      </View>
+      <View className="flex-1">
+        <Typography weight="bold" tone="inverse" numberOfLines={1}>
+          Enviar seguimiento a {firstName}
+        </Typography>
+        <Typography variant="caption" tone="inverse" numberOfLines={1}>
+          Por WhatsApp, para que vea el viaje en vivo
         </Typography>
       </View>
-
-      {trackingUrl ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Enviar seguimiento por WhatsApp"
-          onPress={() => void shareTracking(guestPhoneE164, buildTrackingMessage(guestName, trackingUrl))}
-          className="flex-row items-center justify-center gap-2 self-start rounded-full bg-gold px-4 py-2 active:opacity-80"
-        >
-          <MessageCircle size={16} color={colors.obsidian} />
-          <Typography variant="caption" weight="bold" tone="inverse">
-            Enviar seguimiento por WhatsApp
-          </Typography>
-        </Pressable>
-      ) : null}
-    </View>
+    </Pressable>
   );
 }
