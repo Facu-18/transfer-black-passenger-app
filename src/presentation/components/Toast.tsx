@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { AccessibilityInfo, Platform, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Typography } from '@/presentation/components/Typography';
 import type { ToastState } from '@/presentation/hooks/useToast';
 import { useMotionEnabled } from '@/presentation/hooks/useMotionEnabled';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 interface ToastProps {
   toast: ToastState | null;
@@ -18,7 +18,7 @@ interface ToastProps {
  * anuncia a los lectores de pantalla. Los tiempos los maneja `useToast`.
  */
 export function Toast({ toast, bottomOffset = 16 }: ToastProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const motionEnabled = useMotionEnabled();
 
   // `accessibilityLiveRegion` no existe en iOS: ahi se anuncia a mano.

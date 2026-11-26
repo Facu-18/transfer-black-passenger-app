@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 interface ScreenProps {
   children: ReactNode;
@@ -11,7 +11,7 @@ interface ScreenProps {
 
 /** Contenedor de pantalla: fondo obsidian y márgenes seguros (notch, barra de gestos). */
 export function Screen({ children, scrollable = false, contentClassName = '' }: ScreenProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const safeArea = { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 };
 
   if (!scrollable) {

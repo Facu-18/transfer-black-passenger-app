@@ -3,7 +3,6 @@ import { ChevronLeft, MessageCircle } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FINISHED_TRIP_STATUSES, type RefundClaimStatus, type TripStatus } from '@/infrastructure/interfaces/trips';
 import { PlatePill } from '@/presentation/components/PlatePill';
@@ -21,6 +20,7 @@ import { CANCELLATION_REASON_LABELS } from '@/presentation/utils/cancellation-co
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
 import { contactWhatsAppRefundClaim } from '@/presentation/utils/refund-claim-whatsapp';
 import { contactWhatsAppToCancelReservation } from '@/presentation/utils/whatsapp-services';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 const STATUS_LABELS: Record<TripStatus, string> = {
   draft: 'Confirmando pago',
@@ -95,7 +95,7 @@ function StatusBadge({ status }: { status: TripStatus }) {
 export function TripDetailScreen() {
   const { tripId: tripIdParam } = useLocalSearchParams<{ tripId?: string }>();
   const tripId = tripIdParam ?? null;
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
 
   const { trip, isLoading, error, notFound, retry } = useTripDetail(tripId);
   const { requestCancel: requestCancelReservation, isCancelling: isCancellingReservation, needsAgencyContact } =

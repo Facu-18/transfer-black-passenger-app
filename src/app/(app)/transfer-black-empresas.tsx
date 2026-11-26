@@ -11,13 +11,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CorporateMembershipSection } from '@/presentation/components/CorporateMembershipSection';
 import { Screen } from '@/presentation/components/Screen';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useCorporateMembership } from '@/presentation/hooks/useCorporateMembership';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 import { colors } from '@/presentation/theme/colors';
 import { contactWhatsAppCompanyRegistration } from '@/presentation/utils/whatsapp-services';
 
@@ -36,6 +36,7 @@ export default function TransferBlackEmpresasRoute() {
   const [isActivationOpen, setIsActivationOpen] = useState(false);
   const { width: screenWidth } = useWindowDimensions();
   const corporateMembership = useCorporateMembership();
+  const insets = useSafeInsets();
 
   return (
     <>
@@ -112,7 +113,7 @@ export default function TransferBlackEmpresasRoute() {
           className="flex-1 justify-end bg-black/70"
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <SafeAreaView edges={['bottom']} className="max-h-[88%] rounded-t-[32px] border-t border-charcoal bg-obsidian">
+          <View className="max-h-[88%] rounded-t-[32px] border-t border-charcoal bg-obsidian" style={{ paddingBottom: insets.bottom }}>
             <View className="flex-row items-center justify-between border-b border-charcoal px-6 py-5">
               <View className="flex-1 gap-1">
                 <Typography variant="h3">Activar perfil empresa</Typography>
@@ -142,7 +143,7 @@ export default function TransferBlackEmpresasRoute() {
                 onRetry={() => void corporateMembership.retry()}
               />
             </ScrollView>
-          </SafeAreaView>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </>

@@ -2,7 +2,6 @@ import { Redirect, router } from 'expo-router';
 import { ArrowRight, ChevronLeft, Pencil, Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GuestPassengerChip } from '@/presentation/components/GuestPassengerChip';
 import { BoardingPinToggle } from '@/presentation/components/BoardingPinToggle';
@@ -21,6 +20,7 @@ import { useRideQuote } from '@/presentation/hooks/useRideQuote';
 import { stopField } from '@/presentation/hooks/usePlanTrip';
 import { MAX_TRIP_STOPS, useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 import {
   exceedsCompanyBalance,
   getCorporateRemainingMessage,
@@ -32,7 +32,7 @@ const INITIAL_PANEL_HEIGHT = 400;
 const TOP_BAR_SPACE = 72;
 
 export function PricingScreen() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const { height: windowHeight } = useWindowDimensions();
   const origin = useTripStore((state) => state.origin);
   const destination = useTripStore((state) => state.destinationLocation);

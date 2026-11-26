@@ -2,13 +2,13 @@ import type { Tabs } from 'expo-router';
 import { CarFront, History, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useEffect, useState, type ComponentProps } from 'react';
 import { Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { cancelAnimation, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { colors } from '@/presentation/theme/colors';
 import { useMotionEnabled } from '@/presentation/hooks/useMotionEnabled';
 
 import { Typography } from './Typography';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
@@ -20,7 +20,7 @@ const TAB_ICONS: Record<string, LucideIcon> = {
 
 /** Barra inferior flotante (píldora) del diseño, en lugar de la barra estándar de React Navigation. */
 export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const motionEnabled = useMotionEnabled();
   const [barWidth, setBarWidth] = useState(0);
   const selectedIndex = useSharedValue(state.index);
