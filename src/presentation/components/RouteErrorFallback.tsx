@@ -1,12 +1,12 @@
 import { TriangleAlert } from 'lucide-react-native';
 import { View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/presentation/theme/colors';
 
 import { SecondaryButton } from './SecondaryButton';
 import { Typography } from './Typography';
 import { VIPButton } from './VIPButton';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 interface RouteErrorFallbackProps {
   /** Reintenta la misma pantalla, re-montando el componente que tiro el error. */
@@ -21,7 +21,7 @@ interface RouteErrorFallbackProps {
  * pantalla tira abajo toda la app en un build de release.
  */
 export function RouteErrorFallback({ onRetry, onGoHome }: RouteErrorFallbackProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
 
   return (
     <View

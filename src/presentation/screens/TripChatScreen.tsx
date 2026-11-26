@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ChatMessage } from '@/infrastructure/interfaces/chat';
 import type { TripStatus } from '@/infrastructure/interfaces/trips';
@@ -21,6 +20,7 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { useTripChat } from '@/presentation/hooks/useTripChat';
 import { colors } from '@/presentation/theme/colors';
 import { MAX_FONT_SCALE } from '@/presentation/theme/font-scale';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 const MAX_MESSAGE_LENGTH = 1000;
 
@@ -45,7 +45,7 @@ function ChatHeader({
   statusLabel: string | null;
   onBack: () => void;
 }) {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
 
   return (
     <View
@@ -95,7 +95,7 @@ function Banner({ text }: { text: string }) {
 export function TripChatScreen() {
   const { tripId: tripIdParam } = useLocalSearchParams<{ tripId?: string }>();
   const tripId = tripIdParam ?? null;
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
 
   const {
     driver,

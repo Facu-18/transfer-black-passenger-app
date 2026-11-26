@@ -2,7 +2,6 @@ import { BriefcaseBusiness, ChevronRight, CircleHelp, FileText, ShieldCheck, Tra
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 
 import { logoutAction } from '@/core/actions/logout.action';
@@ -20,6 +19,7 @@ import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { PRIVACY_URL, TERMS_URL } from '@/presentation/utils/legal-links';
 import { contactWhatsAppHelp } from '@/presentation/utils/whatsapp-services';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 const LOGO = require('../../../../assets/splash-icon.png');
 
@@ -72,7 +72,7 @@ function DestructiveAccountAction({ title, description, icon: Icon, onPress }: A
 }
 
 export default function AccountRoute() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const user = useAuthStore((state) => state.user);

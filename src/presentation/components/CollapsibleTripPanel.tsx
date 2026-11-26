@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -11,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useMotionEnabled } from '@/presentation/hooks/useMotionEnabled';
+import { colors } from '@/presentation/theme/colors';
 
 import { Typography } from './Typography';
 
@@ -82,7 +84,10 @@ export function CollapsibleTripPanel({
     <Animated.View
       layout={motionEnabled ? LinearTransition.damping(18).stiffness(180) : undefined}
       onLayout={(event: LayoutChangeEvent) => onHeightChange(event.nativeEvent.layout.height)}
-      className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-charcoal bg-obsidian px-5 pt-3"
+      // Borde gold y sombra hacia arriba: el panel se despega del mapa y se
+      // entiende que es una hoja aparte que se puede bajar.
+      className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-x border-t-2 border-gold/50 bg-obsidian px-5 pt-2"
+      style={{ boxShadow: `0px -10px 28px ${colors.obsidian}, 0px -2px 14px ${colors.gold}33` }}
     >
       <GestureDetector gesture={pan}>
         <Animated.View style={dragStyle}>
@@ -90,11 +95,18 @@ export function CollapsibleTripPanel({
             accessibilityRole="button"
             accessibilityLabel="Mostrar u ocultar detalles del viaje"
             onPress={toggle}
-            className="items-center gap-2 pb-3"
+            hitSlop={{ top: 12, bottom: 4 }}
+            className="items-center gap-1.5 pb-3 pt-1"
           >
-            <View className="h-1 w-10 rounded-full bg-charcoal" />
+            <View className="h-1.5 w-14 rounded-full bg-gold" />
+            <View className="flex-row items-center gap-1">
+              {expanded ? <ChevronDown size={14} color={colors.gold} /> : <ChevronUp size={14} color={colors.gold} />}
+              <Typography variant="caption" weight="semibold" tone="accent">
+                {expanded ? 'Deslizá para ocultar' : 'Deslizá para ver el detalle'}
+              </Typography>
+            </View>
             {!expanded ? (
-              <Typography variant="caption" weight="medium" tone="secondary" numberOfLines={1}>
+              <Typography weight="semibold" numberOfLines={1}>
                 {summary}
               </Typography>
             ) : null}

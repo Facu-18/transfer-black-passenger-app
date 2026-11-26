@@ -13,7 +13,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Place } from '@/infrastructure/interfaces/places';
 import { GlassSurface } from '@/presentation/components/GlassSurface';
@@ -34,6 +33,7 @@ import { colors } from '@/presentation/theme/colors';
 import { getCorporateIneligibilityMessage } from '@/presentation/utils/corporate-eligibility-copy';
 import { darkMapStyle } from '@/presentation/theme/map-style';
 import { appAlert } from '@/presentation/utils/app-alert';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 /** Centro de Córdoba: se muestra hasta tener la ubicación del usuario (o si no la comparte). */
 const DEFAULT_REGION = { latitude: -31.4201, longitude: -64.1888, latitudeDelta: 0.05, longitudeDelta: 0.05 };
@@ -52,7 +52,7 @@ const GPS_LABELS: Record<LocationStatus, string> = {
 const SHEET_OVERLAP = 24;
 
 export function HomeScreen() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const { height } = useWindowDimensions();
   const mapRef = useRef<MapView>(null);
   // En Android, `mapPadding` antes de `onMapReady` cierra la app.

@@ -3,7 +3,6 @@ import { ChevronLeft, MapPin, RefreshCw } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SecondaryButton } from '@/presentation/components/SecondaryButton';
 import { Typography } from '@/presentation/components/Typography';
@@ -11,6 +10,7 @@ import { VIPButton } from '@/presentation/components/VIPButton';
 import { useMapDestinationPicker } from '@/presentation/hooks/useMapDestinationPicker';
 import { colors } from '@/presentation/theme/colors';
 import { darkMapStyle } from '@/presentation/theme/map-style';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 const MAP_ZOOM = 16;
 const PIN_SIZE = 44;
@@ -25,7 +25,7 @@ const PIN_SIZE = 44;
  * la vista (la tarjeta inferior solo lo tapa si la pantalla es muy baja).
  */
 export function MapDestinationScreen() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const picker = useMapDestinationPicker();
   // Alto de la tarjeta de abajo: el mapa termina donde empieza, asi el logo de
   // Google queda a la vista (es obligatorio) y el puntero marca su centro real.

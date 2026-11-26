@@ -2,7 +2,6 @@ import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-rou
 import { Check, ChevronRight, Download, MessageCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { RatingTag, Trip } from '@/infrastructure/interfaces/trips';
 import { RatingStars } from '@/presentation/components/RatingStars';
@@ -17,6 +16,7 @@ import { useTripReceipt } from '@/presentation/hooks/useTripReceipt';
 import { useTripStore } from '@/presentation/store/useTripStore';
 import { colors } from '@/presentation/theme/colors';
 import { PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/presentation/utils/payment-labels';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 /** Tiempo que se ve el agradecimiento antes de volver al Home. */
 const THANKS_DELAY_MS = 1400;
@@ -136,7 +136,7 @@ function ReceiptCard({ trip }: { trip: Trip }) {
 export function ReceiptScreen() {
   const { tripId: tripIdParam } = useLocalSearchParams<{ tripId?: string }>();
   const tripId = tripIdParam ?? null;
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
 
   const { trip, isLoading, error, retry } = useTripReceipt(tripId);
   const resetTrip = useTripStore((state) => state.resetTrip);

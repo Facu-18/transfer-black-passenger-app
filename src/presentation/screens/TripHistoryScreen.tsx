@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { Ban, CalendarClock, CarFront, CheckCircle2, ListFilter, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { TripHistoryFilter, TripHistoryItem } from '@/infrastructure/interfaces/trips';
 import { FINISHED_TRIP_STATUSES } from '@/infrastructure/interfaces/trips';
@@ -12,6 +11,7 @@ import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { useTripHistory } from '@/presentation/hooks/useTripHistory';
 import { colors } from '@/presentation/theme/colors';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 /** Espacio que ocupa la barra de navegación flotante sobre el contenido, igual que en el Home. */
 const TAB_BAR_SPACE = 112;
@@ -92,7 +92,7 @@ function EmptyState({ filter }: { filter: TripHistoryFilter }) {
 
 /** Historial de viajes: filtros, scroll infinito, pull to refresh y estado vacío. */
 export function TripHistoryScreen() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const { items, filter, setFilter, isLoading, isLoadingMore, isRefreshing, error, loadMore, refresh, retry } =
     useTripHistory();
 
