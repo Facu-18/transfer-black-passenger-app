@@ -51,6 +51,12 @@ interface TripState {
    * orden de paradas y destino.
    */
   swapStopWithNext: (index: number) => void;
+  /**
+   * Mueve un punto del recorrido de `from` a `to`, contando las paradas y al
+   * final el destino (`stops.length` es el destino). Lo que queda ultimo pasa
+   * a ser el destino. Es lo que hace arrastrar un punto arriba de otro.
+   */
+  moveTripPoint: (from: number, to: number) => void;
   setGuestPassenger: (guest: GuestPassenger) => void;
   clearGuestPassenger: () => void;
   setPreferredPaymentMethod: (method: PaymentMethod | null) => void;
@@ -105,6 +111,14 @@ export const useTripStore = create<TripState>()((set) => ({
       if (!current) return state;
       stops[index] = state.destinationLocation;
       return { stops, destinationLocation: current };
+    }),
+  moveTripPoint: (from, to) =>
+    set((state) => {
+      const points = [...state.stops, state.destinationLocation];
+      if (from === to || from < 0 || to < 0 || from >= points.length || to >= points.length) return state;
+      const [moved] = points.splice(from, 1);
+      points.splice(to, 0, moved ?? null);
+      return { stops: points.slice(0, -1), destinationLocation: points[points.length - 1] ?? null };
     }),
   setGuestPassenger: (guestPassenger) => set({ guestPassenger }),
   clearGuestPassenger: () => set({ guestPassenger: null }),

@@ -1,15 +1,16 @@
 import { router } from 'expo-router';
-import { ArrowDownUp, ChevronDown, ChevronLeft, Clock, LocateFixed, Map as MapIcon, MapPin, Plus, X } from 'lucide-react-native';
-import { Fragment, type RefObject } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, Clock, LocateFixed, Map as MapIcon, MapPin, Plus, X } from 'lucide-react-native';
+import { Fragment, type ReactNode, type RefObject } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlaceRow } from '@/presentation/components/PlaceRow';
+import { ReorderableList } from '@/presentation/components/ReorderableList';
 import { Typography } from '@/presentation/components/Typography';
 import { VIPButton } from '@/presentation/components/VIPButton';
 import { stopField, usePlanTrip, type TripField } from '@/presentation/hooks/usePlanTrip';
 import { colors } from '@/presentation/theme/colors';
 import { MAX_FONT_SCALE } from '@/presentation/theme/font-scale';
+import { useSafeInsets } from '@/presentation/hooks/useSafeInsets';
 
 /** Un nombre largo como placeholder ocupa dos lineas y queda cortado en el campo de una linea. */
 function shortPlaceholder(text: string, max = 32): string {
@@ -29,8 +30,10 @@ interface TripInputProps {
   onFocus: (field: TripField) => void;
   /** Solo las paradas: quita el campo del recorrido. */
   onRemove?: () => void;
-  /** Solo las paradas con direccion: la intercambia con el punto de abajo. */
-  onSwapDown?: () => void;
+  /** Manija para reordenar arrastrando (paradas y destino con direccion). */
+  handle?: ReactNode;
+  /** Destino o parada activos: atajo a "Elegir en el mapa" dentro del mismo campo. */
+  onPickOnMap?: () => void;
 }
 
 /** Campo del recorrido (origen, parada o destino): borde gold y cursor gold mientras está activo. */
@@ -46,7 +49,8 @@ function TripInput({
   onChangeText,
   onFocus,
   onRemove,
-  onSwapDown,
+  handle,
+  onPickOnMap,
 }: TripInputProps) {
   return (
     <View className={`h-12 flex-row items-center gap-2 rounded-xl border bg-surface px-3 ${active ? 'border-gold' : 'border-transparent'}`}>
@@ -71,17 +75,21 @@ function TripInput({
           {badge}
         </Typography>
       ) : null}
-      {onSwapDown ? (
+      {onPickOnMap && active ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Mover ${accessibilityLabel.toLowerCase()} después del punto siguiente`}
+          accessibilityLabel={`Elegir ${accessibilityLabel.toLowerCase()} en el mapa`}
           hitSlop={8}
-          onPress={onSwapDown}
-          className="h-7 w-7 items-center justify-center rounded-full active:opacity-70"
+          onPress={onPickOnMap}
+          className="h-8 flex-row items-center gap-1 rounded-full bg-gold/15 px-2.5 active:opacity-70"
         >
-          <ArrowDownUp size={16} color={colors.gold} />
+          <MapIcon size={14} color={colors.gold} />
+          <Typography variant="caption" weight="semibold" tone="accent">
+            Mapa
+          </Typography>
         </Pressable>
       ) : null}
+      {handle}
       {onRemove ? (
         <Pressable
           accessibilityRole="button"
@@ -98,7 +106,7 @@ function TripInput({
 }
 
 export function PlanTripScreen() {
-  const insets = useSafeAreaInsets();
+  const insets = useSafeInsets();
   const trip = usePlanTrip();
   const { search, activeField } = trip;
 
@@ -109,6 +117,9 @@ export function PlanTripScreen() {
   // Destino o parada (la reserva no usa este selector: guarda en otro store).
   const showMapPickerOption = (activeField === 'destination' || activeField.startsWith('stop-')) && !trip.isReserveMode;
   const mapPickerTarget = activeField.startsWith('stop-') ? 'la parada' : 'el destino';
+  const openMapPicker = () => router.push({ pathname: '/search-map', params: { field: activeField } });
+  // Con al menos dos puntos con direccion despues del origen, vale la pena contar que se pueden reordenar.
+  const canReorder = trip.stops.length > 0 && [...trip.stops, trip.destination].filter(Boolean).length > 1;
 
   return (
     <View className="flex-1 bg-obsidian" style={{ paddingTop: insets.top + 12 }}>
@@ -191,40 +202,58 @@ export function PlanTripScreen() {
               onChangeText={trip.setOriginQuery}
               onFocus={trip.setActiveField}
             />
-            {trip.stops.map((stop, index) => (
-              <Fragment key={index}>
-                <View className="h-px bg-charcoal" />
-                <TripInput
-                  inputRef={trip.stopInputRefs[index]!}
-                  field={stopField(index)}
-                  active={activeField === stopField(index)}
-                  value={trip.stopQueries[index] ?? ''}
-                  placeholder={shortPlaceholder(stop?.name ?? `Parada ${index + 1}`)}
-                  accessibilityLabel={`Parada ${index + 1}`}
-                  // Una parada recien agregada se monta activa y abre el teclado.
-                  autoFocus={activeField === stopField(index)}
-                  onChangeText={(text) => trip.setStopQuery(index, text)}
-                  onFocus={trip.setActiveField}
-                  onRemove={() => trip.removeStop(index)}
-                  // Solo con direccion, y si abajo hay algo con que intercambiar.
-                  onSwapDown={
-                    stop && (index < trip.stops.length - 1 || trip.destination) ? () => trip.swapStopWithNext(index) : undefined
-                  }
-                />
-              </Fragment>
-            ))}
-            <View className="h-px bg-charcoal" />
-            <TripInput
-              inputRef={trip.destinationInputRef}
-              field="destination"
-              active={activeField === 'destination'}
-              value={trip.destinationQuery}
-              placeholder={shortPlaceholder(trip.destination?.name ?? '¿A dónde vas?')}
-              accessibilityLabel="Destino"
-              // Por defecto el flujo arranca pidiendo el destino.
-              autoFocus={activeField === 'destination'}
-              onChangeText={trip.setDestinationQuery}
-              onFocus={trip.setActiveField}
+            {/* Paradas y destino: con paradas, se reordenan arrastrando la manija. */}
+            <ReorderableList
+              count={trip.stops.length + 1}
+              gap={8}
+              canDrag={(index) => (index < trip.stops.length ? trip.stops[index] !== null : trip.destination !== null)}
+              onMove={trip.movePoint}
+              labelOf={(index) => (index < trip.stops.length ? `Parada ${index + 1}` : 'Destino')}
+              renderRow={(index, handle) => {
+                const isDestination = index === trip.stops.length;
+                if (isDestination) {
+                  return (
+                    <View className="gap-2">
+                      <View className="h-px bg-charcoal" />
+                      <TripInput
+                        inputRef={trip.destinationInputRef}
+                        field="destination"
+                        active={activeField === 'destination'}
+                        value={trip.destinationQuery}
+                        placeholder={shortPlaceholder(trip.destination?.name ?? '¿A dónde vas?')}
+                        accessibilityLabel="Destino"
+                        // Por defecto el flujo arranca pidiendo el destino.
+                        autoFocus={activeField === 'destination'}
+                        onChangeText={trip.setDestinationQuery}
+                        onFocus={trip.setActiveField}
+                        handle={trip.stops.length > 0 ? handle : null}
+                        onPickOnMap={showMapPickerOption ? openMapPicker : undefined}
+                      />
+                    </View>
+                  );
+                }
+                const stop = trip.stops[index] ?? null;
+                return (
+                  <View className="gap-2">
+                    <View className="h-px bg-charcoal" />
+                    <TripInput
+                      inputRef={trip.stopInputRefs[index]!}
+                      field={stopField(index)}
+                      active={activeField === stopField(index)}
+                      value={trip.stopQueries[index] ?? ''}
+                      placeholder={shortPlaceholder(stop?.name ?? `Parada ${index + 1}`)}
+                      accessibilityLabel={`Parada ${index + 1}`}
+                      // Una parada recien agregada se monta activa y abre el teclado.
+                      autoFocus={activeField === stopField(index)}
+                      onChangeText={(text) => trip.setStopQuery(index, text)}
+                      onFocus={trip.setActiveField}
+                      onRemove={() => trip.removeStop(index)}
+                      handle={handle}
+                      onPickOnMap={showMapPickerOption ? openMapPicker : undefined}
+                    />
+                  </View>
+                );
+              }}
             />
           </View>
         </View>
@@ -249,6 +278,12 @@ export function PlanTripScreen() {
               </View>
             ) : null}
           </View>
+        ) : null}
+
+        {canReorder && !search.isActive ? (
+          <Typography variant="caption" tone="secondary">
+            Mantené y arrastrá la manija dorada para cambiar el orden de las paradas.
+          </Typography>
         ) : null}
 
         {trip.hint ? (
@@ -309,15 +344,23 @@ export function PlanTripScreen() {
 
             {/* Solo al pedir un viaje: la reserva guarda en otro store y no usa este selector. */}
             {showMapPickerOption ? (
-              <View className="overflow-hidden rounded-2xl border border-charcoal bg-surface">
-                <PlaceRow
-                  icon={MapIcon}
-                  title="Elegir en el mapa"
-                  subtitle={`Mové el mapa y marcá ${mapPickerTarget}`}
-                  isFirst
-                  onPress={() => router.push({ pathname: '/search-map', params: { field: activeField } })}
-                />
-              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Elegir ${mapPickerTarget} en el mapa`}
+                onPress={openMapPicker}
+                className="flex-row items-center gap-3 rounded-2xl border border-gold/60 bg-gold/10 p-4 active:opacity-80"
+              >
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-gold">
+                  <MapIcon size={20} color={colors.obsidian} />
+                </View>
+                <View className="flex-1 gap-0.5">
+                  <Typography weight="bold">¿No encontrás la dirección?</Typography>
+                  <Typography variant="caption" tone="secondary">
+                    Elegí {mapPickerTarget} en el mapa: mové el mapa y marcá el punto exacto.
+                  </Typography>
+                </View>
+                <ChevronRight size={20} color={colors.gold} />
+              </Pressable>
             ) : null}
 
             <Typography variant="caption" weight="semibold" tone="secondary" className="uppercase tracking-widest">

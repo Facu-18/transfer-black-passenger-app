@@ -68,6 +68,7 @@ export function usePlanTrip() {
   const addTripStop = useTripStore((state) => state.addStop);
   const removeTripStop = useTripStore((state) => state.removeStop);
   const swapTripStopWithNext = useTripStore((state) => state.swapStopWithNext);
+  const moveTripPoint = useTripStore((state) => state.moveTripPoint);
   const setPendingMapPick = useTripStore((state) => state.setPendingMapPick);
   const guestPassenger = useTripStore((state) => state.guestPassenger);
 
@@ -307,6 +308,11 @@ export function usePlanTrip() {
     swapStopWithNext: (index: number) => {
       setHint(null);
       swapTripStopWithNext(index);
+    },
+    /** Reordena arrastrando: `from`/`to` cuentan las paradas y, al final, el destino. */
+    movePoint: (from: number, to: number) => {
+      setHint(null);
+      moveTripPoint(from, to);
     },
     goToPricing,
   };
